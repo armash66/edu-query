@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+.env
+.env.*
+.venv
+env/
+venv/
+ENV/
+
+# Sensitive Workbooks, Student Records, and Data
+data/
+*.xlsx
+*.xls
+*.csv
+*.tsv
+
+# Generated Databases & Runtime Temporary Files
+*.duckdb
+*.duckdb*
+*.sqlite
+*.db
+*.tmp
+temp_*/
+
+# Generated Reports and Exports
+/reports/
+/exports/
+*.pdf
+
+# Credentials and Secrets
+*.key
+*.pem
+*.secret
+credentials*
+
+# Logs
+*.log
+logs/
+
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
