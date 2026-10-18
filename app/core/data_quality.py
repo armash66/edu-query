@@ -1,6 +1,8 @@
 """Academic integrity validator and data-quality auditor for EduQuery V3."""
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 
 from app.core.models import DataQualityFinding, DataQualityReport
