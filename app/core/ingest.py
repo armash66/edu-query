@@ -36,6 +36,11 @@ IDENTITY_PATTERNS = {
     "division": [r"^division$", r"^div\.?$", r"^batch$", r"^section$", r"^class$"],
     "email": [r"^email(?:\s*id)?$", r"^email\s*address$"],
     "level": [r"^level$"],
+    "elective_choice": [
+        r"^elective(?:\s*choice|\s*selected|\s*option|\s*subject)?$",
+        r"^mdm(?:\s*choice|\s*elective|\s*subject)?$",
+        r"^optional(?:\s*subject|\s*course)?$",
+    ],
 }
 
 SUMMARY_PATTERNS = {
@@ -345,6 +350,7 @@ def _read_sheet_rows(
         raw_email = clean_text(ws.cell(first_row, identity["email"]).value) if "email" in identity else ""
         raw_div = clean_text(ws.cell(first_row, identity["division"]).value) if "division" in identity else ""
         raw_level = clean_text(ws.cell(first_row, identity["level"]).value) if "level" in identity else ""
+        raw_elective = clean_text(ws.cell(first_row, identity["elective_choice"]).value) if "elective_choice" in identity else ""
 
         # Primary student key
         student_id = raw_roll or raw_seat or raw_name or f"{sheet_name}-row{first_row}"
@@ -357,6 +363,7 @@ def _read_sheet_rows(
             "email": raw_email or None,
             "division": raw_div or None,
             "level": raw_level or None,
+            "elective_choice": raw_elective or None,
             "source_sheet": sheet_name,
             "source_row": first_row,
         }
@@ -387,13 +394,44 @@ def _read_sheet_rows(
             total, total_flag, total_state = parse_cell(raw_total)
 
             grade = (clean_text(ws.cell(second_row, block.grade_col).value) or None) if block.grade_col else None
-            any_present = any(clean_text(v) for v in raw_values.values()) or (clean_text(ws.cell(first_row, block.credits_col).value) if block.credits_col else False)
+            raw_cr = ws.cell(first_row, block.credits_col).value if block.credits_col else None
+            credits_val, _, _ = parse_cell(raw_cr)
 
-            if any_present:
-                enrollment.append({"student_id": student_id, "course_code": block.code})
+            # Check if student is explicitly selected via metadata
+            is_explicitly_selected = False
+            if raw_elective:
+                clean_el = raw_elective.upper().strip()
+                if clean_el in block.code.upper() or block.code.upper() in clean_el or (len(clean_el) > 3 and clean_el in block.name.upper()):
+                    is_explicitly_selected = True
+
+            has_cell_data = bool(
+                any(clean_text(v) for v in raw_values.values())
+                or clean_text(raw_total)
+                or clean_text(raw_cr)
+                or (grade is not None and clean_text(grade) != "")
+            )
+            is_enrolled = has_cell_data or is_explicitly_selected
+
+            courses.append({
+                "code": block.code,
+                "name": block.name,
+                "kind": block.kind,
+                "paired_code": (block.code[:-1] + ("P" if block.code[-1:].upper() == "T" else "T")) if block.code.upper().endswith(("T", "P")) else None,
+                "credits": credits_val,
+                "credits_raw": clean_text(raw_cr) or None,
+                "components": ",".join([c["component"] for c in block.components] + (["TOT1"] if block.total_col else [])),
+            })
+
+            # If the student is not enrolled in this elective/course block, skip appending scores, grades, and reconciliation
+            if not is_enrolled:
+                continue
+
+            enrollment.append({"student_id": student_id, "course_code": block.code})
 
             for component, raw in raw_values.items():
                 value, flag, state = parse_cell(raw)
+                if is_explicitly_selected and not clean_text(raw):
+                    state = "missing"
                 scores.append({
                     "student_id": student_id,
                     "course_code": block.code,
@@ -421,32 +459,19 @@ def _read_sheet_rows(
                     "source_row": first_row,
                 })
 
-            raw_cr = ws.cell(first_row, block.credits_col).value if block.credits_col else None
-            credits_val, _, _ = parse_cell(raw_cr)
-
-            courses.append({
-                "code": block.code,
-                "name": block.name,
-                "kind": block.kind,
-                "paired_code": (block.code[:-1] + ("P" if block.code[-1:].upper() == "T" else "T")) if block.code.upper().endswith(("T", "P")) else None,
-                "credits": credits_val,
-                "credits_raw": clean_text(raw_cr) or None,
-                "components": ",".join([c["component"] for c in block.components] + (["TOT1"] if block.total_col else [])),
-            })
-
             grades.append({
                 "student_id": student_id,
                 "course_code": block.code,
                 "letter": grade,
             })
 
-            component_sum = sum(x for x in (parse_cell(v)[0] for v in raw_values.values()) if x is not None)
+            component_sum = sum(x for x in (parse_cell(v)[0] for v in raw_values.values()) if x is not None) if has_cell_data else None
             reconciliation.append({
                 "student_id": student_id,
                 "course_code": block.code,
                 "printed_total": total,
-                "computed_total": component_sum if any_present else None,
-                "total_match": bool(any_present and total is not None and abs(total - component_sum) < 1e-5),
+                "computed_total": component_sum,
+                "total_match": bool(total is not None and component_sum is not None and abs(total - component_sum) < 1e-5),
                 "grade": grade,
                 "flags": ",".join(sorted({f for f in (parse_cell(v)[1] for v in raw_values.values()) if f})),
             })
@@ -464,6 +489,83 @@ def _read_sheet_rows(
     return students, list(unique_courses.values()), scores, grades, enrollment, reconciliation
 
 
+def detect_elective_groups(
+    courses: list[dict],
+    enrollment: list[dict],
+    students: list[dict],
+) -> list[dict[str, Any]]:
+    """Detect and summarize elective groupings (such as MDM choices) and verify mutual exclusivity."""
+    if not courses or not enrollment or not students:
+        return []
+
+    student_enrollments: dict[str, set[str]] = {}
+    for e in enrollment:
+        student_enrollments.setdefault(e["student_id"], set()).add(e["course_code"])
+
+    course_enrolled_counts: dict[str, int] = {}
+    for e in enrollment:
+        cc = e["course_code"]
+        course_enrolled_counts[cc] = course_enrolled_counts.get(cc, 0) + 1
+
+    total_student_count = len(students)
+    all_student_ids = {s["student_id"] for s in students}
+    code_to_course = {c["code"]: c for c in courses}
+
+    groups: list[dict[str, Any]] = []
+
+    # 1. MDM Elective Groups: identify courses starting with MDM
+    mdm_codes = [c["code"] for c in courses if c["code"].upper().startswith("MDM")]
+    compulsory_mdm = [c for c in mdm_codes if course_enrolled_counts.get(c, 0) >= max(1, total_student_count * 0.9)]
+    mdm_elective_candidates = [c for c in mdm_codes if c not in compulsory_mdm]
+
+    if len(mdm_elective_candidates) >= 2:
+        group_courses = mdm_elective_candidates
+        assigned = 0
+        unassigned = 0
+        multi_assigned = 0
+        ambiguities = []
+
+        for sid in all_student_ids:
+            en_in_grp = student_enrollments.get(sid, set()).intersection(set(group_courses))
+            if len(en_in_grp) == 1:
+                assigned += 1
+            elif len(en_in_grp) == 0:
+                unassigned += 1
+                ambiguities.append(f"Student {sid}: No elective selection recorded among {group_courses}")
+            else:
+                multi_assigned += 1
+                ambiguities.append(f"Student {sid}: Ambiguous selection across multiple electives ({sorted(en_in_grp)})")
+
+        is_mutually_exclusive = (multi_assigned == 0)
+        status = "valid" if (multi_assigned == 0 and unassigned == 0) else ("ambiguous" if multi_assigned > 0 else "incomplete")
+
+        course_details = [
+            {
+                "code": cc,
+                "name": code_to_course.get(cc, {}).get("name", cc),
+                "enrolled_count": course_enrolled_counts.get(cc, 0),
+            }
+            for cc in sorted(group_courses)
+        ]
+
+        groups.append({
+            "group_id": "mdm_electives",
+            "group_name": "MDM Electives",
+            "course_codes": sorted(group_courses),
+            "courses": course_details,
+            "selection_mode": "single_choice",
+            "total_students": total_student_count,
+            "assigned_count": assigned,
+            "unassigned_count": unassigned,
+            "multi_assigned_count": multi_assigned,
+            "is_mutually_exclusive": is_mutually_exclusive,
+            "status": status,
+            "ambiguities": ambiguities[:10],
+        })
+
+    return groups
+
+
 def ingest(input_path: str | Path, db_path: str | Path = ":memory:") -> tuple[duckdb.DuckDBPyConnection, IngestionReport]:
     """Ingest multi-sheet marksheet workbook into a tidy DuckDB database.
 
@@ -474,7 +576,10 @@ def ingest(input_path: str | Path, db_path: str | Path = ":memory:") -> tuple[du
     if not input_path.exists():
         raise FileNotFoundError(f"Marksheet file not found: {input_path}")
 
-    wb = openpyxl.load_workbook(input_path, data_only=True, read_only=False)
+    import io
+    with open(input_path, "rb") as f:
+        wb_buffer = io.BytesIO(f.read())
+    wb = openpyxl.load_workbook(wb_buffer, data_only=True, read_only=False)
 
     all_students: list[dict] = []
     all_courses_dict: dict[str, dict] = {}
@@ -549,12 +654,17 @@ def ingest(input_path: str | Path, db_path: str | Path = ":memory:") -> tuple[du
     else:
         primary_layout = layouts_by_sheet[sheets_accepted[0]]
 
+    wb.close()
+
     students = all_students
     courses = list(all_courses_dict.values())
     scores = all_scores
     grades = all_grades
     enrollment = all_enrollment
     reconciliation = all_reconciliation
+
+    elective_groups = detect_elective_groups(courses, enrollment, students)
+    primary_layout["elective_groups"] = elective_groups
 
     fingerprint = hashlib.sha256(json.dumps(layouts_by_sheet, sort_keys=True).encode()).hexdigest()[:16]
     primary_layout["fingerprint"] = fingerprint
@@ -583,7 +693,7 @@ def ingest(input_path: str | Path, db_path: str | Path = ":memory:") -> tuple[du
     st_df = pd.DataFrame(students)
     cr_df = pd.DataFrame(courses)
     sc_df = pd.DataFrame(scores)
-    quality_report = run_data_quality_audit(st_df, cr_df, sc_df, session_id=fingerprint)
+    quality_report = run_data_quality_audit(st_df, cr_df, sc_df, session_id=fingerprint, elective_groups=elective_groups)
 
     # Record data quality findings in DuckDB
     finding_rows = []

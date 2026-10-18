@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: eduquery-v3
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: starter
+    region: oregon
+    numInstances: 1
+    healthCheckPath: /livez
+    disk:
+      name: eduquery-data
+      mountPath: /app/data
+      sizeGB: 10
+    envVars:
+      - key: EDUQUERY_ENV
+        value: production
+      - key: EDUQUERY_DATA_DIR
+        value: /app/data
+      - key: EDUQUERY_DATABASE_PATH
+        value: /app/data/eduquery.duckdb
+      - key: EDUQUERY_ACTIVE_POINTER_PATH
+        value: /app/data/active_dataset.json
+      - key: EDUQUERY_IMPORT_SESSION_TTL_SECONDS
+        value: "3600"
+      - key: EDUQUERY_MAX_UPLOAD_SIZE_BYTES
+        value: "26214400"
+      - key: EDUQUERY_LOG_LEVEL
+        value: INFO
+      - key: EDUQUERY_CORS_ORIGINS
+        sync: false
+      - key: EDUQUERY_IMPORT_API_KEY
+        generateValue: true

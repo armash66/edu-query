@@ -11,6 +11,7 @@ def run_data_quality_audit(
     courses_df: pd.DataFrame,
     scores_df: pd.DataFrame,
     session_id: str = "",
+    elective_groups: list[dict[str, Any]] | None = None,
 ) -> DataQualityReport:
     """Run full academic integrity check suite across normalized marksheet tables."""
     findings: list[DataQualityFinding] = []
@@ -22,7 +23,7 @@ def run_data_quality_audit(
         if not dup_sids.empty:
             distinct_dups = dup_sids["student_id"].unique().tolist()
             sample_details = [
-                f"Student ID: {sid} (Name: {students_df.loc[students_df['student_id'] == sid, 'name'].iloc[0]})"
+                f"Student ID: {sid}"
                 for sid in distinct_dups[:5]
             ]
             findings.append(
@@ -76,24 +77,25 @@ def run_data_quality_audit(
                 )
             )
 
-    # 4. Out-of-range marks (< 0 or > 100)
+    # 4. Out-of-range marks (< 0 or > 100) -> Prominent non-blocking data-quality warning
     if not scores_df.empty and "value" in scores_df.columns:
-        numeric_scores = scores_df[scores_df["value"].notna()]
-        out_of_bounds = numeric_scores[(numeric_scores["value"] < 0) | (numeric_scores["value"] > 100)]
-        if not out_of_bounds.empty:
+        numeric_scores = scores_df[scores_df["value"].notna()].copy()
+        out_of_range = numeric_scores[(numeric_scores["value"] < 0) | (numeric_scores["value"] > 100)]
+        if not out_of_range.empty:
+            count = len(out_of_range)
             sample_details = [
-                f"Student {r.student_id} in {r.course_code} ({r.component}): score {r.value}"
-                for r in out_of_bounds.itertuples()
+                f"Course {r.course_code} ({r.component}): score {r.value}"
+                for r in out_of_range.itertuples()
             ][:5]
             findings.append(
                 DataQualityFinding(
                     check_id="out_of_range_marks",
-                    severity="error",
-                    title="Out-of-Range Marks",
-                    count=len(out_of_bounds),
-                    problem=f"{len(out_of_bounds)} score entries are negative or exceed the maximum limit of 100.",
-                    impact="Distorts average calculations, grade band assignments, and rankings.",
-                    recommended_action="Check the original spreadsheet for typing errors or incorrect scale definitions.",
+                    severity="warning",
+                    title=f"Data quality warning: {count} score entries need review",
+                    count=count,
+                    problem="Some entries fall outside the expected marks range. You can continue to explore the cohort, but affected calculations may be incomplete until these entries are reviewed.",
+                    impact="Some entries fall outside standard marks bounds (negative or exceeding 100). Calculations for affected subjects should be reviewed.",
+                    recommended_action="Review the original spreadsheet for extended curriculum scales (> 100), bonus marks, or data entry errors.",
                     details=sample_details,
                 )
             )
@@ -148,7 +150,7 @@ def run_data_quality_audit(
                         problem=f"{len(mismatched_passes)} student(s) are recorded as PASSES but carry failing flags (E/F/AB) in components.",
                         impact="Recorded result may conflict with component-level academic pass rules.",
                         recommended_action="Verify if compensatory condonation / grace marks were granted to pass the student.",
-                        details=[f"Student ID: {r.student_id} ({r.name})" for r in mismatched_passes.itertuples()][:5],
+                        details=[f"Student ID: {r.student_id}" for r in mismatched_passes.itertuples()][:5],
                     )
                 )
 
@@ -200,6 +202,71 @@ def run_data_quality_audit(
                     impact="Some students may require manual verification of their academic outcome.",
                     recommended_action="Verify if results for these students are withheld or pending moderation.",
                     details=[f"Student ID: {r.student_id}" for r in students_df[students_df["result"].isna()].itertuples()][:5],
+                )
+            )
+
+    # 9. Elective selection integrity (MDM / course electives)
+    if elective_groups:
+        total_checks += 1
+        for grp in elective_groups:
+            multi_cnt = grp.get("multi_assigned_count", 0)
+            if multi_cnt > 0:
+                findings.append(
+                    DataQualityFinding(
+                        check_id="ambiguous_elective_selection",
+                        severity="warning",
+                        title=f"Ambiguous Elective Selection ({grp.get('group_name', 'Electives')})",
+                        count=multi_cnt,
+                        problem=f"{multi_cnt} student(s) have enrollment or score records in multiple mutually exclusive alternatives.",
+                        impact="Electives represent alternative options; multiple enrollment inflates total credits and distorts averages.",
+                        recommended_action="Verify student course registration to confirm single intended elective subject.",
+                        details=grp.get("ambiguities", [])[:5],
+                    )
+                )
+            unassigned_cnt = grp.get("unassigned_count", 0)
+            if unassigned_cnt > 0:
+                findings.append(
+                    DataQualityFinding(
+                        check_id="unassigned_elective",
+                        severity="info",
+                        title=f"Unassigned Elective Selection ({grp.get('group_name', 'Electives')})",
+                        count=unassigned_cnt,
+                        problem=f"{unassigned_cnt} student(s) lack an elective selection in {grp.get('group_name')}.",
+                        impact="Students without an elective selection may be missing required curriculum credits.",
+                        recommended_action="Ensure students are registered for their elective choice.",
+                        details=grp.get("ambiguities", [])[:5],
+                    )
+                )
+
+    # 10. Check for elective choice metadata conflict with scores
+    if not students_df.empty and "elective_choice" in students_df.columns and not scores_df.empty:
+        total_checks += 1
+        students_with_choice = students_df[students_df["elective_choice"].notna() & (students_df["elective_choice"] != "")]
+        conflicts = []
+        for s in students_with_choice.itertuples():
+            sid = s.student_id
+            choice = str(s.elective_choice).strip().upper()
+            student_courses = set(
+                scores_df[
+                    (scores_df["student_id"] == sid)
+                    & (scores_df["value"].notna() | scores_df["flag"].notna())
+                    & (~scores_df["state"].isin(["not_enrolled", "missing"]))
+                ]["course_code"].dropna().str.upper().unique()
+            )
+            mdm_courses_taken = [c for c in student_courses if c.startswith("MDM") and not c.endswith("01")]
+            if mdm_courses_taken and not any(choice in c or c in choice for c in mdm_courses_taken):
+                conflicts.append(f"Student {sid}: Registered choice '{s.elective_choice}' conflicts with marks in {mdm_courses_taken}")
+        if conflicts:
+            findings.append(
+                DataQualityFinding(
+                    check_id="elective_selection_score_conflict",
+                    severity="warning",
+                    title="Elective Registration Conflicts with Marksheet Data",
+                    count=len(conflicts),
+                    problem=f"{len(conflicts)} student(s) have a registered elective choice that conflicts with the actual courses where marks are recorded.",
+                    impact="Grades may be mapped to the wrong curriculum subject code.",
+                    recommended_action="Reconcile student registration records with the department marksheet.",
+                    details=conflicts[:5],
                 )
             )
 

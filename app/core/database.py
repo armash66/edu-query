@@ -21,6 +21,7 @@ TABLE_SCHEMAS = {
         result VARCHAR,
         sgpi DOUBLE,
         cgpa DOUBLE,
+        elective_choice VARCHAR,
         source_sheet VARCHAR,
         source_row INTEGER
     """,
