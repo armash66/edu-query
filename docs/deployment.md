@@ -1,32 +1,35 @@
-# EduQuery V3 — Production Deployment Guide
+# EduQuery V3 - Production Deployment Guide
 
-## Overview
+## 1. Overview
 
-EduQuery V3 is an academic marksheet analysis and verification platform designed for higher education faculty. This document outlines the architecture, containerization, environment configuration, storage topology, and operational requirements for hosting EduQuery V3 in production.
+EduQuery V3 is an academic marksheet analysis platform for higher education faculty. This document outlines the containerization, environment configuration, storage topology, and operational requirements for hosting EduQuery V3 in production.
 
 ---
 
-## 1. System Architecture
+## 2. Deployment Architectures
 
-The application is packaged as a unified container combining:
-- **Frontend SPA**: React 19 + TypeScript + Vite, compiled to static HTML/CSS/JS assets.
-- **Backend API**: Python 3.11 + FastAPI + DuckDB engine.
-- **Static Serving**: FastAPI ASGI server mounts compiled frontend assets at `/` and handles HTML5 pushState client routing via an SPA fallback mechanism, while preserving 404/5xx errors on all `/api/*` endpoints.
+### Architecture Option A: Unified Container on Render (Recommended)
+In this topology, a single Docker container runs FastAPI (Uvicorn) with non-root user execution, serving both the REST API and the compiled React single-page application (SPA).
 
-```
+- Host: Render Web Service (Docker runtime).
+- Persistent Disk: Mounted at `/app/data` (10 GB) for institutional datasets, pointers, and faculty reviews.
+- Ephemeral Disk: Mounted at `/tmp/eduquery-sessions` for privacy-first temporary analysis sessions.
+- Ingress: HTTPS termination handled by Cloudflare / Render edge with HTTP health checks at `/livez`.
+
+```text
                            +--------------------------------------+
-                           |       Reverse Proxy / TLS Ingress    |
-                           |     (Nginx / Caddy / Cloudflare)     |
+                           |   Cloudflare Access / Edge Ingress   |
+                           |   (TLS Termination, Identity Auth)   |
                            +--------------------------------------+
                                               |
-                                     HTTP port 8000
+                                      HTTP port 8000
                                               v
                            +--------------------------------------+
                            |          FastAPI ASGI Server         |
                            |       (uvicorn, non-root user)       |
                            +--------------------------------------+
                                   /                    \
-                       /api/v1/* /                      \ Static SPA
+                       /api/v1/* /                      \ Static Assets
                                 v                        v
                      [API Routers & Services]         [frontend/dist/]
                                 |
@@ -35,112 +38,211 @@ The application is packaged as a unified container combining:
                v                                 v
        Temporary Analysis              Optional Institutional
             Sessions                          Storage
-   data/sessions/{session_id}/          data/datasets/*.duckdb
-   - session.duckdb                     - permanent_default.duckdb
-   - meta.json                          - active_dataset.json
-   - reviews.json                       - data/reviews/*.json
-   [Erased on deletion/TTL]             [Retained across restarts]
+     /tmp/eduquery-sessions/             /app/data/datasets/
+     - session.duckdb                    - dataset_<id>.duckdb
+     - meta.json                         - active_dataset.json
+     - reviews.json                      - data/reviews/*.json
+   [Erased on delete/TTL]                [Persisted across restarts]
 ```
 
----
-
-## 2. Storage Topology & Privacy Modes
-
-EduQuery V3 implements two clearly segregated storage modes:
-
-### Mode A: Temporary Ephemeral Analysis (Default)
-- **Directory**: `/app/data/sessions/{session_id}/`
-- **Session Identification**: Cryptographically secure 32-byte URL-safe base64 token (`secrets.token_urlsafe(32)`).
-- **Session Files**:
-  - `session.duckdb`: Isolated DuckDB database holding ingested student and marks records.
-  - `meta.json`: Session metadata, creation timestamp, last accessed timestamp, TTL expiration.
-  - `reviews.json`: Session-scoped faculty anomaly moderation tags.
-  - Uploaded `.xlsx` files are deleted immediately after parsing.
-- **Lifecycle & Cleanup**:
-  - **Explicit deletion**: Calling `DELETE /api/v1/session` completely deletes the session folder via `shutil.rmtree` and clears client cookies.
-  - **Inactivity TTL**: Auto-deleted after `EDUQUERY_IMPORT_SESSION_TTL_SECONDS` (default: 3600 seconds / 1 hour).
-  - **Startup cleanup**: On server startup, all expired sessions in `/app/data/sessions` are scanned and pruned.
-- **Persistence Guarantees**: Does NOT modify the persistent dataset pointer (`active_dataset.json`) or create persistent DuckDB files in `data/datasets/`.
-
-### Mode B: Institutional Persistent Storage (Explicit Opt-In Only)
-- **Directory**: `/app/data/datasets/` and `/app/data/reviews/`
-- **Activation Pointer**: `/app/data/active_dataset.json`
-- **Requirement**: Requires a persistent volume mount (`-v /mnt/eduquery_data:/app/data`).
-- **Serverless Hosting Note**: Stateless serverless platforms (e.g. standard Google Cloud Run, AWS Lambda) do not support persistent mode unless backed by network mounts (such as AWS EFS or Cloud Storage Fuse).
+### Architecture Option B: Decoupled Vercel Frontend + Render Backend
+In this topology:
+- Frontend: Hosted as a static single-page application on Vercel. SPA routing is managed via `vercel.json` rewrites (`/(.*)` -> `/index.html`).
+- Backend: Hosted as a Docker container on Render.
+- Communication: HTTPS API requests with strict CORS allowlisting on the backend (`EDUQUERY_CORS_ORIGINS`).
 
 ---
 
-## 3. Environment Variables Reference
+## 3. Storage Topology and Privacy Segregation
 
-| Variable | Type | Default | Description |
-| :--- | :--- | :--- | :--- |
-| `EDUQUERY_ENV` | string | `production` | Environment mode (`development`, `production`, `testing`). Enables HTTPS cookies and security boundaries. |
-| `HOST` | string | `0.0.0.0` | Bind host for ASGI server. |
-| `PORT` | integer | `8000` | Bind port for ASGI server. |
-| `EDUQUERY_DATA_DIR` | path | `data` (`/app/data`) | Root data storage directory. Must be writable by UID 10001. |
-| `EDUQUERY_DATABASE_PATH` | path | `data/eduquery.duckdb` | Fallback persistent database path. |
-| `EDUQUERY_ACTIVE_POINTER_PATH` | path | `data/active_dataset.json` | JSON file pointing to current active institutional dataset. |
-| `EDUQUERY_IMPORT_API_KEY` | string | *None* | Optional secret for institutional rollback API. **Never** requested from faculty. |
-| `EDUQUERY_IMPORT_SESSION_TTL_SECONDS`| integer | `3600` | Idle timeout for temporary analysis sessions (in seconds). |
-| `EDUQUERY_MAX_UPLOAD_SIZE_BYTES` | integer | `26214400` (25 MiB) | Maximum marksheet upload stream limit. |
-| `EDUQUERY_CORS_ORIGINS` | string | `""` | Comma-separated list of allowed origins. |
-| `EDUQUERY_LOG_LEVEL` | string | `INFO` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`). |
+EduQuery V3 implements two segregated storage modes:
+
+### Mode A: Ephemeral Analysis Sessions (Default, Privacy-First)
+- Path: `EDUQUERY_TEMPORARY_SESSIONS_DIR` (`/tmp/eduquery-sessions`).
+- Session Token: Cryptographically secure 32-byte URL-safe base64 token.
+- Contents: `session.duckdb`, `meta.json`, `reviews.json`. Uploaded Excel files are deleted immediately following parsing.
+- Cleanup Lifecycle:
+  - Explicit Deletion: Faculty clicking "Delete Session & Clear Data" triggers `DELETE /api/v1/session`, which erases the session directory on disk and clears client cookies.
+  - Inactivity TTL: Sessions idle beyond `EDUQUERY_IMPORT_SESSION_TTL_SECONDS` (default: 3600 seconds / 1 hour) are pruned.
+  - Startup Pruning: Expired sessions are automatically cleared on container startup.
+- Guarantee: Does not write to `/app/data/datasets/` or modify `active_dataset.json`.
+
+### Mode B: Institutional Persistent Storage (Opt-In Only)
+- Path: `/app/data/datasets/` and `/app/data/reviews/`.
+- Active Dataset Pointer: `/app/data/active_dataset.json`.
+- Requirement: Persistent volume mount (`/app/data`).
 
 ---
 
-## 4. Multi-Stage Docker Container Build
+## 4. Multi-Stage Docker Build
 
-The application uses a multi-stage `Dockerfile`:
-1. **Stage 1 (`frontend-builder`)**: Compiles TypeScript and runs Vite production build.
-2. **Stage 2 (`runtime`)**: Minimal `python:3.11-slim` runtime, non-root user (`eduquery:10001`), with pre-created data directories.
+The root `Dockerfile` packages the entire application into a minimal, non-root production container:
 
-### Build Command
+```dockerfile
+# Stage 1: Build Frontend SPA
+FROM node:20-alpine AS frontend-builder
+WORKDIR /build
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: Minimal Python Runtime
+FROM python:3.11-slim AS runtime
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN groupadd -g 10001 eduquery && \
+    useradd -u 10001 -g eduquery -s /bin/sh -d /app eduquery && \
+    mkdir -p /app/data/datasets /app/data/reviews /tmp/eduquery-sessions && \
+    chmod 777 /tmp/eduquery-sessions
+COPY app/ ./app
+COPY --from=frontend-builder /build/dist ./frontend/dist
+RUN chown -R eduquery:eduquery /app /tmp/eduquery-sessions
+USER eduquery
+
+ENV EDUQUERY_ENV=production \
+    EDUQUERY_DATABASE_PATH=/app/data/eduquery.duckdb \
+    EDUQUERY_DATA_DIR=/app/data \
+    EDUQUERY_TEMPORARY_SESSIONS_DIR=/tmp/eduquery-sessions \
+    EDUQUERY_ACTIVE_POINTER_PATH=/app/data/active_dataset.json \
+    PYTHONUNBUFFERED=1
+
+EXPOSE 8000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8000}/livez || exit 1
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 2"]
+```
+
+### Local Container Build Command
 ```bash
 docker build -t eduquery-v3:latest .
 ```
 
-### Run Command (Temporary Mode / Stateless)
+### Local Container Run Command
 ```bash
 docker run -d \
-  --name eduquery-v3 \
+  --name eduquery-test \
   -p 8000:8000 \
   -e EDUQUERY_ENV=production \
-  -e EDUQUERY_IMPORT_SESSION_TTL_SECONDS=3600 \
-  eduquery-v3:latest
-```
-
-### Run Command (Persistent Institutional Storage)
-```bash
-docker run -d \
-  --name eduquery-v3 \
-  -p 8000:8000 \
-  -v /var/data/eduquery:/app/data \
-  -e EDUQUERY_ENV=production \
-  -e EDUQUERY_DATA_DIR=/app/data \
+  -e EDUQUERY_CORS_ORIGINS="http://localhost:8000" \
+  -v eduquery_data:/app/data \
   eduquery-v3:latest
 ```
 
 ---
 
-## 5. Security & Network Hardening
+## 5. Render Blueprint Specification (`render.yaml`)
 
-1. **Faculty Session Authentication**:
-   - Every session receives an opaque session token via `Set-Cookie: eduquery_session=...; HttpOnly; SameSite=Lax; Path=/`.
-   - If HTTPS is active (`request.url.scheme == 'https'` or `X-Forwarded-Proto: https`), `Secure=True` is enforced.
-   - Dual authentication support: clients can also provide `X-EduQuery-Session-Token` header.
-2. **Path Traversal & Archive Bomb Defense**:
-   - Upload streams are rejected if exceeding 25 MiB.
-   - OpenXML zip containers are inspected prior to extraction: maximum 1000 entries, maximum 100 MiB uncompressed, maximum 100:1 compression ratio, and zero relative `..` path entries.
-3. **Student Privacy & Logging Hygiene**:
-   - Student PII, individual marks, raw names, and uploaded contents are **never** logged.
-   - Server logs contain only high-level structural counts (e.g. `145 students ingested`) and anonymous session IDs.
+```yaml
+services:
+  - type: web
+    name: eduquery-v3
+    env: docker
+    dockerfilePath: Dockerfile
+    plan: starter
+    region: oregon
+    numInstances: 1
+    healthCheckPath: /livez
+    disk:
+      name: eduquery-data
+      mountPath: /app/data
+      sizeGB: 10
+    envVars:
+      - key: EDUQUERY_ENV
+        value: production
+      - key: EDUQUERY_DATA_DIR
+        value: /app/data
+      - key: EDUQUERY_DATABASE_PATH
+        value: /app/data/eduquery.duckdb
+      - key: EDUQUERY_ACTIVE_POINTER_PATH
+        value: /app/data/active_dataset.json
+      - key: EDUQUERY_IMPORT_SESSION_TTL_SECONDS
+        value: "3600"
+      - key: EDUQUERY_MAX_UPLOAD_SIZE_BYTES
+        value: "26214400"
+      - key: EDUQUERY_LOG_LEVEL
+        value: INFO
+      - key: EDUQUERY_TEMPORARY_SESSIONS_DIR
+        value: /tmp/eduquery-sessions
+      - key: EDUQUERY_CORS_ORIGINS
+        sync: false
+      - key: EDUQUERY_IMPORT_API_KEY
+        generateValue: true
+      - key: EDUQUERY_GATEWAY_AUTH_REQUIRED
+        sync: false
+      - key: CF_ACCESS_TEAM_DOMAIN
+        sync: false
+      - key: CF_ACCESS_AUD
+        sync: false
+```
 
 ---
 
-## 6. Health & Readiness Probes
+## 6. Vercel Frontend Configuration (`vercel.json`)
 
-The server exposes three operational probe endpoints:
+When deploying the frontend independently on Vercel:
 
-- **`/livez`**: Returns `200 OK` `{"status": "alive"}` immediately. Used for container orchestrator liveness checks.
-- **`/readyz`**: Returns `200 OK` `{"status": "ready"}` when database engines, dependencies, and storage directories are initialized.
-- **`/health`**: Returns detailed database connection health and enrolled student/course counts.
+Root `vercel.json`:
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/dist",
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+```
+
+Environment Variable on Vercel:
+- `VITE_API_BASE_URL`: URL of the deployed backend (e.g. `https://eduquery-api.onrender.com`).
+
+---
+
+## 7. Environment Variables Reference
+
+| Variable | Environment | Default | Purpose |
+| :--- | :--- | :--- | :--- |
+| `EDUQUERY_ENV` | All | `production` | Set to `production` in live deployments. |
+| `PORT` | Production | `8000` | Port assigned by hosting provider. |
+| `HOST` | Production | `0.0.0.0` | Bind address. |
+| `EDUQUERY_DATA_DIR` | Production | `/app/data` | Root directory for persistent datasets and reviews. |
+| `EDUQUERY_TEMPORARY_SESSIONS_DIR` | Production | `/tmp/eduquery-sessions` | Isolated directory for ephemeral analysis sessions. |
+| `EDUQUERY_DATABASE_PATH` | Production | `/app/data/eduquery.duckdb` | Fallback persistent DuckDB file path. |
+| `EDUQUERY_ACTIVE_POINTER_PATH` | Production | `/app/data/active_dataset.json` | Path to atomic active dataset pointer file. |
+| `EDUQUERY_CORS_ORIGINS` | Production | `""` | Comma-separated list of approved origins. |
+| `EDUQUERY_MAX_UPLOAD_SIZE_BYTES` | All | `26214400` (25 MiB) | Maximum upload stream size limit. |
+| `EDUQUERY_IMPORT_SESSION_TTL_SECONDS` | All | `3600` (1 hour) | Expiration time for temporary analysis sessions. |
+| `EDUQUERY_LOG_LEVEL` | All | `INFO` | Logging level. Never logs student PII. |
+| `EDUQUERY_GATEWAY_AUTH_REQUIRED` | Production | `false` | When `true`, enforces Cloudflare Access JWT validation. |
+| `CF_ACCESS_TEAM_DOMAIN` | Production | `""` | Cloudflare Access team domain (e.g. `college.cloudflareaccess.com`). |
+| `CF_ACCESS_AUD` | Production | `""` | Application Audience tag for JWT signature verification. |
+| `EDUQUERY_GATEWAY_SHARED_SECRET` | Production | `""` | Optional shared secret header for reverse proxies. |
+
+---
+
+## 8. Deployment Health Verification
+
+After deployment, verify the service endpoints:
+
+```bash
+# Liveness check (verifies process is responsive)
+curl -f https://eduquery-v3.onrender.com/livez
+
+# Readiness check (verifies database queryability)
+curl -f https://eduquery-v3.onrender.com/readyz
+
+# Health status
+curl -s https://eduquery-v3.onrender.com/health
+```
+
+Expected output of `/livez`:
+```json
+{"status": "alive"}
+```

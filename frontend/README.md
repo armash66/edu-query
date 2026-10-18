@@ -1,26 +1,26 @@
-# EduQuery V3 — Faculty Dashboard (Phase 4)
+# EduQuery V3 - Frontend Application
 
-The faculty-facing web application for EduQuery V3, providing college faculty with an intuitive, deterministic dashboard to inspect student marks rosters, curriculum-wide subject failure rates, data quality audits, and safe marksheet imports.
-
----
-
-## 🛠️ Technology Stack
-
-- **Runtime**: Node.js >= 18 (Tested on Node v24.14.0)
-- **Framework**: React 19 + TypeScript (Strict typing enabled with `verbatimModuleSyntax`)
-- **Build Tool**: Vite 8 with HMR and fast production bundling
-- **Routing**: React Router 7 (`react-router-dom`)
-- **Icons**: Lucide React
-- **Styling**: Native CSS tokens and components (Academic university administration design system)
-- **Testing**: Vitest + React Testing Library + `@testing-library/jest-dom`
+The faculty-facing web application for EduQuery V3 provides college faculty and departmental administrators with a dashboard for inspecting student marks rosters, curriculum-wide subject failure rates, data quality audits, and marksheet analysis workflows.
 
 ---
 
-## 🚀 Quick Start
+## Technology Stack
 
-### 1. Prerequisites & Installation
+- Runtime: Node.js >= 18 (Verified on Node v24.14.0)
+- Framework: React 19 + TypeScript (Strict typing enabled with `verbatimModuleSyntax`)
+- Build Tool: Vite with HMR and production bundling
+- Routing: React Router 7 (`react-router-dom`)
+- Icons: Lucide React
+- Styling: Native CSS design tokens and component stylesheets
+- Testing: Vitest + React Testing Library + `@testing-library/jest-dom`
 
-Ensure you are in the `frontend/` directory:
+---
+
+## Quick Start
+
+### 1. Prerequisites and Installation
+
+Navigate to the `frontend/` directory:
 
 ```bash
 cd frontend
@@ -29,19 +29,10 @@ npm install
 
 ### 2. Start the FastAPI Backend
 
-In a separate terminal, launch the EduQuery V3 backend:
+In a separate terminal, launch the EduQuery V3 backend from the repository root:
 
 ```bash
-# In eduquery-v3 root directory
-uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --reload
-```
-
-Optionally set your administrative import key if you plan to upload and activate marksheets:
-
-```bash
-# Windows PowerShell
-$env:EDUQUERY_IMPORT_API_KEY = "your-admin-secret-key"
-uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000 --reload
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ### 3. Start the Frontend Development Server
@@ -51,39 +42,46 @@ npm run dev
 ```
 
 The application will be accessible at:
-👉 **`http://localhost:5173`**
+`http://localhost:5173`
 
 ---
 
-## ⚙️ Configuration & Environment Variables
+## Configuration and Environment Variables
 
 | Variable | Default (Local Dev) | Description |
 | :--- | :--- | :--- |
-| `VITE_API_BASE_URL` | `""` (Empty string) | API root URL. When empty, Vite dev server automatically proxies `/api` and `/health` requests to `http://127.0.0.1:8000`. Set explicitly if connecting to an external or remote API host (e.g. `http://api.eduquery.internal:8000`). |
+| `VITE_API_BASE_URL` | `""` (Empty string) | API root URL. When empty, Vite dev server automatically proxies `/api` and `/health` requests to `http://127.0.0.1:8000`. Set explicitly when connecting to an external or remote API host (e.g. `https://eduquery-api.onrender.com`). |
 
-> [!CAUTION]
-> **Security Boundary**: Never put administrative keys or credentials into `VITE_*` environment variables or `.env` files. Vite embeds all `VITE_*` variables directly into client-side JavaScript bundles.
-
----
-
-## 🔑 Administrative Import Key Workflow
-
-EduQuery V3 workbook imports and dataset activations are protected by an administrative key:
-
-1. **In-Memory Storage**: The administrative import key is collected through the UI dialog and held **strictly in memory** for the current browser session.
-2. **Zero Client Persistence**: The key is **never** written to `localStorage`, `sessionStorage`, cookies, browser history, or console logs.
-3. **Targeted Delivery**: The key is sent exclusively to workbook preview (`POST /api/v1/imports/preview`), confirmation (`POST /api/v1/imports/confirm`), and import status endpoints via the `X-EduQuery-Import-Key` header.
-4. **Session Clearing**: Faculty can click the key indicator in the top navigation bar to clear the key from memory at any time.
+Security Notice: Never put administrative keys or credentials into `VITE_*` environment variables or `.env` files. Vite embeds all `VITE_*` variables directly into client-side JavaScript bundles.
 
 ---
 
-## 🧪 Running Tests & Build Validation
+## Privacy Modes and Upload Workflow
 
-### Run Frontend Unit & Component Tests
+EduQuery V3 implements a privacy-first workflow on the `/upload` page:
+
+1. **Temporary Analysis (Default, Zero Persistence)**:
+   - Workbooks are uploaded and ingested into an isolated ephemeral DuckDB session in temporary server memory.
+   - All server artifacts are deleted upon clicking "Delete Session & Clear Data" or when the idle TTL expires.
+   - No permanent files are written to the persistent institutional database.
+
+2. **Institutional Storage (Opt-In Only)**:
+   - Faculty can explicitly choose to retain the dataset into institutional storage (`/app/data/datasets`).
+   - Requires providing a dataset name before activation.
+
+3. **Client-Side Blob Downloads**:
+   - Roster and failure report CSV exports are requested via authenticated `fetch` calls and saved as client-side `Blob` objects.
+   - Tokens are passed via request headers or single-use tickets, avoiding exposure in query strings.
+
+---
+
+## Running Tests and Validation
+
+### Run Frontend Unit and Component Tests
 ```bash
 npm run test
 ```
-*Current test suite: **34/34 passing** across 9 test files.*
+Current test baseline: **61/61 passing** across 12 test suites.
 
 ### Run TypeScript Strict Type Checks
 ```bash
@@ -98,36 +96,33 @@ Production assets are generated in `frontend/dist/`.
 
 ---
 
-## 🧭 Application Modules & Route Map
+## Application Modules and Route Map
 
 | Route | Page | Purpose |
 | :--- | :--- | :--- |
-| `/` | `OverviewPage` | Live backend health, enrolled student headcount, course count, data quality rating, and quick workflows. |
-| `/students` | `StudentsPage` | Student marks roster with debounced search, division filter, outcome filter, and pagination. |
-| `/students/:identifier` | `StudentDetailPage` | Comprehensive student breakdown: component marks, computed component sums vs. printed totals, total match verification, and HTTP 409 ambiguous query candidate resolution dialog. |
-| `/failures` | `SubjectFailuresPage` | Curriculum-wide failure analysis: sortable table of failure counts, enrolled denominators, and exact backend failure rates. |
-| `/subjects/:courseCode/failures` | `SubjectDetailPage` | Subject failure roster: confirmed failing students, component mark breakdowns, and clean zero-failures view. |
+| `/` | `OverviewPage` | Metric strip, actionable findings, division comparisons, and quick actions. |
+| `/upload` | `UploadPage` | Privacy-first marksheet upload (.xlsx), detected cohort preview, data quality warnings, and privacy mode selection. |
+| `/explore` | `ExplorePage` | Interactive investigation engine with quick presets, multi-condition filter builder, AND/OR logic, and search. |
+| `/students` | `StudentsPage` | Student marks roster with search, division filter, outcome filter, pagination, and CSV export. |
+| `/students/:identifier` | `StudentDetailPage` | Student breakdown: component marks, computed sums vs printed totals, total match verification, and disambiguation. |
+| `/failures` | `SubjectFailuresPage` | Curriculum-wide failure analysis: sortable table of failure counts, enrolled denominators, and exact failure rates. |
+| `/subjects/:courseCode/failures` | `SubjectDetailPage` | Subject failure roster with component mark breakdowns, enrolled students, and confirmed failures. |
 | `/subjects` | `SubjectsCatalogPage` | Course catalog with modality (theory/practical) and division filtering. |
-| `/data-quality` | `DataQualityPage` | Marksheet structural audit: integrity score, severity filters, problem descriptions, impact explanations, and recommended actions. |
-| `/imports` | `ImportPage` | Marksheet workbook upload (.xlsx), client-side 25MB precheck, safe candidate preview without PII, blocking error guards, and explicit activation confirmation. |
+| `/data-quality` | `DataQualityPage` | Marksheet structural audit: integrity score, severity filters, problem descriptions, impact explanations, and actions. |
+| `/imports` | `ImportPage` | Administrative dataset management, candidate staging, and dataset rollback interface. |
 
 ---
 
-## ⚠️ Troubleshooting & Common Connection Errors
+## Troubleshooting Common Issues
 
-1. **`Cannot connect to EduQuery backend at local server` (`NETWORK_ERROR`)**:
-   - Ensure the FastAPI server is running (`http://127.0.0.1:8000`).
-   - Check if `/health` responds: open `http://127.0.0.1:8000/health` in your browser.
-   - If using a custom port, update `vite.config.ts` proxy or set `VITE_API_BASE_URL`.
+1. **Cannot connect to backend (`NETWORK_ERROR`)**:
+   - Ensure the FastAPI server is running on `http://127.0.0.1:8000`.
+   - Verify health probe response: `http://127.0.0.1:8000/livez`.
+   - If using a custom port or remote host, set `VITE_API_BASE_URL` in `frontend/.env`.
 
 2. **`HTTP 503 DATABASE_UNAVAILABLE` on student or subject queries**:
-   - The database has not had a marksheet activated yet.
-   - Navigate to `/imports`, set your admin key, upload your Excel marksheet, preview it, and activate the dataset.
+   - No active dataset is loaded in memory or institutional storage.
+   - Navigate to `/upload` and upload an Excel marksheet to start an analysis session.
 
-3. **`HTTP 401 UNAUTHORIZED` during Marksheet Upload or Activation**:
-   - The admin key provided does not match the server's configured `EDUQUERY_IMPORT_API_KEY`.
-   - Click "Set Admin Key" in the top bar to update the session key.
-
-4. **`HTTP 503 IMPORT_DISABLED`**:
-   - The backend server was started without `EDUQUERY_IMPORT_API_KEY` defined in the environment.
-   - Restart FastAPI with `$env:EDUQUERY_IMPORT_API_KEY="your-key"`.
+3. **CORS Error in Browser Console**:
+   - Verify `EDUQUERY_CORS_ORIGINS` on the backend includes the frontend origin (e.g. `http://localhost:5173`).
