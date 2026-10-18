@@ -41,12 +41,10 @@ def resolve_session_id(
     eduquery_session: str | None = Cookie(default=None, alias=COOKIE_NAME),
     x_eduquery_session_token: str | None = Header(default=None, alias="X-EduQuery-Session-Token"),
 ) -> str | None:
-    """Resolve session ID from header or cookie."""
+    """Resolve session ID strictly from header or secure cookie (never from query strings)."""
     token = x_eduquery_session_token or eduquery_session
     if not token and hasattr(request, "cookies"):
         token = request.cookies.get(COOKIE_NAME)
-    if not token and hasattr(request, "query_params"):
-        token = request.query_params.get("session_token")
     return token.strip() if token else None
 
 
@@ -228,3 +226,38 @@ def save_session(
     request.app.state.active_dataset_id = saved_info["dataset_id"]
 
     return saved_info
+
+
+class DownloadTicketRequest(BaseModel):
+    resource_id: str | None = None
+
+
+@router.post("/download-ticket", summary="Generate a single-use short-lived ticket for direct file downloads")
+def create_download_ticket(
+    request: Request,
+    payload: DownloadTicketRequest | None = None,
+    eduquery_session: str | None = Cookie(default=None, alias=COOKIE_NAME),
+    x_eduquery_session_token: str | None = Header(default=None, alias="X-EduQuery-Session-Token"),
+) -> dict[str, Any]:
+    """Generate a 60-second single-use download ticket tied to the active session.
+
+    Avoids exposing the long-lived session token in download URLs or browser history.
+    """
+    session_id = resolve_session_id(request, eduquery_session, x_eduquery_session_token)
+    if not session_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "status": "error",
+                "error_code": "SESSION_REQUIRED",
+                "message": "An active analysis session is required to generate download tickets.",
+            },
+        )
+    from app.services.session_manager import issue_download_ticket
+    resource = payload.resource_id if payload else ""
+    ticket = issue_download_ticket(session_id=session_id, resource_id=resource or "")
+    return {
+        "status": "success",
+        "ticket": ticket,
+        "expires_in_seconds": 60,
+    }

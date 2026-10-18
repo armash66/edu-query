@@ -26,7 +26,15 @@ services:
         value: "26214400"
       - key: EDUQUERY_LOG_LEVEL
         value: INFO
+      - key: EDUQUERY_TEMPORARY_SESSIONS_DIR
+        value: /tmp/eduquery-sessions
       - key: EDUQUERY_CORS_ORIGINS
         sync: false
       - key: EDUQUERY_IMPORT_API_KEY
         generateValue: true
+      - key: EDUQUERY_GATEWAY_AUTH_REQUIRED
+        sync: false
+      - key: CF_ACCESS_TEAM_DOMAIN
+        sync: false
+      - key: CF_ACCESS_AUD
+        sync: false

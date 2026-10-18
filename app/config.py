@@ -22,7 +22,7 @@ class Settings(BaseModel):
         or "data/eduquery.duckdb"
     )
 
-    # CORS settings
+    # CORS settings: strictly explicit origins; regex is disabled by default to prevent lookalike/arbitrary domain bypass
     cors_origins: list[str] = Field(
         default_factory=lambda: [
             origin.strip()
@@ -34,10 +34,7 @@ class Settings(BaseModel):
         ]
     )
     cors_origin_regex: str | None = Field(
-        default_factory=lambda: os.getenv(
-            "EDUQUERY_CORS_ORIGIN_REGEX",
-            r"^https:\/\/.*\.vercel\.app$",
-        )
+        default_factory=lambda: os.getenv("EDUQUERY_CORS_ORIGIN_REGEX") or None
     )
 
     # Logging settings
@@ -57,8 +54,29 @@ class Settings(BaseModel):
         default_factory=lambda: os.getenv("EDUQUERY_ACTIVE_POINTER_PATH", "data/active_dataset.json")
     )
     data_dir: str = Field(default_factory=lambda: os.getenv("EDUQUERY_DATA_DIR", "data"))
+    temporary_sessions_dir: str | None = Field(
+        default_factory=lambda: os.getenv("EDUQUERY_TEMPORARY_SESSIONS_DIR") or None,
+        description="Directory for isolated ephemeral temporary analysis sessions. When None, defaults to data_dir/sessions.",
+    )
     frontend_dist_dir: str = Field(
         default_factory=lambda: os.getenv("EDUQUERY_FRONTEND_DIST_DIR", "frontend/dist")
+    )
+
+    # Faculty Identity Gateway settings (e.g. Cloudflare Access / Zero Trust)
+    gateway_auth_required: bool = Field(
+        default_factory=lambda: os.getenv("EDUQUERY_GATEWAY_AUTH_REQUIRED", "false").lower() in ("true", "1", "yes")
+    )
+    cf_access_team_domain: str | None = Field(
+        default_factory=lambda: os.getenv("CF_ACCESS_TEAM_DOMAIN") or None
+    )
+    cf_access_aud: str | None = Field(
+        default_factory=lambda: os.getenv("CF_ACCESS_AUD") or None
+    )
+    cf_access_certs_url: str | None = Field(
+        default_factory=lambda: os.getenv("CF_ACCESS_CERTS_URL") or None
+    )
+    gateway_shared_secret: str | None = Field(
+        default_factory=lambda: os.getenv("EDUQUERY_GATEWAY_SHARED_SECRET") or None
     )
 
     @property

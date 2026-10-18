@@ -38,7 +38,8 @@ def get_db(
 
     cfg = app_settings or get_settings()
 
-    # 1. Check for active temporary session token in headers or cookies
+    # 1. Check for active temporary session token in headers, cookies, or short-lived single-use ticket
+    # NOTE: Long-lived session tokens in URL query strings are strictly forbidden to prevent log/history leakage.
     session_token = None
     if request is not None and hasattr(request, "scope") and isinstance(request.scope, dict):
         if "headers" in request.scope:
@@ -46,8 +47,12 @@ def get_db(
                 session_token = request.headers.get("X-EduQuery-Session-Token")
                 if not session_token:
                     session_token = request.cookies.get("eduquery_session")
+                # Allow single-use short-lived download ticket for direct browser downloads
                 if not session_token and hasattr(request, "query_params"):
-                    session_token = request.query_params.get("session_token")
+                    ticket = request.query_params.get("ticket")
+                    if ticket:
+                        from app.services.session_manager import consume_download_ticket
+                        session_token = consume_download_ticket(ticket)
             except Exception:
                 session_token = None
 
@@ -57,7 +62,9 @@ def get_db(
         # Prevent path traversal
         import re
         if re.match(r"^[a-zA-Z0-9_\-]{16,64}$", token):
-            sessions_root = Path(cfg.data_dir).resolve() / "sessions"
+            sessions_root = Path(
+                getattr(cfg, "temporary_sessions_dir", None) or (Path(cfg.data_dir).resolve() / "sessions")
+            ).resolve()
             session_dir = sessions_root / token
             session_db = session_dir / "session.duckdb"
             meta_file = session_dir / "meta.json"
@@ -91,6 +98,12 @@ def get_db(
 
     if str(target_path).strip().lower() == ":memory:":
         con = duckdb.connect(":memory:")
+        tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+        if "students" not in tables or "courses" not in tables:
+            con.close()
+            raise DatabaseUnavailableError(
+                "Configured in-memory database is uninitialized (required tables missing)."
+            )
         try:
             yield con
         finally:
@@ -129,3 +142,12 @@ def get_db(
         yield con
     finally:
         con.close()
+
+
+def require_gateway_auth(request: Request) -> Any:
+    """Dependency that enforces faculty identity gateway verification when configured.
+
+    Fails closed if gateway authentication is enforced and valid credentials are missing.
+    """
+    from app.core.gateway_auth import verify_gateway_identity
+    return verify_gateway_identity(request)

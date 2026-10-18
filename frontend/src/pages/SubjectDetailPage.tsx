@@ -10,7 +10,11 @@ import {
   ShieldCheck,
   Download,
 } from 'lucide-react'
-import { getSubjectFailures, getSubjectFailuresExportUrl } from '../api/client'
+import {
+  getSubjectFailures,
+  downloadSubjectFailuresCsv,
+  saveBlobAsFile,
+} from '../api/client'
 import {
   ApiError,
   type SubjectFailureResponse,
@@ -33,6 +37,21 @@ export const SubjectDetailPage: React.FC = () => {
   const [error, setError] = useState<ApiError | null>(null)
 
   const pageSize = 25
+  const [exporting, setExporting] = useState<boolean>(false)
+
+  const handleExport = async () => {
+    if (!courseCode) return
+    setExporting(true)
+    try {
+      const blob = await downloadSubjectFailuresCsv(courseCode, divisionParam || null)
+      const filename = `subject_failures_${courseCode}${divisionParam ? `_div_${divisionParam}` : ''}.csv`
+      saveBlobAsFile(blob, filename)
+    } catch {
+      alert('Failed to download subject failures CSV. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const fetchCourseFailures = useCallback(async () => {
     if (!courseCode) return
@@ -150,15 +169,16 @@ export const SubjectDetailPage: React.FC = () => {
                     </select>
                   </div>
 
-                  <a
-                    href={getSubjectFailuresExportUrl(courseCode || '', divisionParam || null)}
-                    download
+                  <button
+                    type="button"
+                    onClick={handleExport}
+                    disabled={exporting}
                     className="btn btn-secondary btn-sm"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     title="Export confirmed subject failures roster as CSV"
                   >
-                    <Download size={14} /> Export Failures (CSV)
-                  </a>
+                    <Download size={14} /> {exporting ? 'Exporting...' : 'Export Failures (CSV)'}
+                  </button>
                 </div>
               </div>
             </div>

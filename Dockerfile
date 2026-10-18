@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Create non-root system user and persistent storage directories
 RUN groupadd -g 10001 eduquery && \
     useradd -u 10001 -g eduquery -s /bin/sh -d /app eduquery && \
-    mkdir -p /app/data/datasets /app/data/reviews /app/data/sessions
+    mkdir -p /app/data/datasets /app/data/reviews /tmp/eduquery-sessions && \
+    chmod 777 /tmp/eduquery-sessions
 
 # Copy backend application source
 COPY app/ ./app
@@ -33,7 +34,7 @@ COPY app/ ./app
 COPY --from=frontend-builder /build/dist ./frontend/dist
 
 # Set ownership of application and persistent data directories
-RUN chown -R eduquery:eduquery /app
+RUN chown -R eduquery:eduquery /app /tmp/eduquery-sessions
 
 # Switch to non-root execution
 USER eduquery
@@ -42,6 +43,7 @@ USER eduquery
 ENV EDUQUERY_ENV=production \
     EDUQUERY_DATABASE_PATH=/app/data/eduquery.duckdb \
     EDUQUERY_DATA_DIR=/app/data \
+    EDUQUERY_TEMPORARY_SESSIONS_DIR=/tmp/eduquery-sessions \
     EDUQUERY_ACTIVE_POINTER_PATH=/app/data/active_dataset.json \
     PYTHONUNBUFFERED=1
 

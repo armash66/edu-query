@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import AsyncGenerator
 
 import duckdb
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -113,6 +113,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+    # Faculty Identity Gateway middleware (enforces zero-trust gateway when configured)
+    @app.middleware("http")
+    async def gateway_auth_middleware(request: Request, call_next):
+        # Exclude public health probes, docs, static assets, and CORS preflight OPTIONS requests
+        path = request.url.path
+        if (
+            path in ("/livez", "/readyz", "/health", "/openapi.json", "/docs", "/redoc")
+            or path.startswith("/assets")
+            or request.method == "OPTIONS"
+        ):
+            return await call_next(request)
+
+        if cfg.gateway_auth_required:
+            from app.core.gateway_auth import verify_gateway_identity
+            try:
+                verify_gateway_identity(request, cfg)
+            except HTTPException as exc:
+                return JSONResponse(status_code=exc.status_code, content=exc.detail)
+
+        return await call_next(request)
 
     # Exception Handlers
     @app.exception_handler(DatabaseUnavailableError)

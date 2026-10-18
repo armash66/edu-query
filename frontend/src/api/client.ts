@@ -138,6 +138,66 @@ export async function request<T>(path: string, options: FetchOptions = {}): Prom
   return data as T
 }
 
+export async function requestBlob(path: string, options: FetchOptions = {}): Promise<Blob> {
+  const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+  const headers: Record<string, string> = {
+    Accept: 'text/csv, application/octet-stream, */*',
+    ...(options.headers as Record<string, string>),
+  }
+
+  const activeSessionToken = options.sessionToken ?? getSessionToken()
+  if (activeSessionToken) {
+    headers['X-EduQuery-Session-Token'] = activeSessionToken
+  }
+
+  if (options.adminKey) {
+    headers['X-EduQuery-Import-Key'] = options.adminKey.trim()
+  }
+
+  let response: Response
+  try {
+    response = await fetch(url, {
+      credentials: 'same-origin',
+      ...options,
+      headers,
+    })
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
+    const message = err instanceof Error ? err.message : 'Network request failed'
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      `Cannot connect to EduQuery backend at ${BASE_URL || 'local server'}. (${message})`
+    )
+  }
+
+  if (!response.ok) {
+    let errMessage = `Export failed with HTTP ${response.status}`
+    try {
+      const errData = await response.json()
+      if (errData?.message) errMessage = errData.message
+    } catch {
+      // Ignore JSON parse failure on non-JSON error
+    }
+    throw new ApiError(response.status, 'EXPORT_FAILED', errMessage)
+  }
+
+  return response.blob()
+}
+
+export function saveBlobAsFile(blob: Blob, filename: string): void {
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}
+
 // =========================================================================
 // Health & System Probe
 // =========================================================================
@@ -327,21 +387,51 @@ export async function rollbackDataset(
   })
 }
 
+export async function downloadStudentBreakdownCsv(identifier: string): Promise<Blob> {
+  const clean = encodeURIComponent(identifier.trim())
+  return requestBlob(`/api/v1/students/${clean}/export`)
+}
+
+export async function downloadSubjectFailuresCsv(courseCode: string, division?: string | null): Promise<Blob> {
+  const clean = encodeURIComponent(courseCode.trim())
+  const q = division ? `?division=${encodeURIComponent(division.trim())}` : ''
+  return requestBlob(`/api/v1/subjects/${clean}/failures/export${q}`)
+}
+
+export async function downloadStudentsRosterCsv(params: StudentListParams = {}): Promise<Blob> {
+  const q = new URLSearchParams()
+  if (params.query?.trim()) q.set('query', params.query.trim())
+  if (params.division?.trim()) q.set('division', params.division.trim())
+  if (params.result?.trim()) q.set('result', params.result.trim())
+  if (params.course_code?.trim()) q.set('course_code', params.course_code.trim())
+  if (params.multi_fails !== undefined && params.multi_fails !== null) {
+    q.set('multi_fails', String(params.multi_fails))
+  }
+  const qs = q.toString()
+  return requestBlob(`/api/v1/students/export${qs ? `?${qs}` : ''}`)
+}
+
+export async function createDownloadTicket(resourceId: string = ''): Promise<string> {
+  const res = await request<{ status: string; ticket: string; expires_in_seconds: number }>(
+    '/api/v1/session/download-ticket',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resource_id: resourceId }),
+    }
+  )
+  return res.ticket
+}
+
 export function getStudentBreakdownExportUrl(identifier: string): string {
   const clean = encodeURIComponent(identifier.trim())
-  const token = getSessionToken()
-  const q = token ? `?session_token=${encodeURIComponent(token)}` : ''
-  return `${BASE_URL}/api/v1/students/${clean}/export${q}`
+  return `${BASE_URL}/api/v1/students/${clean}/export`
 }
 
 export function getSubjectFailuresExportUrl(courseCode: string, division?: string | null): string {
   const clean = encodeURIComponent(courseCode.trim())
-  const q = new URLSearchParams()
-  if (division?.trim()) q.set('division', division.trim())
-  const token = getSessionToken()
-  if (token) q.set('session_token', token)
-  const qs = q.toString()
-  return `${BASE_URL}/api/v1/subjects/${clean}/failures/export${qs ? `?${qs}` : ''}`
+  const params = division ? `?division=${encodeURIComponent(division.trim())}` : ''
+  return `${BASE_URL}/api/v1/subjects/${clean}/failures/export${params}`
 }
 
 export function getStudentsRosterExportUrl(params: StudentListParams = {}): string {
@@ -353,8 +443,6 @@ export function getStudentsRosterExportUrl(params: StudentListParams = {}): stri
   if (params.multi_fails !== undefined && params.multi_fails !== null) {
     q.set('multi_fails', String(params.multi_fails))
   }
-  const token = getSessionToken()
-  if (token) q.set('session_token', token)
   const qs = q.toString()
   return `${BASE_URL}/api/v1/students/export${qs ? `?${qs}` : ''}`
 }
@@ -416,21 +504,13 @@ export async function runInvestigationQuery(
 export async function downloadInvestigationCsv(
   req: InvestigationQueryRequest
 ): Promise<Blob> {
-  const url = `${BASE_URL}/api/v1/investigation/export-csv`
-  const response = await fetch(url, {
+  return requestBlob('/api/v1/investigation/export-csv', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Accept: 'text/csv',
     },
     body: JSON.stringify(req),
   })
-
-  if (!response.ok) {
-    throw new ApiError(response.status, 'EXPORT_FAILED', 'Failed to generate investigation CSV export')
-  }
-
-  return response.blob()
 }
 
 // =========================================================================

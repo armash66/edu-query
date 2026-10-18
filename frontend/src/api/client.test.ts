@@ -269,4 +269,34 @@ describe('API Client', () => {
       expect(apiErr.message).toContain('Cannot connect to EduQuery backend')
     }
   })
+
+  it('downloads student breakdown CSV as blob with authenticated session header', async () => {
+    sessionStorage.setItem('eduquery_session_token', 'test-session-token-xyz')
+    const mockBlob = new Blob(['student_id,course_code,total\nSTU01,C1,85'], { type: 'text/csv' })
+
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'text/csv' }),
+      blob: async () => mockBlob,
+    }) as unknown as typeof fetch
+
+    const { downloadStudentBreakdownCsv, getStudentBreakdownExportUrl } = await import('./client')
+    const blob = await downloadStudentBreakdownCsv('STU01')
+    expect(blob).toBe(mockBlob)
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/v1/students/STU01/export',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'X-EduQuery-Session-Token': 'test-session-token-xyz',
+          Accept: 'text/csv, application/octet-stream, */*',
+        }),
+      })
+    )
+
+    const url = getStudentBreakdownExportUrl('STU01')
+    expect(url).not.toContain('session_token')
+    expect(url).toBe('/api/v1/students/STU01/export')
+    sessionStorage.clear()
+  })
 })

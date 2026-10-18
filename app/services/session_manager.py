@@ -16,6 +16,7 @@ import os
 import re
 import secrets
 import shutil
+import time
 import zipfile
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -30,6 +31,38 @@ from app.core.ingest import ingest
 logger = logging.getLogger("eduquery.session")
 
 SESSION_ID_RE = re.compile(r"^[a-zA-Z0-9_\-]{16,64}$")
+
+# In-memory single-use download ticket store: ticket_string -> (session_id, resource_id, expires_at)
+_DOWNLOAD_TICKETS: dict[str, tuple[str, str, float]] = {}
+DOWNLOAD_TICKET_TTL_SECONDS = 60
+
+
+def issue_download_ticket(session_id: str, resource_id: str = "") -> str:
+    """Generate a short-lived (60s), single-use download ticket."""
+    clean_id = validate_session_token(session_id)
+    ticket = secrets.token_urlsafe(32)
+    now = time.time()
+    # Prune expired tickets
+    expired = [t for t, v in list(_DOWNLOAD_TICKETS.items()) if v[2] < now]
+    for exp_t in expired:
+        _DOWNLOAD_TICKETS.pop(exp_t, None)
+
+    _DOWNLOAD_TICKETS[ticket] = (clean_id, resource_id, now + DOWNLOAD_TICKET_TTL_SECONDS)
+    return ticket
+
+
+def consume_download_ticket(ticket: str | None) -> str | None:
+    """Validate and atomically consume a single-use download ticket, returning session_id."""
+    if not ticket or not isinstance(ticket, str):
+        return None
+    clean_ticket = ticket.strip()
+    entry = _DOWNLOAD_TICKETS.pop(clean_ticket, None)
+    if not entry:
+        return None
+    session_id, resource_id, expires_at = entry
+    if time.time() > expires_at:
+        return None
+    return session_id
 
 
 def validate_session_token(token: str | None) -> str:
@@ -57,8 +90,16 @@ def validate_session_token(token: str | None) -> str:
 
 
 def get_sessions_root_dir(settings: Settings) -> Path:
-    """Ensure and return the root directory for temporary analysis sessions."""
-    sessions_dir = Path(settings.data_dir).resolve() / "sessions"
+    """Ensure and return the root directory for temporary analysis sessions.
+
+    In production, this maps to ephemeral /tmp/eduquery-sessions to isolate
+    ephemeral data from persistent storage (/app/data).
+    """
+    configured_dir = getattr(settings, "temporary_sessions_dir", None)
+    if configured_dir:
+        sessions_dir = Path(configured_dir).resolve()
+    else:
+        sessions_dir = Path(settings.data_dir).resolve() / "sessions"
     sessions_dir.mkdir(parents=True, exist_ok=True)
     return sessions_dir
 

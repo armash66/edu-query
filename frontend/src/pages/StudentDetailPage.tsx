@@ -11,7 +11,11 @@ import {
   Award,
   Download,
 } from 'lucide-react'
-import { getStudentBreakdown, getStudentBreakdownExportUrl } from '../api/client'
+import {
+  getStudentBreakdown,
+  downloadStudentBreakdownCsv,
+  saveBlobAsFile,
+} from '../api/client'
 import {
   ApiError,
   type StudentBreakdownResponse,
@@ -36,6 +40,21 @@ export const StudentDetailPage: React.FC = () => {
   const [ambiguousCandidates, setAmbiguousCandidates] = useState<CandidateSummary[]>([])
   const [ambiguousQuery, setAmbiguousQuery] = useState<string>('')
   const [isDisambiguationOpen, setIsDisambiguationOpen] = useState<boolean>(false)
+
+  const [exporting, setExporting] = useState<boolean>(false)
+
+  const handleExport = async () => {
+    if (!identifier) return
+    setExporting(true)
+    try {
+      const blob = await downloadStudentBreakdownCsv(identifier)
+      saveBlobAsFile(blob, `student_breakdown_${identifier}.csv`)
+    } catch {
+      alert('Failed to download student breakdown CSV. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const fetchBreakdown = useCallback(async () => {
     if (!identifier) return
@@ -156,15 +175,16 @@ export const StudentDetailPage: React.FC = () => {
         >
           <ArrowLeft size={14} /> Back to Student Roster
         </Link>
-        <a
-          href={getStudentBreakdownExportUrl(identifier || '')}
-          download
+        <button
+          type="button"
+          onClick={handleExport}
+          disabled={exporting}
           className="btn btn-secondary btn-sm"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
           title="Export complete student subject breakdown as CSV"
         >
-          <Download size={14} /> Export Breakdown (CSV)
-        </a>
+          <Download size={14} /> {exporting ? 'Exporting...' : 'Export Breakdown (CSV)'}
+        </button>
       </div>
 
       {/* Student Identity Card */}
