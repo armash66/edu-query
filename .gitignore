@@ -6,6 +6,18 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
+coverage/
+
+# Frontend Build and Dependencies
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+dist-ssr/
+
+# Temporary and Scratch Directories
+scratch/
+.tempmediaStorage/
 
 # Virtual Environments
 .env
