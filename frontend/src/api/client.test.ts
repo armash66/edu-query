@@ -299,4 +299,31 @@ describe('API Client', () => {
     expect(url).toBe('/api/v1/students/STU01/export')
     sessionStorage.clear()
   })
+
+  it('saves blob as file without setting rel=noopener to preserve download filename and extension in Chromium/Edge', async () => {
+    const { saveBlobAsFile } = await import('./client')
+    const createObjectURLSpy = vi.spyOn(window.URL, 'createObjectURL').mockReturnValue('blob:http://localhost:5173/mock-uuid-1234')
+    vi.spyOn(window.URL, 'revokeObjectURL').mockImplementation(() => {})
+
+    let createdAnchor: HTMLAnchorElement | null = null
+    const origCreateElement = document.createElement.bind(document)
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      const el = origCreateElement(tagName)
+      if (tagName === 'a') {
+        createdAnchor = el as HTMLAnchorElement
+      }
+      return el
+    })
+
+    const testBlob = new Blob(['test-binary-data'], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    saveBlobAsFile(testBlob, 'EduQuery_Students.xlsx')
+
+    expect(createdAnchor).not.toBeNull()
+    expect(createdAnchor!.download).toBe('EduQuery_Students.xlsx')
+    expect(createdAnchor!.getAttribute('download')).toBe('EduQuery_Students.xlsx')
+    // Crucial: ensure noopener is NEVER set
+    expect(createdAnchor!.rel).not.toBe('noopener')
+    expect(createdAnchor!.getAttribute('rel')).toBeNull()
+    expect(createObjectURLSpy).toHaveBeenCalled()
+  })
 })

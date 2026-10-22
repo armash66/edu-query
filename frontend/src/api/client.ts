@@ -278,28 +278,35 @@ export function saveBlobAsFile(blob: Blob, rawFilename: string): void {
     ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     : 'text/csv;charset=utf-8'
 
-  // Construct a true File object with the explicit target filename
-  let fileToDownload: Blob
-  try {
-    fileToDownload = new File([blob], filename, { type: mimeType })
-  } catch {
-    fileToDownload = new Blob([blob], { type: mimeType })
-  }
+  // Ensure blob has explicit target MIME type
+  const downloadBlob = blob.type === mimeType ? blob : new Blob([blob], { type: mimeType })
 
-  const url = window.URL.createObjectURL(fileToDownload)
+  const url = window.URL.createObjectURL(downloadBlob)
   const a = document.createElement('a')
-  a.style.display = 'none'
+  a.style.position = 'fixed'
+  a.style.left = '-9999px'
+  a.style.top = '-9999px'
+  a.style.opacity = '0'
   a.href = url
   a.download = filename
   a.setAttribute('download', filename)
-  a.rel = 'noopener'
+  // CRITICAL: NEVER set a.rel = 'noopener' or target = '_blank' on download anchors!
+  // In Chromium and Microsoft Edge on Windows, rel="noopener" causes the download attribute
+  // to be discarded and the file to be saved as the blob URL's UUID pathname without an extension.
   document.body.appendChild(a)
-  a.click()
+
+  try {
+    a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))
+  } catch {
+    a.click()
+  }
 
   // Clean up the DOM element after dispatch
   setTimeout(() => {
-    a.remove()
-  }, 500)
+    if (a.parentNode) {
+      a.parentNode.removeChild(a)
+    }
+  }, 1000)
 
   // Retain the URL in memory for 60 seconds before releasing to let browser spooler finish
   setTimeout(() => {
@@ -641,6 +648,66 @@ export function getStudentsRosterExportUrl(params: StudentListParams = {}): stri
   }
   const qs = q.toString()
   return `${BASE_URL}/api/v1/students/export${qs ? `?${qs}` : ''}`
+}
+
+export function getSubjectStudentsExcelExportUrl(
+  courseCode: string,
+  reportType: 'all' | 'passed' | 'failed' | 'absent' = 'all',
+  division?: string | null
+): string {
+  const clean = encodeURIComponent(courseCode.trim())
+  const q = new URLSearchParams()
+  if (division?.trim()) q.set('division', division.trim())
+  q.set('status', reportType)
+  q.set('report_type', reportType)
+  return `${BASE_URL}/api/v1/subjects/${clean}/export-excel?${q.toString()}`
+}
+
+export function getStudentsRosterExcelExportUrl(params: StudentListParams = {}): string {
+  const q = new URLSearchParams()
+  if (params.query?.trim()) q.set('query', params.query.trim())
+  if (params.division?.trim()) q.set('division', params.division.trim())
+  if (params.result?.trim()) q.set('result', params.result.trim())
+  if (params.course_code?.trim()) q.set('course_code', params.course_code.trim())
+  if (params.multi_fails !== undefined && params.multi_fails !== null) {
+    q.set('multi_fails', String(params.multi_fails))
+  }
+  const qs = q.toString()
+  return `${BASE_URL}/api/v1/students/export-excel${qs ? `?${qs}` : ''}`
+}
+
+export function getAbsentStudentsExcelExportUrl(params: AbsentStudentsParams = {}): string {
+  const searchParams = new URLSearchParams()
+  if (params.division?.trim()) searchParams.set('division', params.division.trim())
+  if (params.course_code?.trim()) searchParams.set('course_code', params.course_code.trim())
+  if (params.component?.trim()) searchParams.set('component', params.component.trim())
+  if (params.query?.trim()) searchParams.set('query', params.query.trim())
+  const qs = searchParams.toString()
+  return `${BASE_URL}/api/v1/students/absent/export-excel${qs ? `?${qs}` : ''}`
+}
+
+export function triggerDirectDownload(url: string, filename?: string): void {
+  const a = document.createElement('a')
+  a.style.position = 'fixed'
+  a.style.left = '-9999px'
+  a.style.top = '-9999px'
+  a.style.opacity = '0'
+  a.href = url
+  if (filename) {
+    a.download = filename
+    a.setAttribute('download', filename)
+  }
+  document.body.appendChild(a)
+  try {
+    a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))
+  } catch {
+    a.click()
+  }
+  setTimeout(() => {
+    if (a.parentNode) {
+      a.parentNode.removeChild(a)
+    }
+  }, 1000)
 }
 
 // =========================================================================
