@@ -1,7 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { BookOpen, Filter, ArrowRight } from 'lucide-react'
-import { getSubjects, type SubjectListParams } from '../api/client'
+import {
+  getSubjects,
+  downloadSubjectStudentsExcel,
+  saveBlobAsFile,
+  type SubjectListParams,
+} from '../api/client'
 import { ApiError, type CourseItem, type PaginatedResponse } from '../api/types'
 import { Pagination } from '../components/Pagination'
 import { LoadingState } from '../components/LoadingState'
@@ -13,6 +18,7 @@ export const SubjectsCatalogPage: React.FC = () => {
   const [total, setTotal] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<ApiError | null>(null)
+  const [exportingKey, setExportingKey] = useState<string | null>(null)
 
   const [kindFilter, setKindFilter] = useState<string>('')
   const [divisionFilter, setDivisionFilter] = useState<string>('')
@@ -48,6 +54,32 @@ export const SubjectsCatalogPage: React.FC = () => {
   useEffect(() => {
     fetchCatalog()
   }, [fetchCatalog])
+
+  const handleDownloadSubjectExcel = async (
+    courseCode: string,
+    reportType: 'all' | 'passed' | 'failed' | 'absent'
+  ) => {
+    const key = `${courseCode}_${reportType}`
+    setExportingKey(key)
+    try {
+      const safeCode = courseCode.replace(/[^a-zA-Z0-9_-]/g, '_')
+      let filename = `${safeCode}_All_Students.xlsx`
+      if (reportType === 'passed') filename = `${safeCode}_Passed_Students.xlsx`
+      else if (reportType === 'failed') filename = `${safeCode}_Failed_Students.xlsx`
+      else if (reportType === 'absent') filename = `${safeCode}_Absent_Students.xlsx`
+
+      const blob = await downloadSubjectStudentsExcel(
+        courseCode,
+        reportType,
+        divisionFilter.trim() || null
+      )
+      saveBlobAsFile(blob, filename)
+    } catch {
+      alert(`Failed to download ${reportType} students workbook for ${courseCode}. Please try again.`)
+    } finally {
+      setExportingKey(null)
+    }
+  }
 
   return (
     <div>
@@ -188,15 +220,49 @@ export const SubjectsCatalogPage: React.FC = () => {
                       {course.enrolled_students_count != null ? course.enrolled_students_count.toLocaleString() : '—'}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <Link
-                        to={`/subjects/${encodeURIComponent(course.code)}`}
-                        className="btn btn-secondary btn-sm"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                      >
-                        <BookOpen size={13} style={{ color: 'var(--primary)' }} />
-                        <span>View Students</span>
-                        <ArrowRight size={13} />
-                      </Link>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                        <select
+                          className="form-control"
+                          style={{
+                            fontSize: '0.75rem',
+                            padding: '0.25rem 0.45rem',
+                            width: 'auto',
+                            cursor: 'pointer',
+                            color: 'var(--text-main)',
+                          }}
+                          disabled={exportingKey !== null && exportingKey.startsWith(course.code)}
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleDownloadSubjectExcel(
+                                course.code,
+                                e.target.value as 'all' | 'passed' | 'failed' | 'absent'
+                              )
+                            }
+                          }}
+                          aria-label={`Download reports for ${course.code}`}
+                        >
+                          <option value="" disabled>
+                            {exportingKey !== null && exportingKey.startsWith(course.code)
+                              ? 'Exporting...'
+                              : 'Download (.xlsx)...'}
+                          </option>
+                          <option value="all">All Students (.xlsx)</option>
+                          <option value="passed">Passed Students (.xlsx)</option>
+                          <option value="failed">Failed Students (.xlsx)</option>
+                          <option value="absent">Absent Students (.xlsx)</option>
+                        </select>
+
+                        <Link
+                          to={`/subjects/${encodeURIComponent(course.code)}`}
+                          className="btn btn-secondary btn-sm"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                        >
+                          <BookOpen size={13} style={{ color: 'var(--primary)' }} />
+                          <span>View</span>
+                          <ArrowRight size={13} />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}

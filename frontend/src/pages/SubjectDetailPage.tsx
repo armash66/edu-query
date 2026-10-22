@@ -125,7 +125,7 @@ export const SubjectDetailPage: React.FC = () => {
     setSearchParams(nextParams)
   }
 
-  const handleExportExcel = async (type: 'all' | 'passed' | 'failed') => {
+  const handleExportExcel = async (type: 'all' | 'passed' | 'failed' | 'absent') => {
     if (!courseCode) return
     setExportingType(type)
     try {
@@ -135,6 +135,8 @@ export const SubjectDetailPage: React.FC = () => {
         filename = `${safeCode}_Passed_Students.xlsx`
       } else if (type === 'failed') {
         filename = `${safeCode}_Failed_Students.xlsx`
+      } else if (type === 'absent') {
+        filename = `${safeCode}_Absent_Students.xlsx`
       }
 
       const blob = await downloadSubjectStudentsExcel(
@@ -245,6 +247,18 @@ export const SubjectDetailPage: React.FC = () => {
                   >
                     <Download size={14} />
                     <span>{exportingType === 'failed' ? 'Exporting...' : 'Failed (.xlsx)'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleExportExcel('absent')}
+                    disabled={exportingType !== null || data.absent_count === 0}
+                    className="btn btn-secondary btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#d97706' }}
+                    title="Download absent students as Excel (.xlsx)"
+                  >
+                    <Download size={14} />
+                    <span>{exportingType === 'absent' ? 'Exporting...' : 'Absent (.xlsx)'}</span>
                   </button>
                 </div>
               </div>

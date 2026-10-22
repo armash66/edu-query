@@ -1,5 +1,5 @@
 /**
- * Strongly typed TypeScript definitions matching EduQuery V3 API contracts.
+ * Strongly typed TypeScript definitions matching EduQuery API contracts.
  */
 
 export interface DatabaseHealthInfo {
@@ -42,7 +42,35 @@ export interface StudentSummaryItem {
   cgpa: number | null;
   passed_subject_count?: number;
   failed_subject_count?: number;
+  absent_subject_count?: number;
   unresolved_subject_count?: number;
+}
+
+export interface AbsentStudentItem {
+  student_id: string;
+  roll_no: string | null;
+  seat_no: string | null;
+  name: string;
+  division: string | null;
+  course_code: string;
+  course_name: string;
+  component: string;
+  raw_text: string | null;
+  marks: number | null;
+  total_marks: number | null;
+  overall_result: string | null;
+  passed_subject_count: number;
+  failed_subject_count: number;
+  absent_subject_count: number;
+  source_sheet?: string | null;
+  source_row?: number | null;
+}
+
+export interface AbsentStudentsParams extends PaginationParams {
+  division?: string;
+  course_code?: string;
+  component?: string;
+  query?: string;
 }
 
 export type ComponentState = 'marked' | 'not_enrolled' | 'uncalculated' | 'flagged' | 'unparsed';

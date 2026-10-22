@@ -13,10 +13,12 @@ from app.api.schemas.common import (
     PaginatedResponse,
 )
 from app.api.schemas.student import (
+    AbsentStudentItem,
     StudentBreakdownResponse,
     StudentSummaryItem,
 )
 from app.services.export_service import (
+    export_absent_students_excel,
     export_student_breakdown_csv,
     export_student_breakdown_excel,
     export_students_roster_csv,
@@ -24,6 +26,8 @@ from app.services.export_service import (
 )
 from app.services.student_service import (
     get_student_breakdown_service,
+    list_absent_components,
+    list_absent_students,
     list_students,
 )
 
@@ -102,6 +106,59 @@ def export_students_route(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/absent", response_model=PaginatedResponse[AbsentStudentItem])
+def get_absent_students_route(
+    division: Annotated[str | None, Query(description="Filter by division")] = None,
+    course_code: Annotated[str | None, Query(description="Filter by subject / course code")] = None,
+    component: Annotated[str | None, Query(description="Filter by absent component (e.g. ESE, MSE, ISA)")] = None,
+    query: Annotated[str | None, Query(description="Search by student name, roll no, or seat no")] = None,
+    limit: Annotated[int, Query(ge=1, le=100, description="Page limit (1-100)")] = 50,
+    offset: Annotated[int, Query(ge=0, description="Page offset")] = 0,
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> PaginatedResponse[AbsentStudentItem]:
+    """Retrieve verified absent student examination component records."""
+    return list_absent_students(
+        con=con,
+        division=division,
+        course_code=course_code,
+        component=component,
+        query=query,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/absent/export-excel", response_model=None)
+def export_absent_students_excel_route(
+    division: Annotated[str | None, Query(description="Filter by division")] = None,
+    course_code: Annotated[str | None, Query(description="Filter by subject / course code")] = None,
+    component: Annotated[str | None, Query(description="Filter by absent component")] = None,
+    query: Annotated[str | None, Query(description="Search by student name, roll no, or seat no")] = None,
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> Response:
+    """Export verified absent student examination records as real Excel workbook (.xlsx)."""
+    filename, excel_bytes = export_absent_students_excel(
+        con=con,
+        division=division,
+        course_code=course_code,
+        component=component,
+        query=query,
+    )
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/absent/components", response_model=list[str])
+def get_absent_components_route(
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> list[str]:
+    """Retrieve distinct examination components containing verified absent marks."""
+    return list_absent_components(con=con)
 
 
 @router.get(

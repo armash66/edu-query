@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 class Settings(BaseModel):
     """Application settings with environment variable override support."""
 
-    app_name: str = "EduQuery V3"
+    app_name: str = "EduQuery"
     app_version: str = "3.0.0"
     app_env: str = Field(default_factory=lambda: os.getenv("EDUQUERY_ENV", "development"))
     api_prefix: str = "/api/v1"

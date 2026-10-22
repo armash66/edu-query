@@ -1,5 +1,7 @@
 import { ApiError } from './types'
 import type {
+  AbsentStudentItem,
+  AbsentStudentsParams,
   AnalysisRegistryResponse,
   AnalyticsOverviewResponse,
   AnomalyListResponse,
@@ -141,8 +143,11 @@ export async function request<T>(path: string, options: FetchOptions = {}): Prom
 
 export async function requestBlob(path: string, options: FetchOptions = {}): Promise<Blob> {
   const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+  const defaultAccept = path.includes('excel') || path.endsWith('.xlsx')
+    ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*'
+    : 'text/csv, application/octet-stream, */*'
   const headers: Record<string, string> = {
-    Accept: 'text/csv, application/octet-stream, */*',
+    Accept: defaultAccept,
     ...(options.headers as Record<string, string>),
   }
 
@@ -246,6 +251,37 @@ export async function getStudentBreakdown(
 ): Promise<StudentBreakdownResponse> {
   const encoded = encodeURIComponent(identifier.trim())
   return request<StudentBreakdownResponse>(`/api/v1/students/${encoded}/breakdown`, { signal })
+}
+
+export async function getAbsentStudents(
+  params: AbsentStudentsParams = {},
+  signal?: AbortSignal
+): Promise<PaginatedResponse<AbsentStudentItem>> {
+  const searchParams = new URLSearchParams()
+  if (params.division?.trim()) searchParams.set('division', params.division.trim())
+  if (params.course_code?.trim()) searchParams.set('course_code', params.course_code.trim())
+  if (params.component?.trim()) searchParams.set('component', params.component.trim())
+  if (params.query?.trim()) searchParams.set('query', params.query.trim())
+  if (params.limit !== undefined) searchParams.set('limit', String(params.limit))
+  if (params.offset !== undefined) searchParams.set('offset', String(params.offset))
+
+  const qs = searchParams.toString()
+  return request<PaginatedResponse<AbsentStudentItem>>(`/api/v1/students/absent${qs ? `?${qs}` : ''}`, { signal })
+}
+
+export async function downloadAbsentStudentsExcel(params: AbsentStudentsParams = {}): Promise<Blob> {
+  const searchParams = new URLSearchParams()
+  if (params.division?.trim()) searchParams.set('division', params.division.trim())
+  if (params.course_code?.trim()) searchParams.set('course_code', params.course_code.trim())
+  if (params.component?.trim()) searchParams.set('component', params.component.trim())
+  if (params.query?.trim()) searchParams.set('query', params.query.trim())
+
+  const qs = searchParams.toString()
+  return requestBlob(`/api/v1/students/absent/export-excel${qs ? `?${qs}` : ''}`)
+}
+
+export async function getAbsentComponents(signal?: AbortSignal): Promise<string[]> {
+  return request<string[]>('/api/v1/students/absent/components', { signal })
 }
 
 // =========================================================================

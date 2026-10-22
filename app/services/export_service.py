@@ -12,11 +12,75 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from app.reports.student_breakdown import (
+    StudentSubjectCounts,
     escape_like_pattern,
     get_student_breakdown,
     get_students_subject_counts_batch,
 )
 from app.reports.subject_failures import get_subject_failures
+
+
+def _safe_float(val: Any) -> float | None:
+    """Safely convert value to float or return None on conversion failure."""
+    if val is None:
+        return None
+    if isinstance(val, (int, float)) and not isinstance(val, bool):
+        return float(val)
+    val_str = str(val).strip()
+    if not val_str or val_str.upper() in ("N/A", "AB", "ABS", "--", "-"):
+        return None
+    try:
+        return float(val_str)
+    except (ValueError, TypeError):
+        return None
+
+
+def _safe_int(val: Any) -> int | None:
+    """Safely convert value to int or return None on conversion failure."""
+    if val is None:
+        return None
+    if isinstance(val, int) and not isinstance(val, bool):
+        return val
+    val_str = str(val).strip()
+    if not val_str or val_str.upper() in ("N/A", "AB", "ABS", "--", "-"):
+        return None
+    try:
+        return int(float(val_str))
+    except (ValueError, TypeError):
+        return None
+
+
+def sanitize_cell_text(value: Any) -> str:
+    """Sanitize cell value to prevent spreadsheet formula injection.
+
+    If untrusted text begins with dangerous formula trigger characters ('=', '+', '-', '@', '\t', '\r'),
+    prepend a single quote (') so spreadsheet engines treat it as a string literal.
+    Legitimate numeric values (int, float, or pure numeric strings) are preserved without prefix.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return str(value)
+
+    raw_str = str(value)
+    if not raw_str:
+        return ""
+
+    first_char = raw_str[0]
+    if first_char in ("=", "+", "-", "@", "\t", "\r"):
+        if first_char in ("+", "-"):
+            try:
+                float(raw_str.strip())
+                return raw_str
+            except ValueError:
+                return f"'{raw_str}"
+        return f"'{raw_str}"
+
+    return raw_str
+
+
+# Retain sanitize_csv_cell for backward compatibility
+sanitize_csv_cell = sanitize_cell_text
 
 
 def _apply_workbook_styles(ws: openpyxl.worksheet.worksheet.Worksheet, header_row_idx: int = 1) -> None:
@@ -43,44 +107,16 @@ def _apply_workbook_styles(ws: openpyxl.worksheet.worksheet.Worksheet, header_ro
             if cell.data_type != "s":
                 cell.font = Font(name="Calibri", size=10)
 
-    for col in ws.columns:
-        col_letter = get_column_letter(col[0].column)
+    # Compute column widths strictly from header_row_idx downwards to avoid metadata title blowup
+    for col_idx in range(1, ws.max_column + 1):
+        col_letter = get_column_letter(col_idx)
         max_len = 0
-        for cell in col:
-            val_str = str(cell.value or "")
+        for row_idx in range(header_row_idx, ws.max_row + 1):
+            cell_val = ws.cell(row=row_idx, column=col_idx).value
+            val_str = str(cell_val or "")
             if len(val_str) > max_len:
                 max_len = len(val_str)
-        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
-
-
-def sanitize_csv_cell(value: Any) -> str:
-    """Sanitize cell value to prevent CSV / spreadsheet formula injection.
-
-    If untrusted text begins with dangerous formula trigger characters ('=', '+', '-', '@', '\t', '\r'),
-    prepend a single quote (') so spreadsheet applications interpret it as a literal string.
-    Legitimate numeric values (int, float, or pure numeric strings) are preserved without prefix.
-    """
-    if value is None:
-        return ""
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        return str(value)
-
-    raw_str = str(value)
-    if not raw_str:
-        return ""
-
-    first_char = raw_str[0]
-    if first_char in ("=", "+", "-", "@", "\t", "\r"):
-        # Distinguish legitimate signed numeric values (e.g. -5, +10.5) from formulas (e.g. -CMD, +SUM)
-        if first_char in ("+", "-"):
-            try:
-                float(raw_str.strip())
-                return raw_str
-            except ValueError:
-                return f"'{raw_str}"
-        return f"'{raw_str}"
-
-    return raw_str
+        ws.column_dimensions[col_letter].width = min(max(max_len + 4, 12), 45)
 
 
 def sanitize_filename(base: str) -> str:
@@ -451,6 +487,7 @@ def export_students_roster_excel(
         "CGPA",
         "Passed Subjects",
         "Failed Subjects",
+        "Absent Subjects",
         "Source Sheet",
         "Source Row",
     ]
@@ -458,28 +495,35 @@ def export_students_roster_excel(
 
     for r in rows:
         sid = str(r[0])
-        passed_c, failed_c, _ = subject_counts.get(sid, (0, 0, 0))
+        counts = subject_counts.get(sid, StudentSubjectCounts(0, 0, 0, 0))
+        tot_m = _safe_float(r[6])
+        sgpi = _safe_float(r[8])
+        cgpa = _safe_float(r[9])
+        src_row = _safe_int(r[11])
+
         row_vals = [
             sid,
-            str(r[1]) if r[1] is not None else "",
+            sanitize_cell_text(r[1]),
             str(r[2]) if r[2] is not None else "",
             str(r[3]) if r[3] is not None else "",
-            str(r[4]) if r[4] is not None else "",
-            str(r[5]) if r[5] is not None else "",
-            float(r[6]) if r[6] is not None else "",
-            str(r[7]) if r[7] is not None else "",
-            float(r[8]) if r[8] is not None else "",
-            float(r[9]) if r[9] is not None else "",
-            passed_c,
-            failed_c,
-            str(r[10]) if r[10] is not None else "",
-            int(r[11]) if r[11] is not None else "",
+            sanitize_cell_text(r[4] if r[4] is not None else ""),
+            sanitize_cell_text(r[5] if r[5] is not None else ""),
+            tot_m if tot_m is not None else "",
+            sanitize_cell_text(r[7] if r[7] is not None else ""),
+            sgpi if sgpi is not None else "",
+            cgpa if cgpa is not None else "",
+            counts.passed,
+            counts.failed,
+            counts.absent,
+            sanitize_cell_text(r[10] if r[10] is not None else ""),
+            src_row if src_row is not None else "",
         ]
         ws.append(row_vals)
         cur_row = ws.max_row
-        ws.cell(row=cur_row, column=1).data_type = "s"
-        ws.cell(row=cur_row, column=3).data_type = "s"
-        ws.cell(row=cur_row, column=4).data_type = "s"
+        for col_idx in (1, 3, 4):
+            cell = ws.cell(row=cur_row, column=col_idx)
+            cell.data_type = "s"
+            cell.number_format = "@"
 
     _apply_workbook_styles(ws, header_row_idx=1)
 
@@ -514,6 +558,10 @@ def export_subject_students_excel(
         students_to_export = [s for s in rep.all_students if s.status == "failed"]
         filename = f"{safe_code}_Failed_Students.xlsx"
         sheet_title = "Failed Students"
+    elif clean_type == "absent":
+        students_to_export = [s for s in rep.all_students if s.status == "absent" or s.is_absent]
+        filename = f"{safe_code}_Absent_Students.xlsx"
+        sheet_title = "Absent Students"
     else:
         students_to_export = rep.all_students
         filename = f"{safe_code}_All_Students.xlsx"
@@ -524,7 +572,7 @@ def export_subject_students_excel(
     ws.title = sheet_title[:31]
 
     # Subject Metadata Header Rows
-    ws.append([f"EduQuery — Subject Analysis Roster: {rep.course_code} - {rep.course_name}"])
+    ws.append([f"EduQuery - Subject Analysis Roster: {rep.course_code} - {rep.course_name}"])
     ws.append([f"Component Type: {rep.kind or 'theory'} | Division: {rep.division_filter or 'All Divisions'} | Credits: {rep.credits or 'N/A'}"])
     ws.append([f"Total Enrolled: {rep.total_enrolled} | Passed: {rep.passed_count} | Failed: {rep.confirmed_failures_count} | Absent: {rep.absent_count} | Pass Rate: {rep.pass_percentage:.1f}% ({rep.denominator_explanation})"])
     ws.append([])
@@ -553,27 +601,30 @@ def export_subject_students_excel(
             score_disp = str(c_detail.marks) if c_detail.marks is not None else (c_detail.flag or "N/A")
             comp_parts.append(f"{c_tag}: {score_disp}")
         comp_summary = "; ".join(comp_parts)
+        tot_m = _safe_float(st.total_marks)
+        src_row = _safe_int(st.source_row)
 
         row_vals = [
             str(st.roll_no) if st.roll_no is not None else "",
             str(st.seat_no) if st.seat_no is not None else "",
             str(st.student_id),
-            str(st.name),
-            str(st.division) if st.division is not None else "",
-            comp_summary,
-            float(st.total_marks) if st.total_marks is not None else "",
-            str(st.letter_grade) if st.letter_grade is not None else "",
-            str(st.status).upper(),
-            ", ".join(st.flags),
-            str(st.classification_reason),
-            str(st.source_sheet),
-            int(st.source_row) if st.source_row is not None else "",
+            sanitize_cell_text(st.name),
+            sanitize_cell_text(st.division if st.division is not None else ""),
+            sanitize_cell_text(comp_summary),
+            tot_m if tot_m is not None else "",
+            sanitize_cell_text(st.letter_grade if st.letter_grade is not None else ""),
+            sanitize_cell_text(str(st.status).upper()),
+            sanitize_cell_text(", ".join(st.flags)),
+            sanitize_cell_text(st.classification_reason),
+            sanitize_cell_text(st.source_sheet),
+            src_row if src_row is not None else "",
         ]
         ws.append(row_vals)
         cur_row = ws.max_row
-        ws.cell(row=cur_row, column=1).data_type = "s"
-        ws.cell(row=cur_row, column=2).data_type = "s"
-        ws.cell(row=cur_row, column=3).data_type = "s"
+        for col_idx in (1, 2, 3):
+            cell = ws.cell(row=cur_row, column=col_idx)
+            cell.data_type = "s"
+            cell.number_format = "@"
 
     _apply_workbook_styles(ws, header_row_idx=table_header_row)
 
@@ -695,7 +746,7 @@ def export_investigation_excel(
     ws = wb.active
     ws.title = "Investigation Results"
 
-    ws.append(["EduQuery — Academic Investigation Export"])
+    ws.append(["EduQuery - Academic Investigation Export"])
     ws.append([f"Active Filter Query: {explanation}"])
     ws.append([f"Total Matching Students: {len(rows)}"])
     ws.append([])
@@ -714,6 +765,7 @@ def export_investigation_excel(
         "CGPA",
         "Passed Subjects",
         "Failed Subjects",
+        "Absent Subjects",
         "Source Sheet",
         "Source Row",
     ]
@@ -721,28 +773,35 @@ def export_investigation_excel(
 
     for r in rows:
         sid = str(r[0])
-        passed_c, failed_c, _ = subject_counts.get(sid, (0, 0, 0))
+        counts = subject_counts.get(sid, StudentSubjectCounts(0, 0, 0, 0))
+        tot_m = _safe_float(r[6])
+        sgpi = _safe_float(r[8])
+        cgpa = _safe_float(r[9])
+        src_row = _safe_int(r[11])
+
         row_vals = [
             sid,
-            str(r[1]) if r[1] is not None else "",
+            sanitize_cell_text(r[1]),
             str(r[2]) if r[2] is not None else "",
             str(r[3]) if r[3] is not None else "",
-            str(r[4]) if r[4] is not None else "",
-            str(r[5]) if r[5] is not None else "",
-            float(r[6]) if r[6] is not None else "",
-            str(r[7]) if r[7] is not None else "",
-            float(r[8]) if r[8] is not None else "",
-            float(r[9]) if r[9] is not None else "",
-            passed_c,
-            failed_c,
-            str(r[10]) if r[10] is not None else "",
-            int(r[11]) if r[11] is not None else "",
+            sanitize_cell_text(r[4] if r[4] is not None else ""),
+            sanitize_cell_text(r[5] if r[5] is not None else ""),
+            tot_m if tot_m is not None else "",
+            sanitize_cell_text(r[7] if r[7] is not None else ""),
+            sgpi if sgpi is not None else "",
+            cgpa if cgpa is not None else "",
+            counts.passed,
+            counts.failed,
+            counts.absent,
+            sanitize_cell_text(r[10] if r[10] is not None else ""),
+            src_row if src_row is not None else "",
         ]
         ws.append(row_vals)
         cur_row = ws.max_row
-        ws.cell(row=cur_row, column=1).data_type = "s"
-        ws.cell(row=cur_row, column=3).data_type = "s"
-        ws.cell(row=cur_row, column=4).data_type = "s"
+        for col_idx in (1, 3, 4):
+            cell = ws.cell(row=cur_row, column=col_idx)
+            cell.data_type = "s"
+            cell.number_format = "@"
 
     _apply_workbook_styles(ws, header_row_idx=table_header_row)
 
@@ -754,4 +813,154 @@ def export_investigation_excel(
     buf = io.BytesIO()
     wb.save(buf)
     return "investigation_results.xlsx", buf.getvalue()
+
+
+def export_absent_students_excel(
+    con: duckdb.DuckDBPyConnection,
+    division: str | None = None,
+    course_code: str | None = None,
+    component: str | None = None,
+    query: str | None = None,
+) -> tuple[str, bytes]:
+    """Generate professional .xlsx export for verified absent student examination records."""
+    where_clauses: list[str] = [
+        "s.component != 'TOT1'",
+        "(UPPER(TRIM(s.flag)) IN ('A', 'AB', 'ABS', 'ABSENT') OR UPPER(TRIM(s.raw_text)) IN ('A', 'AB', 'ABS', 'ABSENT'))",
+    ]
+    params: list[object] = []
+
+    if division and division.strip():
+        where_clauses.append("UPPER(TRIM(st.division)) = UPPER(TRIM(?))")
+        params.append(division.strip())
+
+    if course_code and course_code.strip():
+        where_clauses.append("UPPER(TRIM(s.course_code)) = UPPER(TRIM(?))")
+        params.append(course_code.strip())
+
+    if component and component.strip():
+        where_clauses.append("UPPER(TRIM(s.component)) = UPPER(TRIM(?))")
+        params.append(component.strip())
+
+    if query and query.strip():
+        escaped = escape_like_pattern(query.strip()).lower()
+        like_pattern = f"%{escaped}%"
+        where_clauses.append(
+            "(LOWER(st.name) LIKE ? ESCAPE '!' OR "
+            "LOWER(st.student_id) LIKE ? ESCAPE '!' OR "
+            "LOWER(COALESCE(st.seat_no, '')) LIKE ? ESCAPE '!' OR "
+            "LOWER(COALESCE(st.roll_no, '')) LIKE ? ESCAPE '!')"
+        )
+        params.extend([like_pattern, like_pattern, like_pattern, like_pattern])
+
+    where_sql = " AND ".join(where_clauses)
+    select_sql = f"""
+        SELECT 
+            st.student_id,
+            st.roll_no,
+            st.seat_no,
+            st.name,
+            st.division,
+            s.course_code,
+            COALESCE(c.name, s.course_code) as course_name,
+            s.component,
+            s.raw_text,
+            s.value,
+            st.total_marks,
+            st.result,
+            s.source_sheet,
+            s.source_row
+        FROM scores s
+        JOIN students st ON s.student_id = st.student_id
+        LEFT JOIN courses c ON s.course_code = c.code
+        WHERE {where_sql}
+        ORDER BY st.division ASC NULLS LAST, st.roll_no ASC NULLS LAST, s.course_code ASC, s.component ASC
+    """
+    rows = con.execute(select_sql, params).fetchall()
+
+    student_ids = list({str(r[0]) for r in rows})
+    subject_counts = get_students_subject_counts_batch(con, student_ids)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Absent Students"
+
+    filters_desc = []
+    if division and division.strip():
+        filters_desc.append(f"Division: {division.strip()}")
+    if course_code and course_code.strip():
+        filters_desc.append(f"Subject: {course_code.strip()}")
+    if component and component.strip():
+        filters_desc.append(f"Component: {component.strip()}")
+    if query and query.strip():
+        filters_desc.append(f"Query: '{query.strip()}'")
+    filter_str = " | ".join(filters_desc) if filters_desc else "All Records"
+
+    ws.append(["EduQuery - Absent Students Examination Roster"])
+    ws.append([f"Filters: {filter_str} | Total Absent Records: {len(rows)} | Distinct Absent Students: {len(student_ids)}"])
+    ws.append([])
+
+    table_header_row = 4
+    headers = [
+        "Roll No",
+        "Seat No",
+        "Student ID",
+        "Student Name",
+        "Division",
+        "Subject Code",
+        "Subject Name",
+        "Absent Component",
+        "Absent Marker",
+        "Total Marks",
+        "Overall Result",
+        "Passed Subjects",
+        "Failed Subjects",
+        "Absent Subjects",
+        "Source Sheet",
+        "Source Row",
+    ]
+    ws.append(headers)
+
+    for r in rows:
+        sid = str(r[0])
+        counts = subject_counts.get(sid, StudentSubjectCounts(0, 0, 0, 0))
+        tot_m = _safe_float(r[10])
+        src_row = _safe_int(r[13])
+
+        row_vals = [
+            str(r[1]) if r[1] is not None else "",
+            str(r[2]) if r[2] is not None else "",
+            sid,
+            sanitize_cell_text(r[3]),
+            sanitize_cell_text(r[4] if r[4] is not None else ""),
+            sanitize_cell_text(r[5]),
+            sanitize_cell_text(r[6]),
+            sanitize_cell_text(r[7]),
+            sanitize_cell_text(r[8] if r[8] is not None else "AB"),
+            tot_m if tot_m is not None else "",
+            sanitize_cell_text(r[11] if r[11] is not None else ""),
+            counts.passed,
+            counts.failed,
+            counts.absent,
+            sanitize_cell_text(r[12] if r[12] is not None else ""),
+            src_row if src_row is not None else "",
+        ]
+        ws.append(row_vals)
+        cur_row = ws.max_row
+        for col_idx in (1, 2, 3):
+            cell = ws.cell(row=cur_row, column=col_idx)
+            cell.data_type = "s"
+            cell.number_format = "@"
+
+    _apply_workbook_styles(ws, header_row_idx=table_header_row)
+
+    ws.cell(row=1, column=1).font = Font(name="Calibri", size=13, bold=True, color="0F172A")
+    meta_font = Font(name="Calibri", size=10, bold=True, color="334155")
+    ws.cell(row=2, column=1).font = meta_font
+
+    clean_subj = sanitize_filename(course_code) if course_code else ""
+    filename = f"{clean_subj}_absent_students.xlsx" if clean_subj else "absent_students_roster.xlsx"
+    buf = io.BytesIO()
+    wb.save(buf)
+    return filename, buf.getvalue()
+
 

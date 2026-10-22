@@ -18,6 +18,7 @@ from app.api.schemas.investigation import (
 )
 from app.api.schemas.student import StudentSummaryItem
 from app.reports.student_breakdown import (
+    StudentSubjectCounts,
     escape_like_pattern,
     get_students_subject_counts_batch,
 )
@@ -367,7 +368,7 @@ def execute_investigation_query(
     items: list[StudentSummaryItem] = []
     for r in rows:
         sid = str(r[0])
-        passed_c, failed_c, unres_c = subject_counts.get(sid, (0, 0, 0))
+        counts = subject_counts.get(sid, StudentSubjectCounts(0, 0, 0, 0))
         items.append(
             StudentSummaryItem(
                 student_id=sid,
@@ -380,9 +381,10 @@ def execute_investigation_query(
                 overall_result=str(r[7]) if r[7] is not None else None,
                 sgpi=float(r[8]) if r[8] is not None else None,
                 cgpa=float(r[9]) if r[9] is not None else None,
-                passed_subject_count=passed_c,
-                failed_subject_count=failed_c,
-                unresolved_subject_count=unres_c,
+                passed_subject_count=counts.passed,
+                failed_subject_count=counts.failed,
+                absent_subject_count=counts.absent,
+                unresolved_subject_count=counts.unresolved,
             )
         )
 

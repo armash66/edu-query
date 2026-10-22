@@ -10,6 +10,7 @@ from app.api.schemas.common import (
     PaginatedResponse,
 )
 from app.api.schemas.student import (
+    AbsentStudentItem,
     ComponentScoreSchema,
     StudentBreakdownResponse,
     StudentIdentitySchema,
@@ -17,6 +18,7 @@ from app.api.schemas.student import (
     StudentSummaryItem,
 )
 from app.reports.student_breakdown import (
+    StudentSubjectCounts,
     escape_like_pattern,
     get_student_breakdown,
     get_students_subject_counts_batch,
@@ -105,7 +107,7 @@ def list_students(
     items: list[StudentSummaryItem] = []
     for r in rows:
         sid = str(r[0])
-        passed_c, failed_c, unres_c = subject_counts.get(sid, (0, 0, 0))
+        counts = subject_counts.get(sid, StudentSubjectCounts(0, 0, 0, 0))
         items.append(
             StudentSummaryItem(
                 student_id=sid,
@@ -118,9 +120,10 @@ def list_students(
                 overall_result=str(r[7]) if r[7] is not None else None,
                 sgpi=float(r[8]) if r[8] is not None else None,
                 cgpa=float(r[9]) if r[9] is not None else None,
-                passed_subject_count=passed_c,
-                failed_subject_count=failed_c,
-                unresolved_subject_count=unres_c,
+                passed_subject_count=counts.passed,
+                failed_subject_count=counts.failed,
+                absent_subject_count=counts.absent,
+                unresolved_subject_count=counts.unresolved,
             )
         )
 
@@ -230,3 +233,132 @@ def get_student_breakdown_service(
         subjects=subject_schemas,
     )
     return 200, response
+
+
+def list_absent_students(
+    con: duckdb.DuckDBPyConnection,
+    division: str | None = None,
+    course_code: str | None = None,
+    component: str | None = None,
+    query: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> PaginatedResponse[AbsentStudentItem]:
+    """Retrieve verified absent student examination component records."""
+    where_clauses: list[str] = [
+        "s.component != 'TOT1'",
+        "(UPPER(TRIM(s.flag)) IN ('A', 'AB', 'ABS', 'ABSENT') OR UPPER(TRIM(s.raw_text)) IN ('A', 'AB', 'ABS', 'ABSENT'))",
+    ]
+    params: list[object] = []
+
+    if division and division.strip():
+        where_clauses.append("UPPER(TRIM(st.division)) = UPPER(TRIM(?))")
+        params.append(division.strip())
+
+    if course_code and course_code.strip():
+        where_clauses.append("UPPER(TRIM(s.course_code)) = UPPER(TRIM(?))")
+        params.append(course_code.strip())
+
+    if component and component.strip():
+        where_clauses.append("UPPER(TRIM(s.component)) = UPPER(TRIM(?))")
+        params.append(component.strip())
+
+    if query and query.strip():
+        escaped = escape_like_pattern(query.strip()).lower()
+        like_pattern = f"%{escaped}%"
+        where_clauses.append(
+            "(LOWER(st.name) LIKE ? ESCAPE '!' OR "
+            "LOWER(st.student_id) LIKE ? ESCAPE '!' OR "
+            "LOWER(COALESCE(st.seat_no, '')) LIKE ? ESCAPE '!' OR "
+            "LOWER(COALESCE(st.roll_no, '')) LIKE ? ESCAPE '!')"
+        )
+        params.extend([like_pattern, like_pattern, like_pattern, like_pattern])
+
+    where_sql = " AND ".join(where_clauses)
+
+    count_sql = f"""
+        SELECT COUNT(*)
+        FROM scores s
+        JOIN students st ON s.student_id = st.student_id
+        LEFT JOIN courses c ON s.course_code = c.code
+        WHERE {where_sql}
+    """
+    count_row = con.execute(count_sql, params).fetchone()
+    total_count = int(count_row[0]) if count_row else 0
+
+    select_sql = f"""
+        SELECT 
+            st.student_id,
+            st.roll_no,
+            st.seat_no,
+            st.name,
+            st.division,
+            s.course_code,
+            COALESCE(c.name, s.course_code) as course_name,
+            s.component,
+            s.raw_text,
+            s.value,
+            st.total_marks,
+            st.result,
+            s.source_sheet,
+            s.source_row
+        FROM scores s
+        JOIN students st ON s.student_id = st.student_id
+        LEFT JOIN courses c ON s.course_code = c.code
+        WHERE {where_sql}
+        ORDER BY st.division ASC NULLS LAST, st.roll_no ASC NULLS LAST, s.course_code ASC, s.component ASC
+        LIMIT ? OFFSET ?
+    """
+    query_params = list(params) + [limit, offset]
+    rows = con.execute(select_sql, query_params).fetchall()
+
+    student_ids = list({str(r[0]) for r in rows})
+    subject_counts = get_students_subject_counts_batch(con, student_ids)
+
+    items: list[AbsentStudentItem] = []
+    for r in rows:
+        sid = str(r[0])
+        counts = subject_counts.get(sid, StudentSubjectCounts(0, 0, 0, 0))
+        items.append(
+            AbsentStudentItem(
+                student_id=sid,
+                roll_no=str(r[1]) if r[1] is not None else None,
+                seat_no=str(r[2]) if r[2] is not None else None,
+                name=str(r[3]),
+                division=str(r[4]) if r[4] is not None else None,
+                course_code=str(r[5]),
+                course_name=str(r[6]),
+                component=str(r[7]),
+                raw_text=str(r[8]) if r[8] is not None else None,
+                marks=float(r[9]) if r[9] is not None else None,
+                total_marks=float(r[10]) if r[10] is not None else None,
+                overall_result=str(r[11]) if r[11] is not None else None,
+                passed_subject_count=counts.passed,
+                failed_subject_count=counts.failed,
+                absent_subject_count=counts.absent,
+                source_sheet=str(r[12]) if r[12] is not None else None,
+                source_row=int(r[13]) if r[13] is not None else None,
+            )
+        )
+
+    return PaginatedResponse[AbsentStudentItem](
+        total=total_count,
+        limit=limit,
+        offset=offset,
+        items=items,
+    )
+
+
+def list_absent_components(con: duckdb.DuckDBPyConnection) -> list[str]:
+    """Return distinct examination components containing verified absent marks."""
+    sql = """
+        SELECT DISTINCT component
+        FROM scores
+        WHERE component != 'TOT1'
+          AND (UPPER(TRIM(flag)) IN ('A', 'AB', 'ABS', 'ABSENT')
+               OR UPPER(TRIM(raw_text)) IN ('A', 'AB', 'ABS', 'ABSENT'))
+        ORDER BY component ASC
+    """
+    rows = con.execute(sql).fetchall()
+    return [str(r[0]) for r in rows if r[0]]
+

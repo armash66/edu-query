@@ -142,19 +142,32 @@ export const StudentsPage: React.FC = () => {
   return (
     <div>
       <style>{`
+        @page {
+          size: landscape;
+          margin: 10mm;
+        }
         @media print {
+          body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           body * {
             visibility: hidden;
           }
+          .sidebar, .top-header, .header, .card-header, nav, button, select, input {
+            display: none !important;
+          }
           .print-roster-view, .print-roster-view * {
             visibility: visible;
-            display: block !important;
           }
           .print-roster-view {
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
+            display: block !important;
             background: #ffffff !important;
             color: #000000 !important;
           }
@@ -162,18 +175,31 @@ export const StudentsPage: React.FC = () => {
             display: table !important;
             width: 100% !important;
             border-collapse: collapse !important;
+            table-layout: fixed !important;
           }
           .print-roster-view thead {
             display: table-header-group !important;
           }
+          .print-roster-view tbody {
+            display: table-row-group !important;
+          }
           .print-roster-view tr {
             display: table-row !important;
-            page-break-inside: avoid;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           .print-roster-view th, .print-roster-view td {
             display: table-cell !important;
-            border: 1px solid #cbd5e1 !important;
-            padding: 5px 8px !important;
+            border: 1px solid #94a3b8 !important;
+            padding: 4px 6px !important;
+            font-size: 8.5pt !important;
+            line-height: 1.25 !important;
+          }
+          .print-roster-view th {
+            background-color: #f1f5f9 !important;
+            font-weight: 700 !important;
+            color: #0f172a !important;
+            text-align: left;
           }
         }
       `}</style>
@@ -344,12 +370,13 @@ export const StudentsPage: React.FC = () => {
               <thead>
                 <tr>
                   <th style={{ width: '15%' }}>Roll / Seat No</th>
-                  <th style={{ width: '25%' }}>Student Name</th>
-                  <th style={{ width: '10%' }}>Division</th>
-                  <th style={{ width: '12%', textAlign: 'right' }}>Total Marks</th>
-                  <th style={{ width: '12%', textAlign: 'right' }}>SGPI / CGPA</th>
-                  <th style={{ width: '14%' }}>Overall Outcome</th>
-                  <th style={{ width: '12%', textAlign: 'right' }}>Actions</th>
+                  <th style={{ width: '23%' }}>Student Name</th>
+                  <th style={{ width: '7%' }}>Div</th>
+                  <th style={{ width: '16%' }}>Subjects (P / F / AB)</th>
+                  <th style={{ width: '11%', textAlign: 'right' }}>Total Marks</th>
+                  <th style={{ width: '11%', textAlign: 'right' }}>SGPI / CGPA</th>
+                  <th style={{ width: '10%' }}>Outcome</th>
+                  <th style={{ width: '7%', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -384,6 +411,39 @@ export const StudentsPage: React.FC = () => {
                         </Link>
                       </td>
                       <td>{student.division || '—'}</td>
+                      <td>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+                          <span
+                            className="badge badge-success"
+                            style={{ fontSize: '0.72rem', padding: '0.15rem 0.4rem', fontWeight: 600 }}
+                            title="Passed Distinct Subjects"
+                          >
+                            {student.passed_subject_count ?? 0} P
+                          </span>
+                          <span
+                            className="badge badge-danger"
+                            style={{ fontSize: '0.72rem', padding: '0.15rem 0.4rem', fontWeight: 600 }}
+                            title="Failed Distinct Subjects"
+                          >
+                            {student.failed_subject_count ?? 0} F
+                          </span>
+                          {(student.absent_subject_count ?? 0) > 0 && (
+                            <span
+                              className="badge badge-warning"
+                              style={{
+                                fontSize: '0.72rem',
+                                padding: '0.15rem 0.4rem',
+                                backgroundColor: '#fef3c7',
+                                color: '#92400e',
+                                fontWeight: 600,
+                              }}
+                              title="Distinct Subjects with Absent Marks"
+                            >
+                              {student.absent_subject_count} AB
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         {student.total_marks != null ? student.total_marks : '—'}
                       </td>
@@ -429,13 +489,13 @@ export const StudentsPage: React.FC = () => {
       {printing && printStudents && (
         <div className="print-roster-view" style={{ display: 'none' }}>
           <div style={{ marginBottom: '1.25rem', borderBottom: '2px solid #0f172a', paddingBottom: '0.5rem' }}>
-            <h1 style={{ fontSize: '18pt', fontWeight: 'bold', margin: '0 0 0.25rem 0', color: '#0f172a' }}>
+            <h1 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0 0 0.25rem 0', color: '#0f172a' }}>
               EduQuery — Student Marks Roster
             </h1>
-            <div style={{ fontSize: '9.5pt', color: '#475569' }}>
+            <div style={{ fontSize: '9pt', color: '#475569' }}>
               Generated: {new Date().toLocaleDateString()} &bull; Total Matching Students: {total}
               {hasActiveFilters && (
-                <div style={{ marginTop: '0.25rem' }}>
+                <div style={{ marginTop: '0.2rem' }}>
                   Active Filters:
                   {searchQuery && ` Query: "${searchQuery}"`}
                   {divisionFilter && ` | Division: ${divisionFilter}`}
@@ -445,28 +505,42 @@ export const StudentsPage: React.FC = () => {
             </div>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5pt' }}>
             <thead>
               <tr style={{ backgroundColor: '#f1f5f9', textAlign: 'left' }}>
-                <th style={{ padding: '6px 8px', width: '15%' }}>Roll / Seat</th>
-                <th style={{ padding: '6px 8px', width: '30%' }}>Student Name</th>
-                <th style={{ padding: '6px 8px', width: '10%' }}>Division</th>
-                <th style={{ padding: '6px 8px', width: '15%', textAlign: 'right' }}>Total Marks</th>
-                <th style={{ padding: '6px 8px', width: '15%', textAlign: 'right' }}>SGPI / CGPA</th>
-                <th style={{ padding: '6px 8px', width: '15%' }}>Outcome</th>
+                <th style={{ padding: '5px 6px', width: '10%' }}>Roll No</th>
+                <th style={{ padding: '5px 6px', width: '9%' }}>Seat No</th>
+                <th style={{ padding: '5px 6px', width: '23%' }}>Student Name</th>
+                <th style={{ padding: '5px 6px', width: '5%', textAlign: 'center' }}>Div</th>
+                <th style={{ padding: '5px 6px', width: '9%', textAlign: 'right' }}>Total Marks</th>
+                <th style={{ padding: '5px 6px', width: '9%', textAlign: 'right' }}>SGPI / CGPA</th>
+                <th style={{ padding: '5px 6px', width: '8%', textAlign: 'center' }}>Passed</th>
+                <th style={{ padding: '5px 6px', width: '8%', textAlign: 'center' }}>Failed</th>
+                <th style={{ padding: '5px 6px', width: '8%', textAlign: 'center' }}>Absent</th>
+                <th style={{ padding: '5px 6px', width: '11%' }}>Outcome</th>
               </tr>
             </thead>
             <tbody>
               {printStudents.map((st) => (
                 <tr key={st.student_id}>
-                  <td style={{ padding: '5px 8px', fontWeight: 600 }}>{st.roll_no || st.seat_no || st.student_id}</td>
-                  <td style={{ padding: '5px 8px' }}>{st.name}</td>
-                  <td style={{ padding: '5px 8px' }}>{st.division || '—'}</td>
-                  <td style={{ padding: '5px 8px', textAlign: 'right' }}>{st.total_marks ?? '—'}</td>
-                  <td style={{ padding: '5px 8px', textAlign: 'right' }}>
+                  <td style={{ padding: '4px 6px', fontWeight: 600, whiteSpace: 'nowrap' }}>{st.roll_no || '—'}</td>
+                  <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{st.seat_no || '—'}</td>
+                  <td style={{ padding: '4px 6px' }}>{st.name}</td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>{st.division || '—'}</td>
+                  <td style={{ padding: '4px 6px', textAlign: 'right' }}>{st.total_marks ?? '—'}</td>
+                  <td style={{ padding: '4px 6px', textAlign: 'right' }}>
                     {st.sgpi != null ? st.sgpi.toFixed(2) : st.cgpa != null ? st.cgpa.toFixed(2) : '—'}
                   </td>
-                  <td style={{ padding: '5px 8px' }}>{st.overall_result || 'UNRESOLVED'}</td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: '#065f46' }}>
+                    {st.passed_subject_count ?? 0}
+                  </td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: (st.failed_subject_count ?? 0) > 0 ? '#991b1b' : '#64748b' }}>
+                    {st.failed_subject_count ?? 0}
+                  </td>
+                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: (st.absent_subject_count ?? 0) > 0 ? '#92400e' : '#64748b' }}>
+                    {st.absent_subject_count ?? 0}
+                  </td>
+                  <td style={{ padding: '4px 6px', fontWeight: 600 }}>{st.overall_result || 'UNRESOLVED'}</td>
                 </tr>
               ))}
             </tbody>

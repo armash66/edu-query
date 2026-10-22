@@ -214,4 +214,4 @@ def test_missing_grades_never_counted_as_failures():
         rep = get_subject_failures(con, c)
         assert rep.confirmed_failures_count == 0
         assert len(rep.failing_students) == 0
-        assert rep.unresolved_count == rep.total_enrolled
+        assert rep.unresolved_count + rep.absent_count == rep.total_enrolled

@@ -304,6 +304,8 @@ def get_subject_failures(
                 comp_flags.append(clean_f)
                 if clean_f in ABSENT_MARKERS:
                     is_absent = True
+            if raw_text and str(raw_text).strip().upper() in ABSENT_MARKERS:
+                is_absent = True
 
         if letter_grade and letter_grade.upper() in {"AB", "ABS", "ABSENT"}:
             is_absent = True
@@ -317,7 +319,6 @@ def get_subject_failures(
         if is_absent and result == "unresolved":
             student_status = "absent"
             absent_count += 1
-            unresolved_count += 1
         elif result == "failed":
             confirmed_failures_count += 1
             failing_students.append(
@@ -409,9 +410,10 @@ def list_all_subjects_failure_summary(
         WITH comp_flags AS (
             SELECT student_id, course_code, 
                    STRING_AGG(DISTINCT flag, ',') AS comp_flags,
-                   BOOL_OR(UPPER(TRIM(flag)) IN ('A', 'AB', 'ABS', 'ABSENT')) AS has_absent
+                   BOOL_OR(UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+                           OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')) AS has_absent
             FROM scores
-            WHERE component != 'TOT1' AND flag IS NOT NULL AND TRIM(flag) != ''
+            WHERE component != 'TOT1' AND ((flag IS NOT NULL AND TRIM(flag) != '') OR (raw_text IS NOT NULL AND TRIM(raw_text) != ''))
             GROUP BY student_id, course_code
         )
         SELECT 

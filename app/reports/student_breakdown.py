@@ -452,14 +452,24 @@ def get_student_breakdown(con: duckdb.DuckDBPyConnection, identifier: str) -> St
     )
 
 
+from typing import NamedTuple
+
+
+class StudentSubjectCounts(NamedTuple):
+    passed: int
+    failed: int
+    absent: int
+    unresolved: int
+
+
 def get_students_subject_counts_batch(
     con: duckdb.DuckDBPyConnection,
     student_ids: list[str],
-) -> dict[str, tuple[int, int, int]]:
-    """Compute (passed_count, failed_count, unresolved_count) for each student_id in a batch.
+) -> dict[str, StudentSubjectCounts]:
+    """Compute (passed_count, failed_count, absent_count, unresolved_count) for each student_id in a batch.
 
     Returns:
-        dict mapping student_id -> (passed_count, failed_count, unresolved_count)
+        dict mapping student_id -> StudentSubjectCounts(passed, failed, absent, unresolved)
     """
     if not student_ids:
         return {}
@@ -477,7 +487,7 @@ def get_students_subject_counts_batch(
     ).fetchall()
 
     if not enr_rows:
-        return {sid: (0, 0, 0) for sid in clean_sids}
+        return {sid: StudentSubjectCounts(0, 0, 0, 0) for sid in clean_sids}
 
     # 2. Batch load reconciliation
     recon_rows = con.execute(
@@ -518,6 +528,8 @@ def get_students_subject_counts_batch(
 
     # Aggregate counts per student
     counts: dict[str, list[int]] = {sid: [0, 0, 0] for sid in clean_sids}
+    absent_courses_per_student: dict[str, set[str]] = {sid: set() for sid in clean_sids}
+
     for sid, ccode in enr_rows:
         key = (sid, ccode)
         rc = recon_map.get(key)
@@ -535,6 +547,9 @@ def get_students_subject_counts_batch(
         if letter_grade and letter_grade.upper() in {"AB", "ABS", "ABSENT"}:
             is_absent = True
 
+        if is_absent and sid in absent_courses_per_student:
+            absent_courses_per_student[sid].add(ccode)
+
         outcome, _ = classify_subject_result_with_reason(letter_grade, all_flags, is_absent=is_absent)
         if sid in counts:
             if outcome == "passed":
@@ -544,5 +559,13 @@ def get_students_subject_counts_batch(
             else:
                 counts[sid][2] += 1
 
-    return {sid: (c[0], c[1], c[2]) for sid, c in counts.items()}
+    return {
+        sid: StudentSubjectCounts(
+            passed=c[0],
+            failed=c[1],
+            absent=len(absent_courses_per_student.get(sid, set())),
+            unresolved=c[2],
+        )
+        for sid, c in counts.items()
+    }
 

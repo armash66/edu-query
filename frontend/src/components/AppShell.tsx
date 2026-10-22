@@ -5,6 +5,7 @@ import {
   Compass,
   Users,
   BookOpen,
+  UserX,
   ShieldCheck,
   UploadCloud,
   RefreshCw,
@@ -35,6 +36,7 @@ export const AppShell: React.FC = () => {
       return hasActiveSession ? 'Academic Analysis Overview' : 'Analyze a Marksheet'
     }
     if (pathname === '/explore') return 'Explore Academic Data'
+    if (pathname === '/absent-students') return 'Absent Students Audit'
     if (pathname.startsWith('/students/')) return 'Student Performance Breakdown'
     if (pathname.startsWith('/subjects/') && pathname.includes('/failures')) return 'Subject Student Roster'
     if (pathname.startsWith('/subjects/')) return 'Subject Student Evaluation Roster'
@@ -103,6 +105,15 @@ export const AppShell: React.FC = () => {
               >
                 <BookOpen size={18} />
                 <span>Subjects</span>
+              </NavLink>
+
+              <NavLink
+                to="/absent-students"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <UserX size={18} />
+                <span>Absent Students</span>
               </NavLink>
 
               <NavLink
