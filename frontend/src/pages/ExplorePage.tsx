@@ -138,9 +138,16 @@ export const ExplorePage: React.FC = () => {
       initialConditions.push({ field: 'total_marks', operator: 'gte', value: parseFloat(minMarksParam) })
     }
 
-    const maxMarksParam = searchParams.get('max_marks')
-    if (maxMarksParam) {
-      initialConditions.push({ field: 'total_marks', operator: 'lte', value: parseFloat(maxMarksParam) })
+    const hasAbsentParam = searchParams.get('has_absent')
+    if (hasAbsentParam === 'true') {
+      initialConditions.push({ field: 'has_absent', operator: 'eq', value: true })
+    } else if (hasAbsentParam === 'false') {
+      initialConditions.push({ field: 'has_absent', operator: 'eq', value: false })
+    }
+
+    const minAbsentParam = searchParams.get('min_absent')
+    if (minAbsentParam) {
+      initialConditions.push({ field: 'absent_subject_count', operator: 'gte', value: parseInt(minAbsentParam, 10) })
     }
 
     if (initialConditions.length > 0) {
@@ -224,6 +231,8 @@ export const ExplorePage: React.FC = () => {
       if (c.field === 'result' && c.operator === 'eq') next.set('result', String(c.value))
       if (c.field === 'course_code' && c.operator === 'eq') next.set('course', String(c.value))
       if (c.field === 'multi_fails' && c.operator === 'eq' && c.value) next.set('multi_fails', 'true')
+      if (c.field === 'has_absent' && c.operator === 'eq') next.set('has_absent', String(c.value))
+      if (c.field === 'absent_subject_count' && c.operator === 'gte') next.set('min_absent', String(c.value))
     }
 
     setSearchParams(next)
@@ -245,7 +254,7 @@ export const ExplorePage: React.FC = () => {
 
     if (fieldCap?.data_type === 'choice' && fieldCap.choices?.length) {
       setNewFilterValue(fieldCap.choices[0])
-    } else if (field === 'course_code' && courses.length > 0) {
+    } else if ((field === 'course_code' || field === 'absent_course_code') && courses.length > 0) {
       setNewFilterValue(courses[0].code)
     } else if (fieldCap?.data_type === 'number') {
       setNewFilterValue(fieldCap.min_value ?? 0)
@@ -291,7 +300,7 @@ export const ExplorePage: React.FC = () => {
         updated.operator = fieldCap.supported_operators[0] || 'eq'
         if (fieldCap.data_type === 'choice' && fieldCap.choices?.length) {
           updated.value = fieldCap.choices[0]
-        } else if (patch.field === 'course_code' && courses.length > 0) {
+        } else if ((patch.field === 'course_code' || patch.field === 'absent_course_code') && courses.length > 0) {
           updated.value = courses[0].code
         } else if (fieldCap.data_type === 'number') {
           updated.value = fieldCap.min_value ?? 0
@@ -379,7 +388,7 @@ export const ExplorePage: React.FC = () => {
         sort_by: sortBy,
         sort_dir: sortDir,
       })
-      saveBlobAsFile(blob, 'academic_investigation_roster.xlsx')
+      saveBlobAsFile(blob, 'EduQuery_Academic_Investigation.xlsx')
     } catch {
       alert('Failed to generate Excel export. Please try again.')
     } finally {
@@ -399,6 +408,10 @@ export const ExplorePage: React.FC = () => {
     { field: 'result', label: 'Outcome', data_type: 'choice', supported_operators: ['eq', 'neq'] },
     { field: 'course_code', label: 'Subject', data_type: 'choice', supported_operators: ['eq', 'neq'] },
     { field: 'multi_fails', label: 'Failing 2+ Subjects', data_type: 'boolean', supported_operators: ['eq'] },
+    { field: 'has_absent', label: 'Has Absent Marks', data_type: 'boolean', supported_operators: ['eq'] },
+    { field: 'absent_subject_count', label: 'Absent Subject Count', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
+    { field: 'absent_course_code', label: 'Absent in Subject', data_type: 'choice', supported_operators: ['eq', 'neq', 'in'] },
+    { field: 'absent_component', label: 'Absent in Component', data_type: 'choice', supported_operators: ['eq', 'neq', 'in'] },
     { field: 'failed_subject_count', label: 'Failed Subject Count', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
     { field: 'total_marks', label: 'Total Marks', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
     { field: 'sgpi', label: 'SGPI', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
@@ -558,7 +571,7 @@ export const ExplorePage: React.FC = () => {
                   onChange={(e) => setNewFilterValue(e.target.value)}
                   style={{ width: '100%', height: '34px', fontSize: '0.8rem' }}
                 >
-                  {newFilterField === 'course_code'
+                  {newFilterField === 'course_code' || newFilterField === 'absent_course_code'
                     ? courses.map((c) => (
                         <option key={c.code} value={c.code}>
                           {c.code} — {c.name}
@@ -656,6 +669,22 @@ export const ExplorePage: React.FC = () => {
               style={{ cursor: 'pointer', padding: '0.25rem 0.5rem' }}
             >
               All Students
+            </button>
+            <button
+              type="button"
+              onClick={() => applyQuickPreset('has_absent', 'eq', true)}
+              className={`badge ${
+                conditions.some((c) => c.field === 'has_absent' && c.value === true) ? 'badge-warning' : 'badge-neutral'
+              }`}
+              style={{
+                cursor: 'pointer',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? '#fef3c7' : undefined,
+                color: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? '#92400e' : undefined,
+                border: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? '1px solid #fde68a' : undefined,
+              }}
+            >
+              Students with Absences
             </button>
             <button
               type="button"
@@ -832,7 +861,7 @@ export const ExplorePage: React.FC = () => {
                           onChange={(e) => handleUpdateCondition(idx, { value: e.target.value })}
                           style={{ width: '100%', height: '32px', fontSize: '0.8rem' }}
                         >
-                          {cond.field === 'course_code'
+                          {cond.field === 'course_code' || cond.field === 'absent_course_code'
                             ? courses.map((c) => (
                                 <option key={c.code} value={c.code}>
                                   {c.code} — {c.name}
@@ -1004,11 +1033,14 @@ export const ExplorePage: React.FC = () => {
                       <ArrowUpDown size={12} style={{ color: sortBy === 'division' ? 'var(--primary)' : 'var(--text-muted)' }} />
                     </div>
                   </th>
-                  <th style={{ width: '11%', textAlign: 'center' }} title="Distinct passed curriculum subjects">
-                    <span>Passed Subj</span>
+                  <th style={{ width: '9%', textAlign: 'center' }} title="Distinct passed curriculum subjects">
+                    <span>Passed</span>
                   </th>
-                  <th style={{ width: '11%', textAlign: 'center' }} title="Distinct failed curriculum subjects">
-                    <span>Failed Subj</span>
+                  <th style={{ width: '9%', textAlign: 'center' }} title="Distinct failed curriculum subjects">
+                    <span>Failed</span>
+                  </th>
+                  <th style={{ width: '9%', textAlign: 'center' }} title="Distinct subjects with verified absent marks">
+                    <span>Absent</span>
                   </th>
                   <th
                     onClick={() => handleSort('total_marks')}
@@ -1101,15 +1133,23 @@ export const ExplorePage: React.FC = () => {
                           >
                             {st.failed_subject_count ?? 0}
                           </span>
-                          {(st.unresolved_subject_count ?? 0) > 0 && (
-                            <span
-                              className="badge badge-warning"
-                              style={{ fontSize: '0.65rem', marginLeft: '0.25rem' }}
-                              title={`${st.unresolved_subject_count} unresolved/absent subjects`}
-                            >
-                              {st.unresolved_subject_count}?
-                            </span>
-                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            className="badge"
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              minWidth: '24px',
+                              display: 'inline-block',
+                              backgroundColor: (st.absent_subject_count ?? 0) > 0 ? '#fef3c7' : '#f1f5f9',
+                              color: (st.absent_subject_count ?? 0) > 0 ? '#92400e' : '#64748b',
+                              border: (st.absent_subject_count ?? 0) > 0 ? '1px solid #fde68a' : '1px solid #e2e8f0',
+                            }}
+                            title={`${st.absent_subject_count ?? 0} distinct subjects with absent marks`}
+                          >
+                            {st.absent_subject_count ?? 0}
+                          </span>
                         </td>
                         <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
                           {st.total_marks !== null ? st.total_marks.toLocaleString() : '—'}

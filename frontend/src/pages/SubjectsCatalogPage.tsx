@@ -74,10 +74,10 @@ export const SubjectsCatalogPage: React.FC = () => {
     setExportingKey(key)
     try {
       const safeCode = courseCode.replace(/[^a-zA-Z0-9_-]/g, '_')
-      let filename = `${safeCode}_All_Students.xlsx`
-      if (reportType === 'passed') filename = `${safeCode}_Passed_Students.xlsx`
-      else if (reportType === 'failed') filename = `${safeCode}_Failed_Students.xlsx`
-      else if (reportType === 'absent') filename = `${safeCode}_Absent_Students.xlsx`
+      let filename = `EduQuery_${safeCode}_All_Students.xlsx`
+      if (reportType === 'passed') filename = `EduQuery_${safeCode}_Passed_Students.xlsx`
+      else if (reportType === 'failed') filename = `EduQuery_${safeCode}_Failed_Students.xlsx`
+      else if (reportType === 'absent') filename = `EduQuery_${safeCode}_Absent_Students.xlsx`
 
       const blob = await downloadSubjectStudentsExcel(
         courseCode,
@@ -195,7 +195,10 @@ export const SubjectsCatalogPage: React.FC = () => {
                   <th>Modality</th>
                   <th>Credits</th>
                   <th>Evaluated Components</th>
-                  <th style={{ textAlign: 'right' }}>Enrolled Headcount</th>
+                  <th style={{ textAlign: 'center' }}>Enrolled</th>
+                  <th style={{ textAlign: 'center' }}>Passed</th>
+                  <th style={{ textAlign: 'center' }}>Failed</th>
+                  <th style={{ textAlign: 'center' }}>Absent</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -227,8 +230,45 @@ export const SubjectsCatalogPage: React.FC = () => {
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                      {course.enrolled_students_count != null ? course.enrolled_students_count.toLocaleString() : '—'}
+                    <td style={{ textAlign: 'center' }}>
+                      <span className="badge badge-neutral" style={{ fontSize: '0.8rem', minWidth: '28px', fontWeight: 600 }}>
+                        {course.enrolled_students_count != null ? course.enrolled_students_count.toLocaleString() : '—'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className="badge badge-success" style={{ fontSize: '0.8rem', minWidth: '28px', fontWeight: 600 }}>
+                        {course.passed_students_count != null ? course.passed_students_count.toLocaleString() : '0'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span
+                        className="badge"
+                        style={{
+                          fontSize: '0.8rem',
+                          minWidth: '28px',
+                          fontWeight: 600,
+                          backgroundColor: (course.failed_students_count ?? 0) > 0 ? '#fee2e2' : '#f1f5f9',
+                          color: (course.failed_students_count ?? 0) > 0 ? '#991b1b' : '#64748b',
+                          border: (course.failed_students_count ?? 0) > 0 ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                        }}
+                      >
+                        {course.failed_students_count != null ? course.failed_students_count.toLocaleString() : '0'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span
+                        className="badge"
+                        style={{
+                          fontSize: '0.8rem',
+                          minWidth: '28px',
+                          fontWeight: 600,
+                          backgroundColor: (course.absent_students_count ?? 0) > 0 ? '#fef3c7' : '#f1f5f9',
+                          color: (course.absent_students_count ?? 0) > 0 ? '#92400e' : '#64748b',
+                          border: (course.absent_students_count ?? 0) > 0 ? '1px solid #fde68a' : '1px solid #e2e8f0',
+                        }}
+                      >
+                        {course.absent_students_count != null ? course.absent_students_count.toLocaleString() : '0'}
+                      </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'flex-end' }}>

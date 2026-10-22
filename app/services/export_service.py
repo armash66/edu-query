@@ -104,8 +104,8 @@ def _apply_workbook_styles(ws: openpyxl.worksheet.worksheet.Worksheet, header_ro
     # Freeze header row so it stays pinned during scroll
     ws.freeze_panes = ws.cell(row=header_row_idx + 1, column=1)
 
-    # Enable Excel auto-filter across header columns
-    if ws.max_column >= 1 and ws.max_row >= header_row_idx:
+    # Enable Excel auto-filter across header columns (must have at least one data row to be valid OOXML)
+    if ws.max_column >= 1 and ws.max_row > header_row_idx:
         ws.auto_filter.ref = f"A{header_row_idx}:{get_column_letter(ws.max_column)}{ws.max_row}"
 
     for row in ws.iter_rows(min_row=header_row_idx + 1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
@@ -539,7 +539,9 @@ def export_students_roster_excel(
 
     buf = io.BytesIO()
     wb.save(buf)
-    return "student_roster.xlsx", buf.getvalue()
+    is_filtered = bool(query or division or result or course_code or multi_fails)
+    filename = "EduQuery_Students_Filtered.xlsx" if is_filtered else "EduQuery_Students.xlsx"
+    return filename, buf.getvalue()
 
 
 def export_subject_students_excel(
@@ -562,19 +564,19 @@ def export_subject_students_excel(
 
     if clean_type == "passed":
         students_to_export = [s for s in rep.all_students if s.status == "passed"]
-        filename = f"{safe_code}_Passed_Students.xlsx"
+        filename = f"EduQuery_{safe_code}_Passed_Students.xlsx"
         sheet_title = "Passed Students"
     elif clean_type == "failed":
         students_to_export = [s for s in rep.all_students if s.status == "failed"]
-        filename = f"{safe_code}_Failed_Students.xlsx"
+        filename = f"EduQuery_{safe_code}_Failed_Students.xlsx"
         sheet_title = "Failed Students"
     elif clean_type == "absent":
         students_to_export = [s for s in rep.all_students if s.status == "absent" or s.is_absent]
-        filename = f"{safe_code}_Absent_Students.xlsx"
+        filename = f"EduQuery_{safe_code}_Absent_Students.xlsx"
         sheet_title = "Absent Students"
     else:
         students_to_export = rep.all_students
-        filename = f"{safe_code}_All_Students.xlsx"
+        filename = f"EduQuery_{safe_code}_All_Students.xlsx"
         sheet_title = "All Students"
 
     wb = openpyxl.Workbook()
@@ -726,7 +728,7 @@ def export_student_breakdown_excel(
     ws.cell(row=2, column=1).font = meta_font
     ws.cell(row=3, column=1).font = meta_font
 
-    filename = f"student_{sanitize_filename(student.student_id)}_breakdown.xlsx"
+    filename = f"EduQuery_Student_{sanitize_filename(student.student_id)}_Breakdown.xlsx"
     buf = io.BytesIO()
     wb.save(buf)
     return 200, filename, buf.getvalue()
@@ -822,7 +824,7 @@ def export_investigation_excel(
 
     buf = io.BytesIO()
     wb.save(buf)
-    return "investigation_results.xlsx", buf.getvalue()
+    return "EduQuery_Academic_Investigation.xlsx", buf.getvalue()
 
 
 def export_absent_students_excel(
@@ -968,7 +970,7 @@ def export_absent_students_excel(
     ws.cell(row=2, column=1).font = meta_font
 
     clean_subj = sanitize_filename(course_code) if course_code else ""
-    filename = f"{clean_subj}_absent_students.xlsx" if clean_subj else "absent_students_roster.xlsx"
+    filename = f"EduQuery_{clean_subj}_Absent_Students.xlsx" if clean_subj else "EduQuery_Absent_Students_Roster.xlsx"
     buf = io.BytesIO()
     wb.save(buf)
     return filename, buf.getvalue()

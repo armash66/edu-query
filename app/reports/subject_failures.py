@@ -442,6 +442,7 @@ def list_all_subjects_failure_summary(
         'total_enrolled': 0,
         'confirmed_failures_count': 0,
         'passed_count': 0,
+        'absent_count': 0,
         'unresolved_count': 0,
         'credits': None,
         'kind': None,
@@ -462,6 +463,8 @@ def list_all_subjects_failure_summary(
 
         clean_grade = str(letter_grade).strip() if letter_grade is not None else None
         is_absent = bool(comp_absent) or (clean_grade is not None and clean_grade.upper() in ABSENT_MARKERS)
+        if is_absent:
+            stats['absent_count'] += 1
 
         result, reason = classify_subject_result_with_reason(clean_grade, all_flags, is_absent=is_absent)
         if result == 'failed':
@@ -486,6 +489,7 @@ def list_all_subjects_failure_summary(
                 "total_enrolled": tot,
                 "confirmed_failures_count": fails,
                 "passed_count": stats['passed_count'],
+                "absent_count": stats['absent_count'],
                 "unresolved_count": stats['unresolved_count'],
                 "failure_rate_percent": rate,
             })

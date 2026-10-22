@@ -102,7 +102,7 @@ export const StudentsPage: React.FC = () => {
         result: resultFilter.trim() || undefined,
       })
       const isFiltered = Boolean(searchQuery.trim() || divisionFilter.trim() || resultFilter.trim())
-      const filename = isFiltered ? 'student_roster_filtered.xlsx' : 'student_roster.xlsx'
+      const filename = isFiltered ? 'EduQuery_Students_Filtered.xlsx' : 'EduQuery_Students.xlsx'
       saveBlobAsFile(blob, filename)
     } catch {
       alert('Failed to export student roster to Excel. Please try again.')

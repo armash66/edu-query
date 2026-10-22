@@ -130,13 +130,13 @@ export const SubjectDetailPage: React.FC = () => {
     setExportingType(type)
     try {
       const safeCode = courseCode.replace(/[^a-zA-Z0-9_-]/g, '_')
-      let filename = `${safeCode}_All_Students.xlsx`
+      let filename = `EduQuery_${safeCode}_All_Students.xlsx`
       if (type === 'passed') {
-        filename = `${safeCode}_Passed_Students.xlsx`
+        filename = `EduQuery_${safeCode}_Passed_Students.xlsx`
       } else if (type === 'failed') {
-        filename = `${safeCode}_Failed_Students.xlsx`
+        filename = `EduQuery_${safeCode}_Failed_Students.xlsx`
       } else if (type === 'absent') {
-        filename = `${safeCode}_Absent_Students.xlsx`
+        filename = `EduQuery_${safeCode}_Absent_Students.xlsx`
       }
 
       const blob = await downloadSubjectStudentsExcel(

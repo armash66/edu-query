@@ -50,6 +50,10 @@ def run_investigation_query(
     "/export-excel",
     summary="Download unpaginated Excel .xlsx export of matching investigation records",
 )
+@router.post(
+    "/export/xlsx",
+    summary="Download unpaginated Excel .xlsx export of matching investigation records (alias)",
+)
 def download_investigation_excel(
     req: InvestigationQueryRequest,
     con: duckdb.DuckDBPyConnection = Depends(get_db),

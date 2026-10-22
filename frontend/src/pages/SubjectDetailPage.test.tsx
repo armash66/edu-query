@@ -123,7 +123,7 @@ describe('SubjectDetailPage', () => {
 
     await waitFor(() => {
       expect(exportMock).toHaveBeenCalledWith('CSC501', 'all', null)
-      expect(saveMock).toHaveBeenCalledWith(expect.any(Blob), 'CSC501_All_Students.xlsx')
+      expect(saveMock).toHaveBeenCalledWith(expect.any(Blob), 'EduQuery_CSC501_All_Students.xlsx')
     })
   })
 })

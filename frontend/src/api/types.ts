@@ -155,6 +155,9 @@ export interface CourseItem {
   credits: number | null;
   components: string[];
   enrolled_students_count: number | null;
+  passed_students_count?: number | null;
+  failed_students_count?: number | null;
+  absent_students_count?: number | null;
 }
 
 export interface FailingStudentItem {
@@ -583,7 +586,11 @@ export type InvestigationField =
   | 'total_marks'
   | 'sgpi'
   | 'cgpa'
-  | 'query';
+  | 'query'
+  | 'has_absent'
+  | 'absent_subject_count'
+  | 'absent_course_code'
+  | 'absent_component';
 
 export type InvestigationOperator =
   | 'eq'

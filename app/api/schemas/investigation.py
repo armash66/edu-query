@@ -20,6 +20,10 @@ InvestigationField = Literal[
     "sgpi",
     "cgpa",
     "query",
+    "has_absent",
+    "absent_subject_count",
+    "absent_course_code",
+    "absent_component",
 ]
 
 InvestigationOperator = Literal[

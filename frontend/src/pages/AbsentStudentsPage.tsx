@@ -151,7 +151,7 @@ export const AbsentStudentsPage: React.FC = () => {
         component: componentFilter.trim() || undefined,
       })
       const isFiltered = Boolean(searchQuery.trim() || divisionFilter.trim() || courseFilter.trim() || componentFilter.trim())
-      const filename = isFiltered ? 'absent_students_filtered.xlsx' : 'absent_students.xlsx'
+      const filename = isFiltered ? 'EduQuery_Absent_Students_Filtered.xlsx' : 'EduQuery_Absent_Students_Roster.xlsx'
       saveBlobAsFile(blob, filename)
     } catch {
       alert('Failed to export absent students to Excel. Please try again.')

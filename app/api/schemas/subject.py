@@ -15,6 +15,9 @@ class CourseItem(BaseModel):
     credits: float | None = Field(default=None, description="Course credit value")
     components: list[str] = Field(default_factory=list, description="List of recognized component tags")
     enrolled_students_count: int | None = Field(default=None, ge=0, description="Total verified enrolled students")
+    passed_students_count: int | None = Field(default=None, ge=0, description="Total confirmed passed students")
+    failed_students_count: int | None = Field(default=None, ge=0, description="Total confirmed failed students")
+    absent_students_count: int | None = Field(default=None, ge=0, description="Total distinct students with absent marks in this course")
 
 
 class FailingStudentItem(BaseModel):

@@ -72,6 +72,19 @@ def get_investigation_capabilities(con: duckdb.DuckDBPyConnection) -> Investigat
     min_cgpa = float(bounds_row[4]) if bounds_row and bounds_row[4] is not None else 0.0
     max_cgpa = float(bounds_row[5]) if bounds_row and bounds_row[5] is not None else 10.0
 
+    # Discover absent components
+    comp_rows = con.execute(
+        """
+        SELECT DISTINCT component 
+        FROM scores 
+        WHERE component != 'TOT1' 
+          AND (UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+               OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT'))
+        ORDER BY component
+        """
+    ).fetchall()
+    absent_components = [str(r[0]) for r in comp_rows if r[0]]
+
     fields: list[FieldCapability] = [
         FieldCapability(
             field="division",
@@ -107,6 +120,34 @@ def get_investigation_capabilities(con: duckdb.DuckDBPyConnection) -> Investigat
             label="Failing 2+ Subjects",
             data_type="boolean",
             supported_operators=["eq"],
+        ),
+        FieldCapability(
+            field="has_absent",
+            label="Has Absent Marks",
+            data_type="boolean",
+            supported_operators=["eq"],
+        ),
+        FieldCapability(
+            field="absent_subject_count",
+            label="Absent Subject Count",
+            data_type="number",
+            supported_operators=["gte", "lte", "eq"],
+            min_value=0.0,
+            max_value=20.0,
+        ),
+        FieldCapability(
+            field="absent_course_code",
+            label="Absent in Subject",
+            data_type="choice",
+            supported_operators=["eq", "neq", "in"],
+            choices=courses,
+        ),
+        FieldCapability(
+            field="absent_component",
+            label="Absent in Component",
+            data_type="choice",
+            supported_operators=["eq", "neq", "in"],
+            choices=absent_components,
         ),
         FieldCapability(
             field="total_marks",
@@ -240,6 +281,124 @@ def _build_condition_sql(
             return f"student_id IN ({fails_subquery} <= ?)", [num], f"Failed subjects <= {num}"
         elif op == "eq":
             return f"student_id IN ({fails_subquery} = ?)", [num], f"Failed subjects = {num}"
+
+    elif field == "has_absent":
+        absent_students_subquery = """
+            SELECT DISTINCT student_id FROM scores
+            WHERE component != 'TOT1'
+              AND (UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+                   OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT'))
+            UNION
+            SELECT DISTINCT student_id FROM grades
+            WHERE UPPER(TRIM(COALESCE(letter, ''))) IN ('AB', 'ABS', 'ABSENT')
+        """
+        bool_val = bool(val) if not isinstance(val, str) else val.lower() in ("true", "1", "yes")
+        if bool_val:
+            return (
+                f"student_id IN ({absent_students_subquery})",
+                [],
+                "Has absent marks",
+            )
+        else:
+            return (
+                f"student_id NOT IN ({absent_students_subquery})",
+                [],
+                "Has no absent marks",
+            )
+
+    elif field == "absent_subject_count":
+        try:
+            num = int(val)
+        except (ValueError, TypeError):
+            num = 0
+
+        absent_courses_subquery = """
+            SELECT student_id, course_code FROM scores
+            WHERE component != 'TOT1'
+              AND (UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+                   OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT'))
+            UNION
+            SELECT student_id, course_code FROM grades
+            WHERE UPPER(TRIM(COALESCE(letter, ''))) IN ('AB', 'ABS', 'ABSENT')
+        """
+        absent_students_sub = """
+            SELECT DISTINCT student_id FROM scores
+            WHERE component != 'TOT1'
+              AND (UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+                   OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT'))
+            UNION
+            SELECT DISTINCT student_id FROM grades
+            WHERE UPPER(TRIM(COALESCE(letter, ''))) IN ('AB', 'ABS', 'ABSENT')
+        """
+        grouped_sub = f"SELECT student_id FROM ({absent_courses_subquery}) GROUP BY student_id HAVING COUNT(DISTINCT course_code)"
+        if op == "gte":
+            if num <= 0:
+                return "1=1", [], "Absent subjects >= 0"
+            return f"student_id IN ({grouped_sub} >= ?)", [num], f"Absent subjects >= {num}"
+        elif op == "lte":
+            if num <= 0:
+                return f"student_id NOT IN ({absent_students_sub})", [], "Absent subjects <= 0"
+            return f"student_id NOT IN ({grouped_sub} > ?)", [num], f"Absent subjects <= {num}"
+        elif op == "eq":
+            if num == 0:
+                return f"student_id NOT IN ({absent_students_sub})", [], "Absent subjects = 0"
+            return f"student_id IN ({grouped_sub} = ?)", [num], f"Absent subjects = {num}"
+
+    elif field == "absent_course_code":
+        course_sub = """
+            SELECT student_id FROM scores
+            WHERE UPPER(TRIM(course_code)) = UPPER(TRIM(?))
+              AND component != 'TOT1'
+              AND (UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+                   OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT'))
+            UNION
+            SELECT student_id FROM grades
+            WHERE UPPER(TRIM(course_code)) = UPPER(TRIM(?))
+              AND UPPER(TRIM(COALESCE(letter, ''))) IN ('AB', 'ABS', 'ABSENT')
+        """
+        if op == "eq":
+            return f"student_id IN ({course_sub})", [str(val), str(val)], f"Absent in subject '{val}'"
+        elif op == "neq":
+            return f"student_id NOT IN ({course_sub})", [str(val), str(val)], f"Not absent in subject '{val}'"
+        elif op == "in" and isinstance(val, list) and val:
+            placeholders = ", ".join(["UPPER(TRIM(?))"] * len(val))
+            params = [str(x) for x in val]
+            course_in_sub = f"""
+                SELECT student_id FROM scores
+                WHERE UPPER(TRIM(course_code)) IN ({placeholders})
+                  AND component != 'TOT1'
+                  AND (UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+                       OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT'))
+                UNION
+                SELECT student_id FROM grades
+                WHERE UPPER(TRIM(course_code)) IN ({placeholders})
+                  AND UPPER(TRIM(COALESCE(letter, ''))) IN ('AB', 'ABS', 'ABSENT')
+            """
+            return f"student_id IN ({course_in_sub})", params + params, f"Absent in any of [{', '.join(params)}]"
+
+    elif field == "absent_component":
+        comp_sub = """
+            SELECT student_id FROM scores
+            WHERE UPPER(TRIM(component)) = UPPER(TRIM(?))
+              AND component != 'TOT1'
+              AND (UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+                   OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT'))
+        """
+        if op == "eq":
+            return f"student_id IN ({comp_sub})", [str(val)], f"Absent in component '{val}'"
+        elif op == "neq":
+            return f"student_id NOT IN ({comp_sub})", [str(val)], f"Not absent in component '{val}'"
+        elif op == "in" and isinstance(val, list) and val:
+            placeholders = ", ".join(["UPPER(TRIM(?))"] * len(val))
+            params = [str(x) for x in val]
+            comp_in_sub = f"""
+                SELECT student_id FROM scores
+                WHERE UPPER(TRIM(component)) IN ({placeholders})
+                  AND component != 'TOT1'
+                  AND (UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+                       OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT'))
+            """
+            return f"student_id IN ({comp_in_sub})", params, f"Absent in component in [{', '.join(params)}]"
 
     elif field in ("total_marks", "sgpi", "cgpa"):
         col = field

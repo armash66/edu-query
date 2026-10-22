@@ -141,6 +141,23 @@ export async function request<T>(path: string, options: FetchOptions = {}): Prom
   return data as T
 }
 
+export function extractFilenameFromHeader(disposition: string | null, fallback: string): string {
+  if (!disposition) return fallback
+  const utf8Match = disposition.match(/filename\*\s*=\s*(?:UTF-8''|utf-8'')([^;]+)/i)
+  if (utf8Match && utf8Match[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim().replace(/^["']|["']$/g, ''))
+    } catch {
+      // fallback to standard match
+    }
+  }
+  const standardMatch = disposition.match(/filename\s*=\s*"?([^";]+)"?/i)
+  if (standardMatch && standardMatch[1]) {
+    return standardMatch[1].trim()
+  }
+  return fallback
+}
+
 export async function requestBlob(path: string, options: FetchOptions = {}): Promise<Blob> {
   const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
   const defaultAccept = path.includes('excel') || path.endsWith('.xlsx')
@@ -179,7 +196,8 @@ export async function requestBlob(path: string, options: FetchOptions = {}): Pro
     )
   }
 
-  if (!response.ok) {
+  const contentType = response.headers.get('content-type') || ''
+  if (!response.ok || contentType.includes('application/json')) {
     let errMessage = `Export failed with HTTP ${response.status}`
     try {
       const errData = await response.json()
@@ -193,15 +211,100 @@ export async function requestBlob(path: string, options: FetchOptions = {}): Pro
   return response.blob()
 }
 
-export function saveBlobAsFile(blob: Blob, filename: string): void {
-  const url = window.URL.createObjectURL(blob)
+export async function downloadAndSaveFile(
+  path: string,
+  fallbackFilename: string,
+  options: FetchOptions = {}
+): Promise<string> {
+  const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+  const defaultAccept = path.includes('excel') || path.endsWith('.xlsx')
+    ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*'
+    : 'text/csv, application/octet-stream, */*'
+  const headers: Record<string, string> = {
+    Accept: defaultAccept,
+    ...(options.headers as Record<string, string>),
+  }
+
+  const activeSessionToken = options.sessionToken ?? getSessionToken()
+  if (activeSessionToken) {
+    headers['X-EduQuery-Session-Token'] = activeSessionToken
+  }
+
+  if (options.adminKey) {
+    headers['X-EduQuery-Import-Key'] = options.adminKey.trim()
+  }
+
+  let response: Response
+  try {
+    response = await fetch(url, {
+      credentials: 'same-origin',
+      ...options,
+      headers,
+    })
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
+    const message = err instanceof Error ? err.message : 'Network request failed'
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      `Cannot connect to EduQuery backend at ${BASE_URL || 'local server'}. (${message})`
+    )
+  }
+
+  const contentType = response.headers.get('content-type') || ''
+  if (!response.ok || contentType.includes('application/json')) {
+    let errMessage = `Export failed with HTTP ${response.status}`
+    try {
+      const errData = await response.json()
+      if (errData?.message) errMessage = errData.message
+    } catch {
+      // Ignore JSON parse error
+    }
+    throw new ApiError(response.status, 'EXPORT_FAILED', errMessage)
+  }
+
+  const disposition = response.headers.get('content-disposition')
+  const resolvedFilename = extractFilenameFromHeader(disposition, fallbackFilename)
+  const blob = await response.blob()
+  saveBlobAsFile(blob, resolvedFilename)
+  return resolvedFilename
+}
+
+export function saveBlobAsFile(blob: Blob, rawFilename: string): void {
+  const filename = (rawFilename || 'EduQuery_Export.xlsx').trim()
+  // Ensure genuine XLSX mime type if filename ends in .xlsx
+  let downloadBlob = blob
+  if (
+    filename.toLowerCase().endsWith('.xlsx') &&
+    blob.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  ) {
+    downloadBlob = new Blob([blob], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+  }
+
+  const url = window.URL.createObjectURL(downloadBlob)
   const a = document.createElement('a')
+  a.style.display = 'none'
   a.href = url
   a.download = filename
   document.body.appendChild(a)
   a.click()
-  a.remove()
-  window.URL.revokeObjectURL(url)
+
+  // Clean up the DOM element after dispatch
+  setTimeout(() => {
+    a.remove()
+  }, 200)
+
+  // CRITICAL FIX: Do NOT revoke the object URL immediately!
+  // In Chromium on Windows, revoking the blob URL synchronously aborts or corrupts the background
+  // download spooling worker, causing the browser to save the URL UUID (without extension) and Windows
+  // to display a security shield overlay. Retain the URL for 60 seconds before releasing.
+  setTimeout(() => {
+    window.URL.revokeObjectURL(url)
+  }, 60000)
 }
 
 // =========================================================================

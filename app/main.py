@@ -33,7 +33,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     active_dataset_id: str | None = None
     pointer_path = Path(cfg.active_dataset_pointer_path).resolve()
     datasets_dir = (Path(cfg.data_dir).resolve() / "datasets").resolve()
-    if pointer_path.is_file():
+    default_db = Settings().database_path
+    default_data_dir = str(Path(Settings().data_dir).resolve())
+    resolved_data_dir = str(Path(cfg.data_dir).resolve())
+    is_isolated_workspace = (
+        resolved_data_dir != default_data_dir
+        and pointer_path.is_relative_to(Path(cfg.data_dir).resolve())
+    )
+    should_recover = pointer_path.is_file() and (
+        settings is None or cfg.database_path == default_db or is_isolated_workspace
+    )
+    if should_recover:
         try:
             pointer_data = json.loads(pointer_path.read_text(encoding="utf-8"))
             candidate_db = pointer_data.get("active_database_path")
@@ -112,6 +122,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_credentials=not has_wildcard,
             allow_methods=["*"],
             allow_headers=["*"],
+            expose_headers=["Content-Disposition", "X-EduQuery-Filename"],
         )
 
     # Faculty Identity Gateway middleware (enforces zero-trust gateway when configured)

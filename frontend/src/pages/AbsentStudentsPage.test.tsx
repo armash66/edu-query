@@ -194,7 +194,7 @@ describe('AbsentStudentsPage', () => {
 
     await waitFor(() => {
       expect(exportSpy).toHaveBeenCalled()
-      expect(saveBlobSpy).toHaveBeenCalledWith(expect.any(Blob), 'absent_students.xlsx')
+      expect(saveBlobSpy).toHaveBeenCalledWith(expect.any(Blob), 'EduQuery_Absent_Students_Roster.xlsx')
     })
   })
 

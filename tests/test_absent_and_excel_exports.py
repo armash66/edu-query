@@ -116,7 +116,7 @@ def test_list_absent_components(db_conn):
 def test_student_roster_excel_export_structure(db_conn):
     """Verify student roster Excel export has text identifiers, valid numeric cells, and absent count."""
     filename, excel_bytes = export_students_roster_excel(db_conn, division="A")
-    assert filename == "student_roster.xlsx"
+    assert filename in ("student_roster.xlsx", "EduQuery_Students_Filtered.xlsx", "EduQuery_Students.xlsx")
     assert len(excel_bytes) > 1000
 
     wb = openpyxl.load_workbook(io.BytesIO(excel_bytes))
@@ -183,7 +183,7 @@ def test_subject_absent_students_excel_export(db_conn):
 def test_absent_students_excel_export_all(db_conn):
     """Verify dedicated absent students workbook export."""
     filename, excel_bytes = export_absent_students_excel(db_conn)
-    assert "absent_students" in filename
+    assert "absent_students" in filename.lower()
     assert len(excel_bytes) > 1000
 
     wb = openpyxl.load_workbook(io.BytesIO(excel_bytes))

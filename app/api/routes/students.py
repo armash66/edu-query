@@ -90,9 +90,19 @@ def export_students_route(
     result: Annotated[str | None, Query(description="Filter by overall outcome")] = None,
     course_code: Annotated[str | None, Query(description="Filter by course enrollment")] = None,
     multi_fails: Annotated[bool | None, Query(description="Filter students failing 2 or more courses")] = None,
+    format: Annotated[str | None, Query(description="Export format: 'csv' or 'xlsx'")] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> Response:
-    """Export complete filtered student roster as CSV with formula injection protection."""
+    """Export complete filtered student roster as CSV or Excel with formula injection protection."""
+    if format and format.strip().lower() in ("xlsx", "excel"):
+        return export_students_excel_route(
+            query=query,
+            division=division,
+            result=result,
+            course_code=course_code,
+            multi_fails=multi_fails,
+            con=con,
+        )
     filename, csv_text = export_students_roster_csv(
         con=con,
         query=query,
@@ -131,11 +141,13 @@ def get_absent_students_route(
 
 
 @router.get("/absent/export-excel", response_model=None)
+@router.get("/absent/export", response_model=None)
 def export_absent_students_excel_route(
     division: Annotated[str | None, Query(description="Filter by division")] = None,
     course_code: Annotated[str | None, Query(description="Filter by subject / course code")] = None,
     component: Annotated[str | None, Query(description="Filter by absent component")] = None,
     query: Annotated[str | None, Query(description="Search by student name, roll no, or seat no")] = None,
+    format: Annotated[str | None, Query(description="Export format")] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> Response:
     """Export verified absent student examination records as real Excel workbook (.xlsx)."""
@@ -183,9 +195,12 @@ def get_student_breakdown_route(
 @router.get("/{identifier}/export", response_model=None)
 def export_student_breakdown_route(
     identifier: str,
+    format: Annotated[str | None, Query(description="Export format: 'csv' or 'xlsx'")] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> Response | JSONResponse:
-    """Export full student subject breakdown report as CSV with formula injection protection."""
+    """Export full student subject breakdown report as CSV or Excel with formula injection protection."""
+    if format and format.strip().lower() in ("xlsx", "excel"):
+        return export_student_breakdown_excel_route(identifier=identifier, con=con)
     status_code, filename, content = export_student_breakdown_csv(con=con, identifier=identifier)
     if status_code != 200:
         return JSONResponse(status_code=status_code, content=content)

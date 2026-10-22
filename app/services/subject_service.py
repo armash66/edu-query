@@ -88,8 +88,15 @@ def list_courses(
     full_params = enroll_params + list(params) + [limit, offset]
     rows = con.execute(select_sql, full_params).fetchall()
 
+    # Compute authoritative distinct student headcounts per course via batch aggregation
+    summary_map = {
+        s["course_code"]: s
+        for s in list_all_subjects_failure_summary(con, division=division)
+    }
+
     items: list[CourseItem] = []
     for r in rows:
+        c_code = str(r[0])
         raw_components = str(r[4]) if r[4] is not None else ""
         component_list = [c.strip() for c in raw_components.split(",") if c.strip()]
         raw_kind = str(r[2]).strip().lower() if r[2] is not None else "theory"
@@ -100,14 +107,20 @@ def list_courses(
         else:
             norm_kind = raw_kind
 
+        stats = summary_map.get(c_code, {})
+        enrolled_val = int(r[5]) if r[5] is not None else stats.get("total_enrolled", 0)
+
         items.append(
             CourseItem(
-                code=str(r[0]),
+                code=c_code,
                 name=str(r[1]),
                 kind=norm_kind,
                 credits=float(r[3]) if r[3] is not None else None,
                 components=component_list,
-                enrolled_students_count=int(r[5]) if r[5] is not None else 0,
+                enrolled_students_count=enrolled_val,
+                passed_students_count=stats.get("passed_count", 0),
+                failed_students_count=stats.get("confirmed_failures_count", 0),
+                absent_students_count=stats.get("absent_count", 0),
             )
         )
 
