@@ -68,7 +68,7 @@ export const SubjectsCatalogPage: React.FC = () => {
                 Academic Course Catalog
               </h2>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Ingested course catalog with curriculum components, credits, and verified enrollment headcounts.
+                Ingested course catalog with curriculum components, credits, and enrollment headcounts. Click <strong>View Roster & Export</strong> on any course to access its subject-wise Pass/Fail Excel export menu.
               </div>
             </div>
 
@@ -223,10 +223,10 @@ export const SubjectsCatalogPage: React.FC = () => {
                         to={`/subjects/${encodeURIComponent(course.code)}`}
                         className="btn btn-secondary btn-sm"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                        title={`View roster and details for ${course.code}`}
+                        title={`View roster and download pass/fail Excel rosters for ${course.code}`}
                       >
                         <BookOpen size={13} style={{ color: 'var(--primary)' }} />
-                        <span>View Roster</span>
+                        <span>View Roster & Export</span>
                         <ArrowRight size={13} />
                       </Link>
                     </td>

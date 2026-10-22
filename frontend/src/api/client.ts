@@ -274,34 +274,34 @@ export async function downloadAndSaveFile(
 
 export function saveBlobAsFile(blob: Blob, rawFilename: string): void {
   const filename = (rawFilename || 'EduQuery_Export.xlsx').trim()
-  // Ensure genuine XLSX mime type if filename ends in .xlsx
-  let downloadBlob = blob
-  if (
-    filename.toLowerCase().endsWith('.xlsx') &&
-    blob.type !== 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  ) {
-    downloadBlob = new Blob([blob], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    })
+  const mimeType = filename.toLowerCase().endsWith('.xlsx')
+    ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    : 'text/csv;charset=utf-8'
+
+  // Construct a true File object with the explicit target filename
+  let fileToDownload: Blob
+  try {
+    fileToDownload = new File([blob], filename, { type: mimeType })
+  } catch {
+    fileToDownload = new Blob([blob], { type: mimeType })
   }
 
-  const url = window.URL.createObjectURL(downloadBlob)
+  const url = window.URL.createObjectURL(fileToDownload)
   const a = document.createElement('a')
   a.style.display = 'none'
   a.href = url
   a.download = filename
+  a.setAttribute('download', filename)
+  a.rel = 'noopener'
   document.body.appendChild(a)
   a.click()
 
   // Clean up the DOM element after dispatch
   setTimeout(() => {
     a.remove()
-  }, 200)
+  }, 500)
 
-  // CRITICAL FIX: Do NOT revoke the object URL immediately!
-  // In Chromium on Windows, revoking the blob URL synchronously aborts or corrupts the background
-  // download spooling worker, causing the browser to save the URL UUID (without extension) and Windows
-  // to display a security shield overlay. Retain the URL for 60 seconds before releasing.
+  // Retain the URL in memory for 60 seconds before releasing to let browser spooler finish
   setTimeout(() => {
     window.URL.revokeObjectURL(url)
   }, 60000)
