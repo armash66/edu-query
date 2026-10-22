@@ -84,10 +84,14 @@ describe('SubjectDetailPage', () => {
     expect(screen.getByText('83')).toBeInTheDocument()
     expect(screen.getByText('28')).toBeInTheDocument()
     expect(screen.getByText(/Pass rate calculated as Passed/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /export/i })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /export/i }))
     expect(screen.getByTitle(/Download complete subject enrollment as Excel/i)).toBeInTheDocument()
+    expect(screen.getByTitle(/Download passed students as Excel/i)).toBeInTheDocument()
+    expect(screen.getByTitle(/Download confirmed failed students as Excel/i)).toBeInTheDocument()
   })
 
-  it('triggers Excel export correctly when Download All (.xlsx) is clicked', async () => {
+  it('triggers Excel export correctly when Download All (.xlsx) is clicked from export menu', async () => {
     vi.spyOn(client, 'getSubjectStudents').mockResolvedValue({
       course_code: 'CSC501',
       course_name: 'Software Engineering',
@@ -117,6 +121,9 @@ describe('SubjectDetailPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Software Engineering')).toBeInTheDocument()
     })
+
+    const exportMenuBtn = screen.getByRole('button', { name: /export/i })
+    fireEvent.click(exportMenuBtn)
 
     const exportBtn = screen.getByTitle(/Download complete subject enrollment as Excel/i)
     fireEvent.click(exportBtn)

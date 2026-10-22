@@ -8,8 +8,10 @@ import {
   HelpCircle,
   ArrowUpRight,
   Download,
-  Search,
+  ChevronDown,
+  Users,
   UserX,
+  Search,
   BookOpen,
 } from 'lucide-react'
 import {
@@ -41,6 +43,7 @@ export const SubjectDetailPage: React.FC = () => {
   const [error, setError] = useState<ApiError | null>(null)
 
   const [exportingType, setExportingType] = useState<string | null>(null)
+  const [exportMenuOpen, setExportMenuOpen] = useState<boolean>(false)
   const [searchInput, setSearchInput] = useState<string>(searchParam)
 
   const pageSize = 25
@@ -211,55 +214,140 @@ export const SubjectDetailPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* One-Click Excel Reports */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {/* One Export Button near Top of Subject Detail Page */}
+                <div style={{ position: 'relative' }}>
                   <button
                     type="button"
-                    onClick={() => handleExportExcel('all')}
+                    onClick={() => setExportMenuOpen((prev) => !prev)}
                     disabled={exportingType !== null}
                     className="btn btn-secondary btn-sm"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                    title="Download complete subject enrollment as Excel (.xlsx)"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
+                    title="Export subject roster to Excel (.xlsx)"
+                    aria-expanded={exportMenuOpen}
+                    aria-label="Export Course Roster Menu"
                   >
                     <Download size={14} />
-                    <span>{exportingType === 'all' ? 'Exporting...' : 'All Students (.xlsx)'}</span>
+                    <span>{exportingType ? 'Exporting...' : 'Export (.xlsx)'}</span>
+                    <ChevronDown size={13} style={{ transform: exportMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleExportExcel('passed')}
-                    disabled={exportingType !== null || data.passed_count === 0}
-                    className="btn btn-secondary btn-sm"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#065f46' }}
-                    title="Download passed students as Excel (.xlsx)"
-                  >
-                    <Download size={14} />
-                    <span>{exportingType === 'passed' ? 'Exporting...' : 'Passed Students (.xlsx)'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleExportExcel('failed')}
-                    disabled={exportingType !== null || data.failed_count === 0}
-                    className="btn btn-secondary btn-sm"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#991b1b' }}
-                    title="Download confirmed failed students as Excel (.xlsx)"
-                  >
-                    <Download size={14} />
-                    <span>{exportingType === 'failed' ? 'Exporting...' : 'Failed Students (.xlsx)'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleExportExcel('absent')}
-                    disabled={exportingType !== null || data.absent_count === 0}
-                    className="btn btn-secondary btn-sm"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: '#d97706' }}
-                    title="Download absent students as Excel (.xlsx)"
-                  >
-                    <Download size={14} />
-                    <span>{exportingType === 'absent' ? 'Exporting...' : 'Absent Students (.xlsx)'}</span>
-                  </button>
+                  {exportMenuOpen && (
+                    <>
+                      <div
+                        style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+                        onClick={() => setExportMenuOpen(false)}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: 'calc(100% + 4px)',
+                          backgroundColor: '#ffffff',
+                          borderRadius: '6px',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                          border: '1px solid #e2e8f0',
+                          minWidth: '220px',
+                          zIndex: 50,
+                          padding: '0.35rem 0',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: '0.35rem 0.75rem',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            color: '#64748b',
+                            borderBottom: '1px solid #f1f5f9',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          Export {data.course_code} Rosters
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExportMenuOpen(false)
+                            handleExportExcel('all')
+                          }}
+                          disabled={exportingType !== null}
+                          className="dropdown-item-btn"
+                          title="Download complete subject enrollment as Excel (.xlsx)"
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '0.5rem 0.75rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.8rem',
+                            color: '#1e293b',
+                          }}
+                        >
+                          <Users size={14} style={{ color: '#0284c7' }} />
+                          <span>All Students (.xlsx)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExportMenuOpen(false)
+                            handleExportExcel('passed')
+                          }}
+                          disabled={exportingType !== null || data.passed_count === 0}
+                          className="dropdown-item-btn"
+                          title="Download passed students as Excel (.xlsx)"
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '0.5rem 0.75rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: data.passed_count === 0 ? 'not-allowed' : 'pointer',
+                            opacity: data.passed_count === 0 ? 0.5 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.8rem',
+                            color: '#065f46',
+                          }}
+                        >
+                          <CheckCircle size={14} style={{ color: '#10b981' }} />
+                          <span>Passed Students ({data.passed_count})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExportMenuOpen(false)
+                            handleExportExcel('failed')
+                          }}
+                          disabled={exportingType !== null || data.failed_count === 0}
+                          className="dropdown-item-btn"
+                          title="Download confirmed failed students as Excel (.xlsx)"
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '0.5rem 0.75rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: data.failed_count === 0 ? 'not-allowed' : 'pointer',
+                            opacity: data.failed_count === 0 ? 0.5 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.8rem',
+                            color: '#991b1b',
+                          }}
+                        >
+                          <AlertTriangle size={14} style={{ color: '#ef4444' }} />
+                          <span>Failed Students ({data.failed_count})</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

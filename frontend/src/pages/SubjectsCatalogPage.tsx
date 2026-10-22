@@ -4,17 +4,9 @@ import {
   BookOpen,
   Filter,
   ArrowRight,
-  Download,
-  ChevronDown,
-  CheckCircle2,
-  AlertTriangle,
-  UserX,
-  Users,
 } from 'lucide-react'
 import {
   getSubjects,
-  downloadSubjectStudentsExcel,
-  saveBlobAsFile,
   type SubjectListParams,
 } from '../api/client'
 import { ApiError, type CourseItem, type PaginatedResponse } from '../api/types'
@@ -28,8 +20,6 @@ export const SubjectsCatalogPage: React.FC = () => {
   const [total, setTotal] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<ApiError | null>(null)
-  const [exportingKey, setExportingKey] = useState<string | null>(null)
-  const [openDropdownCourse, setOpenDropdownCourse] = useState<string | null>(null)
 
   const [kindFilter, setKindFilter] = useState<string>('')
   const [divisionFilter, setDivisionFilter] = useState<string>('')
@@ -65,32 +55,6 @@ export const SubjectsCatalogPage: React.FC = () => {
   useEffect(() => {
     fetchCatalog()
   }, [fetchCatalog])
-
-  const handleDownloadSubjectExcel = async (
-    courseCode: string,
-    reportType: 'all' | 'passed' | 'failed' | 'absent'
-  ) => {
-    const key = `${courseCode}_${reportType}`
-    setExportingKey(key)
-    try {
-      const safeCode = courseCode.replace(/[^a-zA-Z0-9_-]/g, '_')
-      let filename = `EduQuery_${safeCode}_All_Students.xlsx`
-      if (reportType === 'passed') filename = `EduQuery_${safeCode}_Passed_Students.xlsx`
-      else if (reportType === 'failed') filename = `EduQuery_${safeCode}_Failed_Students.xlsx`
-      else if (reportType === 'absent') filename = `EduQuery_${safeCode}_Absent_Students.xlsx`
-
-      const blob = await downloadSubjectStudentsExcel(
-        courseCode,
-        reportType,
-        divisionFilter.trim() || null
-      )
-      saveBlobAsFile(blob, filename)
-    } catch {
-      alert(`Failed to download ${reportType} students workbook for ${courseCode}. Please try again.`)
-    } finally {
-      setExportingKey(null)
-    }
-  }
 
   return (
     <div>
@@ -198,7 +162,6 @@ export const SubjectsCatalogPage: React.FC = () => {
                   <th style={{ textAlign: 'center' }}>Enrolled</th>
                   <th style={{ textAlign: 'center' }}>Passed</th>
                   <th style={{ textAlign: 'center' }}>Failed</th>
-                  <th style={{ textAlign: 'center' }}>Absent</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -255,186 +218,17 @@ export const SubjectsCatalogPage: React.FC = () => {
                         {course.failed_students_count != null ? course.failed_students_count.toLocaleString() : '0'}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span
-                        className="badge"
-                        style={{
-                          fontSize: '0.8rem',
-                          minWidth: '28px',
-                          fontWeight: 600,
-                          backgroundColor: (course.absent_students_count ?? 0) > 0 ? '#fef3c7' : '#f1f5f9',
-                          color: (course.absent_students_count ?? 0) > 0 ? '#92400e' : '#64748b',
-                          border: (course.absent_students_count ?? 0) > 0 ? '1px solid #fde68a' : '1px solid #e2e8f0',
-                        }}
-                      >
-                        {course.absent_students_count != null ? course.absent_students_count.toLocaleString() : '0'}
-                      </span>
-                    </td>
                     <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'flex-end' }}>
-                        <div style={{ position: 'relative' }}>
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem' }}
-                            onClick={() => setOpenDropdownCourse(openDropdownCourse === course.code ? null : course.code)}
-                            disabled={exportingKey !== null && exportingKey.startsWith(course.code)}
-                            aria-expanded={openDropdownCourse === course.code}
-                            title={`Download Excel rosters for ${course.code}`}
-                          >
-                            <Download size={13} />
-                            <span>
-                              {exportingKey !== null && exportingKey.startsWith(course.code)
-                                ? 'Exporting...'
-                                : 'Export'}
-                            </span>
-                            <ChevronDown size={12} />
-                          </button>
-
-                          {openDropdownCourse === course.code && (
-                            <>
-                              <div
-                                style={{ position: 'fixed', inset: 0, zIndex: 40 }}
-                                onClick={() => setOpenDropdownCourse(null)}
-                              />
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  right: 0,
-                                  top: 'calc(100% + 4px)',
-                                  backgroundColor: '#ffffff',
-                                  borderRadius: '6px',
-                                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                                  border: '1px solid #e2e8f0',
-                                  minWidth: '210px',
-                                  zIndex: 50,
-                                  padding: '0.35rem 0',
-                                  textAlign: 'left',
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    padding: '0.35rem 0.75rem',
-                                    fontSize: '0.7rem',
-                                    fontWeight: 700,
-                                    color: '#64748b',
-                                    borderBottom: '1px solid #f1f5f9',
-                                    textTransform: 'uppercase',
-                                  }}
-                                >
-                                  Excel Rosters (.xlsx)
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenDropdownCourse(null)
-                                    handleDownloadSubjectExcel(course.code, 'all')
-                                  }}
-                                  className="dropdown-item-btn"
-                                  style={{
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    padding: '0.45rem 0.75rem',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    fontSize: '0.8rem',
-                                    color: '#1e293b',
-                                  }}
-                                >
-                                  <Users size={13} style={{ color: '#0284c7' }} />
-                                  <span>All Students (.xlsx)</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenDropdownCourse(null)
-                                    handleDownloadSubjectExcel(course.code, 'passed')
-                                  }}
-                                  className="dropdown-item-btn"
-                                  style={{
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    padding: '0.45rem 0.75rem',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    fontSize: '0.8rem',
-                                    color: '#065f46',
-                                  }}
-                                >
-                                  <CheckCircle2 size={13} style={{ color: '#10b981' }} />
-                                  <span>Passed Students (.xlsx)</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenDropdownCourse(null)
-                                    handleDownloadSubjectExcel(course.code, 'failed')
-                                  }}
-                                  className="dropdown-item-btn"
-                                  style={{
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    padding: '0.45rem 0.75rem',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    fontSize: '0.8rem',
-                                    color: '#991b1b',
-                                  }}
-                                >
-                                  <AlertTriangle size={13} style={{ color: '#ef4444' }} />
-                                  <span>Failed Students (.xlsx)</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setOpenDropdownCourse(null)
-                                    handleDownloadSubjectExcel(course.code, 'absent')
-                                  }}
-                                  className="dropdown-item-btn"
-                                  style={{
-                                    width: '100%',
-                                    textAlign: 'left',
-                                    padding: '0.45rem 0.75rem',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    fontSize: '0.8rem',
-                                    color: '#92400e',
-                                  }}
-                                >
-                                  <UserX size={13} style={{ color: '#d97706' }} />
-                                  <span>Absent Students (.xlsx)</span>
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        <Link
-                          to={`/subjects/${encodeURIComponent(course.code)}`}
-                          className="btn btn-secondary btn-sm"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                        >
-                          <BookOpen size={13} style={{ color: 'var(--primary)' }} />
-                          <span>View</span>
-                          <ArrowRight size={13} />
-                        </Link>
-                      </div>
+                      <Link
+                        to={`/subjects/${encodeURIComponent(course.code)}`}
+                        className="btn btn-secondary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                        title={`View roster and details for ${course.code}`}
+                      >
+                        <BookOpen size={13} style={{ color: 'var(--primary)' }} />
+                        <span>View Roster</span>
+                        <ArrowRight size={13} />
+                      </Link>
                     </td>
                   </tr>
                 ))}

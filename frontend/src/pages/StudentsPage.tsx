@@ -114,62 +114,88 @@ export const StudentsPage: React.FC = () => {
   const handlePrintRoster = async () => {
     setPrinting(true)
     try {
-      if (students.length >= total) {
+      if (students.length >= total && students.length > 0) {
         setPrintStudents(students)
-      } else {
+      } else if (total <= 100) {
         const fullList = await getStudents({
           query: searchQuery.trim() || undefined,
           division: divisionFilter.trim() || undefined,
           result: resultFilter.trim() || undefined,
-          limit: 2000,
+          limit: Math.min(Math.max(total, 1), 100),
           offset: 0,
         })
-        setPrintStudents(fullList.items || [])
+        setPrintStudents(fullList?.items && fullList.items.length > 0 ? fullList.items : students)
+      } else {
+        const batchSize = 100
+        const pagesNeeded = Math.ceil(Math.min(total, 1000) / batchSize)
+        const fetchPromises = []
+        for (let i = 0; i < pagesNeeded; i++) {
+          fetchPromises.push(
+            getStudents({
+              query: searchQuery.trim() || undefined,
+              division: divisionFilter.trim() || undefined,
+              result: resultFilter.trim() || undefined,
+              limit: batchSize,
+              offset: i * batchSize,
+            })
+          )
+        }
+        const pages = await Promise.all(fetchPromises)
+        const allItems = pages.flatMap((p) => p.items || [])
+        setPrintStudents(allItems.length > 0 ? allItems : students)
       }
-
+    } catch {
+      setPrintStudents(students)
+    } finally {
       setTimeout(() => {
         window.print()
         setPrinting(false)
-      }, 250)
-    } catch {
-      setPrinting(false)
-      window.print()
+      }, 150)
     }
   }
 
   const hasActiveFilters = Boolean(searchQuery.trim() || divisionFilter.trim() || resultFilter.trim())
+  const studentsToPrint = printStudents && printStudents.length > 0 ? printStudents : students
 
   return (
     <div>
       <style>{`
+        @media screen {
+          .print-roster-view {
+            display: none !important;
+          }
+        }
         @page {
           size: landscape;
-          margin: 10mm;
+          margin: 10mm 12mm;
         }
         @media print {
           body {
             background: #ffffff !important;
-            color: #000000 !important;
+            color: #0f172a !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           body * {
             visibility: hidden;
           }
-          .sidebar, .top-header, .header, .card-header, nav, button, select, input {
+          .sidebar, .top-header, .header, .card, nav, button, select, input, .pagination {
             display: none !important;
           }
           .print-roster-view, .print-roster-view * {
             visibility: visible;
           }
           .print-roster-view {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
             display: block !important;
             background: #ffffff !important;
-            color: #000000 !important;
+            color: #0f172a !important;
+            box-sizing: border-box !important;
           }
           .print-roster-view table {
             display: table !important;
@@ -190,10 +216,11 @@ export const StudentsPage: React.FC = () => {
           }
           .print-roster-view th, .print-roster-view td {
             display: table-cell !important;
-            border: 1px solid #94a3b8 !important;
-            padding: 4px 6px !important;
+            border: 1px solid #cbd5e1 !important;
+            padding: 6px 8px !important;
             font-size: 8.5pt !important;
-            line-height: 1.25 !important;
+            line-height: 1.3 !important;
+            vertical-align: middle !important;
           }
           .print-roster-view th {
             background-color: #f1f5f9 !important;
@@ -491,62 +518,70 @@ export const StudentsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Print-Only Roster Section */}
-      {printing && printStudents && (
-        <div className="print-roster-view" style={{ display: 'none' }}>
-          <div style={{ marginBottom: '1.25rem', borderBottom: '2px solid #0f172a', paddingBottom: '0.5rem' }}>
-            <h1 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0 0 0.25rem 0', color: '#0f172a' }}>
-              EduQuery — Student Marks Roster
-            </h1>
-            <div style={{ fontSize: '9pt', color: '#475569' }}>
-              Generated: {new Date().toLocaleDateString()} &bull; Total Matching Students: {total}
-              {hasActiveFilters && (
-                <div style={{ marginTop: '0.2rem' }}>
-                  Active Filters:
-                  {searchQuery && ` Query: "${searchQuery}"`}
-                  {divisionFilter && ` | Division: ${divisionFilter}`}
-                  {resultFilter && ` | Outcome: ${resultFilter}`}
-                </div>
-              )}
+      {/* Dedicated Print-Only Roster Section */}
+      {printing && studentsToPrint && studentsToPrint.length > 0 && (
+        <div className="print-roster-view">
+          <div style={{ marginBottom: '0.85rem', borderBottom: '2px solid #0f172a', paddingBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <h1 style={{ fontSize: '15pt', fontWeight: 800, margin: '0 0 0.2rem 0', color: '#0f172a', letterSpacing: '-0.02em' }}>
+                EduQuery — Student Marks Roster
+              </h1>
+              <div style={{ fontSize: '8.5pt', color: '#475569' }}>
+                Total Verified Matching: <strong>{total}</strong> students
+                {hasActiveFilters && (
+                  <span>
+                    {' | '}
+                    Active Filters:
+                    {searchQuery && ` Query: "${searchQuery}"`}
+                    {divisionFilter && ` | Division: ${divisionFilter}`}
+                    {resultFilter && ` | Outcome: ${resultFilter}`}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div style={{ fontSize: '8pt', color: '#64748b', textAlign: 'right' }}>
+              Printed: {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
             </div>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5pt' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <thead>
               <tr style={{ backgroundColor: '#f1f5f9', textAlign: 'left' }}>
-                <th style={{ padding: '5px 6px', width: '10%' }}>Roll No</th>
-                <th style={{ padding: '5px 6px', width: '9%' }}>Seat No</th>
-                <th style={{ padding: '5px 6px', width: '23%' }}>Student Name</th>
-                <th style={{ padding: '5px 6px', width: '5%', textAlign: 'center' }}>Div</th>
-                <th style={{ padding: '5px 6px', width: '9%', textAlign: 'right' }}>Total Marks</th>
-                <th style={{ padding: '5px 6px', width: '9%', textAlign: 'right' }}>SGPI / CGPA</th>
-                <th style={{ padding: '5px 6px', width: '8%', textAlign: 'center' }}>Passed</th>
-                <th style={{ padding: '5px 6px', width: '8%', textAlign: 'center' }}>Failed</th>
-                <th style={{ padding: '5px 6px', width: '8%', textAlign: 'center' }}>Absent</th>
-                <th style={{ padding: '5px 6px', width: '11%' }}>Outcome</th>
+                <th style={{ width: '13%' }}>Roll No</th>
+                <th style={{ width: '10%' }}>Seat No</th>
+                <th style={{ width: '27%' }}>Student Name</th>
+                <th style={{ width: '5%', textAlign: 'center' }}>Div</th>
+                <th style={{ width: '8%', textAlign: 'right' }}>Total Marks</th>
+                <th style={{ width: '9%', textAlign: 'right' }}>SGPI / CGPA</th>
+                <th style={{ width: '7%', textAlign: 'center' }}>Passed</th>
+                <th style={{ width: '7%', textAlign: 'center' }}>Failed</th>
+                <th style={{ width: '7%', textAlign: 'center' }}>Absent</th>
+                <th style={{ width: '7%', textAlign: 'center' }}>Outcome</th>
               </tr>
             </thead>
             <tbody>
-              {printStudents.map((st) => (
+              {studentsToPrint.map((st) => (
                 <tr key={st.student_id}>
-                  <td style={{ padding: '4px 6px', fontWeight: 600, whiteSpace: 'nowrap' }}>{st.roll_no || '—'}</td>
-                  <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{st.seat_no || '—'}</td>
-                  <td style={{ padding: '4px 6px' }}>{st.name}</td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>{st.division || '—'}</td>
-                  <td style={{ padding: '4px 6px', textAlign: 'right' }}>{st.total_marks ?? '—'}</td>
-                  <td style={{ padding: '4px 6px', textAlign: 'right' }}>
+                  <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{st.roll_no || '—'}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{st.seat_no || '—'}</td>
+                  <td style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.name}</td>
+                  <td style={{ textAlign: 'center' }}>{st.division || '—'}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{st.total_marks ?? '—'}</td>
+                  <td style={{ textAlign: 'right' }}>
                     {st.sgpi != null ? st.sgpi.toFixed(2) : st.cgpa != null ? st.cgpa.toFixed(2) : '—'}
                   </td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: '#065f46' }}>
+                  <td style={{ textAlign: 'center', fontWeight: 600, color: '#065f46' }}>
                     {st.passed_subject_count ?? 0}
                   </td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: (st.failed_subject_count ?? 0) > 0 ? '#991b1b' : '#64748b' }}>
+                  <td style={{ textAlign: 'center', fontWeight: 600, color: (st.failed_subject_count ?? 0) > 0 ? '#991b1b' : '#64748b' }}>
                     {st.failed_subject_count ?? 0}
                   </td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: (st.absent_subject_count ?? 0) > 0 ? '#92400e' : '#64748b' }}>
+                  <td style={{ textAlign: 'center', fontWeight: 600, color: (st.absent_subject_count ?? 0) > 0 ? '#92400e' : '#64748b' }}>
                     {st.absent_subject_count ?? 0}
                   </td>
-                  <td style={{ padding: '4px 6px', fontWeight: 600 }}>{st.overall_result || 'UNRESOLVED'}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: st.overall_result === 'PASSES' ? '#065f46' : st.overall_result === 'FAILS' ? '#991b1b' : '#64748b' }}>
+                    {st.overall_result || '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>
