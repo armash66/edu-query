@@ -255,6 +255,12 @@ def detect_all_anomalies(
         finding_id = f"DET-MISMATCH-{str(sid)[-4:]}-{str(ccode)}-{idx+1}"
         review = _get_review_status(finding_id, dataset_id=dataset_id)
 
+        plain_title = "Printed Total Does Not Match Component Sum"
+        what_noticed = f"The printed course total in {ccode} differs from the sum of component assessments."
+        evidence_str = f"Printed total: {printed}, Sum of components: {computed} (Difference: {diff} mark(s))."
+        rec_action = "Review the original marksheet row and re-verify the assessment breakdown."
+        tech_details = f"Deterministic arithmetic check: abs({printed} - {computed}) = {diff}."
+
         findings.append(
             AnomalyFindingItem(
                 finding_id=finding_id,
@@ -274,9 +280,14 @@ def detect_all_anomalies(
                     "recorded_grade": str(grade) if grade else None,
                 },
                 explanation=(
-                    f"Printed course total ({printed}) does not match the sum of component assessments ({computed}). "
-                    f"A deterministic reconciliation gap of {diff} mark(s) exists."
+                    f"{plain_title}: Printed course total ({printed}) in {ccode} does not match the "
+                    f"sum of component assessments ({computed}). A reconciliation gap of {diff} mark(s) exists."
                 ),
+                title=plain_title,
+                what_noticed=what_noticed,
+                evidence=evidence_str,
+                recommended_action=rec_action,
+                technical_details=tech_details,
                 limitations=(
                     "Deterministic verification rule. Confirms a mathematical mismatch in spreadsheet source cells. "
                     "Does not prove administrative misconduct or intent."
@@ -311,6 +322,11 @@ def detect_all_anomalies(
         finding_id = f"DET-BOUND-{str(sid)[-4:]}-{str(ccode)}-{idx+1}"
         review = _get_review_status(finding_id, dataset_id=dataset_id)
         max_bound = 150 if str(comp) == "TOT1" else 100
+        plain_title = "Mark Outside Expected Range"
+        what_noticed = f"Score value of {val_flt} in component '{comp}' exceeds allowable range [0, {max_bound}]."
+        evidence_str = f"Component: {comp}, Recorded mark: {val_flt}, Permissible range: 0 to {max_bound}."
+        rec_action = "Verify if this is a typographical error or parsing artifact in the source marksheet."
+        tech_details = f"Deterministic boundary check: score {val_flt} not in [0, {max_bound}]."
 
         findings.append(
             AnomalyFindingItem(
@@ -329,9 +345,12 @@ def detect_all_anomalies(
                     "score_value": val_flt,
                     "legal_range": [0, max_bound],
                 },
-                explanation=(
-                    f"Assessment component '{comp}' records {val_flt} marks, violating permissible mark boundaries [0, {max_bound}]."
-                ),
+                explanation=f"{plain_title}: {what_noticed}",
+                title=plain_title,
+                what_noticed=what_noticed,
+                evidence=evidence_str,
+                recommended_action=rec_action,
+                technical_details=tech_details,
                 limitations=(
                     "Deterministic range validation rule. Direct indication of typographical error or parsing artifact."
                 ),
@@ -390,6 +409,16 @@ def detect_all_anomalies(
                     review = _get_review_status(finding_id, dataset_id=dataset_id)
                     direction = "significantly below" if z_score < 0 else "significantly above"
 
+                    plain_title = "Unusual Mark Difference from Course Median"
+                    what_noticed = (
+                        f"The student's score of {score:.1f} in {ccode} is {direction} the course median of {median_val:.1f}."
+                    )
+                    evidence_str = (
+                        f"Subject: {ccode}, Student score: {score:.1f}, Course median: {median_val:.1f} (Z-Score: {z_score:+.2f})."
+                    )
+                    rec_action = "Review subject marks to understand if this reflects student specialization or an entry error."
+                    tech_details = f"Median Absolute Deviation (MAD) robust Z-score: {z_score:+.2f}."
+
                     findings.append(
                         AnomalyFindingItem(
                             finding_id=finding_id,
@@ -409,10 +438,12 @@ def detect_all_anomalies(
                                 "robust_z": round(z_score, 2),
                                 "enrolled_in_course": len(student_scores),
                             },
-                            explanation=(
-                                f"Score of {score:.1f} in {ccode} is {direction} the course median of {median_val:.1f} "
-                                f"(robust deviation Z = {z_score:+.2f}, exceeding ±2.8 benchmark)."
-                            ),
+                            explanation=f"{plain_title}: {what_noticed}",
+                            title=plain_title,
+                            what_noticed=what_noticed,
+                            evidence=evidence_str,
+                            recommended_action=rec_action,
+                            technical_details=tech_details,
                             limitations=(
                                 "Statistical outlier flag using Median Absolute Deviation. Indicates exceptional individual "
                                 "performance divergence, not a marksheet defect or grading irregularity."
@@ -545,13 +576,49 @@ def detect_all_anomalies(
                 # Construct explainable sentence based on highest contributing component
                 high_dispersion = X[i][1] > cohort_medians[1] * 1.5
                 high_mismatch = X[i][2] > 0.5
+                tot_marks = smeta.get("total_marks")
+                fail_cnt = student_fail_map.get(sid, 0)
+                enrolled_cnt = len(student_course_map.get(sid, []))
 
                 if high_mismatch:
-                    expl_lead = f"Elevated component total discrepancies (max mismatch: {X[i][2]:.1f})"
+                    plain_title = "Discrepancy Between Component Sum and Printed Total"
+                    what_noticed = (
+                        f"The student's marksheet shows a discrepancy of up to {X[i][2]:.1f} marks "
+                        f"between component sums and printed totals."
+                    )
+                    evidence_str = (
+                        f"Maximum component mismatch: {X[i][2]:.1f} mark(s). Recorded total marks: {tot_marks}."
+                    )
+                    rec_action = "Review the component breakdown in the source marksheet to reconcile the totals."
                 elif high_dispersion:
-                    expl_lead = f"High intra-student performance volatility across courses (dispersion index: {X[i][1]:.2f} vs cohort median {cohort_medians[1]:.2f})"
+                    plain_title = "Large Difference Between Subject Marks"
+                    what_noticed = (
+                        "The student shows unusually high variation in marks across different subjects compared to cohort peers."
+                    )
+                    evidence_str = (
+                        f"Subject mark variation (standard deviation: {X[i][1]*100:.1f} marks) is higher than cohort median "
+                        f"({cohort_medians[1]*100:.1f} marks). Recorded total marks: {tot_marks}."
+                    )
+                    rec_action = "Review marks across subjects to see if the student excels in some areas while struggling in others."
+                elif fail_cnt > 0:
+                    plain_title = "Unusual Combination of Marks and Failures"
+                    what_noticed = (
+                        f"The student has {fail_cnt} failed subject(s) out of {enrolled_cnt} evaluated subjects despite their recorded overall score."
+                    )
+                    evidence_str = (
+                        f"Recorded overall marks: {tot_marks}, Failed subjects: {fail_cnt} of {enrolled_cnt}."
+                    )
+                    rec_action = "Verify the source record before taking action; check whether subject-wise marks or passing thresholds require review."
                 else:
-                    expl_lead = f"Unusual combination of overall marks ({X[i][4]:.2f}) and subject failure ratio ({X[i][3]:.2f})"
+                    plain_title = "Unusual Score Pattern Detected"
+                    what_noticed = "The student's overall marks profile differs noticeably from typical cohort patterns."
+                    evidence_str = f"Recorded overall marks: {tot_marks} across {enrolled_cnt} enrolled subjects."
+                    rec_action = "Inspect subject marks to confirm evaluation accuracy."
+
+                tech_details = (
+                    f"Flagged by Isolation Forest multivariate outlier detection (anomaly index: {anomaly_index:.3f}, "
+                    f"decision function: {scores[i]:.4f}) across 5 normalized academic dimensions."
+                )
 
                 findings.append(
                     AnomalyFindingItem(
@@ -570,9 +637,12 @@ def detect_all_anomalies(
                             "cohort_feature_medians": feat_medians_dict,
                             "decision_function_raw": round(float(scores[i]), 4),
                         },
-                        explanation=(
-                            f"{expl_lead}. Isolated by multi-dimensional tree partitioning across 5 normalized academic features."
-                        ),
+                        explanation=f"{plain_title}: {what_noticed}",
+                        title=plain_title,
+                        what_noticed=what_noticed,
+                        evidence=evidence_str,
+                        recommended_action=rec_action,
+                        technical_details=tech_details,
                         limitations=(
                             "Multivariate Isolation Forest anomaly score indicates structural uniqueness in feature space. "
                             "It is NOT a probability of error or fraud, and does NOT alter official academic pass/fail status."

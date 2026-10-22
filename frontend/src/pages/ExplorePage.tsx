@@ -17,7 +17,8 @@ import {
 import {
   getInvestigationCapabilities,
   runInvestigationQuery,
-  downloadInvestigationCsv,
+  downloadInvestigationExcel,
+  saveBlobAsFile,
   getSubjects,
   ApiError,
 } from '../api/client'
@@ -362,11 +363,11 @@ export const ExplorePage: React.FC = () => {
     }
   }
 
-  // CSV Export action
-  const handleExportCsv = async () => {
+  // Excel Export action (.xlsx)
+  const handleExportExcel = async () => {
     setExporting(true)
     try {
-      const blob = await downloadInvestigationCsv({
+      const blob = await downloadInvestigationExcel({
         group:
           conditions.length > 0
             ? {
@@ -378,16 +379,9 @@ export const ExplorePage: React.FC = () => {
         sort_by: sortBy,
         sort_dir: sortDir,
       })
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = downloadUrl
-      a.download = 'academic_investigation_roster.csv'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      window.URL.revokeObjectURL(downloadUrl)
+      saveBlobAsFile(blob, 'academic_investigation_roster.xlsx')
     } catch {
-      alert('Failed to generate CSV export. Please try again.')
+      alert('Failed to generate Excel export. Please try again.')
     } finally {
       setExporting(false)
     }
@@ -476,12 +470,12 @@ export const ExplorePage: React.FC = () => {
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={exporting || total === 0}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
           >
             <Download size={14} />
-            <span>{exporting ? 'Exporting...' : 'Export Matching CSV'}</span>
+            <span>{exporting ? 'Exporting...' : 'Export to Excel (.xlsx)'}</span>
           </button>
         </div>
       </div>
@@ -982,7 +976,7 @@ export const ExplorePage: React.FC = () => {
                 <tr>
                   <th
                     onClick={() => handleSort('seat_no')}
-                    style={{ width: '15%', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '13%', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by Seat / Roll"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -992,7 +986,7 @@ export const ExplorePage: React.FC = () => {
                   </th>
                   <th
                     onClick={() => handleSort('name')}
-                    style={{ width: '26%', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '21%', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by Student Name"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -1002,7 +996,7 @@ export const ExplorePage: React.FC = () => {
                   </th>
                   <th
                     onClick={() => handleSort('division')}
-                    style={{ width: '9%', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '8%', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by Division"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -1010,9 +1004,15 @@ export const ExplorePage: React.FC = () => {
                       <ArrowUpDown size={12} style={{ color: sortBy === 'division' ? 'var(--primary)' : 'var(--text-muted)' }} />
                     </div>
                   </th>
+                  <th style={{ width: '11%', textAlign: 'center' }} title="Distinct passed curriculum subjects">
+                    <span>Passed Subj</span>
+                  </th>
+                  <th style={{ width: '11%', textAlign: 'center' }} title="Distinct failed curriculum subjects">
+                    <span>Failed Subj</span>
+                  </th>
                   <th
                     onClick={() => handleSort('total_marks')}
-                    style={{ width: '12%', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '10%', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by Total Marks"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.3rem' }}>
@@ -1022,7 +1022,7 @@ export const ExplorePage: React.FC = () => {
                   </th>
                   <th
                     onClick={() => handleSort('sgpi')}
-                    style={{ width: '10%', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '8%', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by SGPI"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.3rem' }}>
@@ -1032,7 +1032,7 @@ export const ExplorePage: React.FC = () => {
                   </th>
                   <th
                     onClick={() => handleSort('result')}
-                    style={{ width: '14%', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '11%', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by Academic Outcome"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -1040,7 +1040,7 @@ export const ExplorePage: React.FC = () => {
                       <ArrowUpDown size={12} style={{ color: sortBy === 'result' ? 'var(--primary)' : 'var(--text-muted)' }} />
                     </div>
                   </th>
-                  <th style={{ width: '14%', textAlign: 'right' }}>Supporting Record</th>
+                  <th style={{ width: '7%', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1084,6 +1084,33 @@ export const ExplorePage: React.FC = () => {
                             '—'
                           )}
                         </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            className="badge badge-success"
+                            style={{ fontSize: '0.75rem', fontWeight: 600, minWidth: '24px', display: 'inline-block' }}
+                            title={`${st.passed_subject_count ?? 0} distinct passed subjects`}
+                          >
+                            {st.passed_subject_count ?? 0}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            className={`badge ${(st.failed_subject_count ?? 0) > 0 ? 'badge-danger' : 'badge-neutral'}`}
+                            style={{ fontSize: '0.75rem', fontWeight: 600, minWidth: '24px', display: 'inline-block' }}
+                            title={`${st.failed_subject_count ?? 0} distinct failed subjects`}
+                          >
+                            {st.failed_subject_count ?? 0}
+                          </span>
+                          {(st.unresolved_subject_count ?? 0) > 0 && (
+                            <span
+                              className="badge badge-warning"
+                              style={{ fontSize: '0.65rem', marginLeft: '0.25rem' }}
+                              title={`${st.unresolved_subject_count} unresolved/absent subjects`}
+                            >
+                              {st.unresolved_subject_count}?
+                            </span>
+                          )}
+                        </td>
                         <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
                           {st.total_marks !== null ? st.total_marks.toLocaleString() : '—'}
                         </td>
@@ -1114,7 +1141,7 @@ export const ExplorePage: React.FC = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-muted)' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-muted)' }}>
                       <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                         No records match the active investigation conditions
                       </div>

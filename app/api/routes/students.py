@@ -18,7 +18,9 @@ from app.api.schemas.student import (
 )
 from app.services.export_service import (
     export_student_breakdown_csv,
+    export_student_breakdown_excel,
     export_students_roster_csv,
+    export_students_roster_excel,
 )
 from app.services.student_service import (
     get_student_breakdown_service,
@@ -49,6 +51,31 @@ def get_students(
         multi_fails=multi_fails,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.get("/export-excel", response_model=None)
+def export_students_excel_route(
+    query: Annotated[str | None, Query(description="Case-insensitive student search filter")] = None,
+    division: Annotated[str | None, Query(description="Filter by class division")] = None,
+    result: Annotated[str | None, Query(description="Filter by overall outcome")] = None,
+    course_code: Annotated[str | None, Query(description="Filter by course enrollment")] = None,
+    multi_fails: Annotated[bool | None, Query(description="Filter students failing 2 or more courses")] = None,
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> Response:
+    """Export complete filtered student roster as real Excel workbook (.xlsx)."""
+    filename, excel_bytes = export_students_roster_excel(
+        con=con,
+        query=query,
+        division=division,
+        result=result,
+        course_code=course_code,
+        multi_fails=multi_fails,
+    )
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
@@ -110,4 +137,21 @@ def export_student_breakdown_route(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/{identifier}/export-excel", response_model=None)
+def export_student_breakdown_excel_route(
+    identifier: str,
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> Response | JSONResponse:
+    """Export full student subject breakdown report as real Excel workbook (.xlsx)."""
+    status_code, filename, content = export_student_breakdown_excel(con=con, identifier=identifier)
+    if status_code != 200:
+        return JSONResponse(status_code=status_code, content=content)
+    return Response(
+        content=content,  # type: ignore[arg-type]
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
 

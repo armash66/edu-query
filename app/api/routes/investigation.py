@@ -14,6 +14,7 @@ from app.api.schemas.investigation import (
 from app.services.investigation_service import (
     execute_investigation_query,
     export_investigation_csv,
+    export_investigation_excel_service,
     get_investigation_capabilities,
 )
 
@@ -46,6 +47,26 @@ def run_investigation_query(
 
 
 @router.post(
+    "/export-excel",
+    summary="Download unpaginated Excel .xlsx export of matching investigation records",
+)
+def download_investigation_excel(
+    req: InvestigationQueryRequest,
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> Response:
+    """Export the complete unpaginated matching investigation cohort to an Excel workbook (.xlsx)."""
+    filename, excel_bytes = export_investigation_excel_service(con, req)
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+        },
+    )
+
+
+@router.post(
     "/export-csv",
     summary="Download unpaginated formula-safe CSV export of matching investigation records",
 )
@@ -63,3 +84,4 @@ def download_investigation_csv(
             "Cache-Control": "no-store, no-cache, must-revalidate",
         },
     )
+

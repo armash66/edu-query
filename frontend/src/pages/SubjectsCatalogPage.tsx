@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Filter, ArrowRight, TrendingDown } from 'lucide-react'
+import { BookOpen, Filter, ArrowRight } from 'lucide-react'
 import { getSubjects, type SubjectListParams } from '../api/client'
 import { ApiError, type CourseItem, type PaginatedResponse } from '../api/types'
 import { Pagination } from '../components/Pagination'
@@ -189,12 +189,12 @@ export const SubjectsCatalogPage: React.FC = () => {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <Link
-                        to={`/subjects/${encodeURIComponent(course.code)}/failures`}
+                        to={`/subjects/${encodeURIComponent(course.code)}`}
                         className="btn btn-secondary btn-sm"
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
                       >
-                        <TrendingDown size={13} style={{ color: '#ef4444' }} />
-                        <span>Failures</span>
+                        <BookOpen size={13} style={{ color: 'var(--primary)' }} />
+                        <span>View Students</span>
                         <ArrowRight size={13} />
                       </Link>
                     </td>

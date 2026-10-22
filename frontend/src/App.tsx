@@ -40,6 +40,7 @@ export function App() {
                 <Route path="/students" element={<StudentsPage />} />
                 <Route path="/students/:identifier" element={<StudentDetailPage />} />
                 <Route path="/failures" element={<SubjectFailuresPage />} />
+                <Route path="/subjects/:courseCode" element={<SubjectDetailPage />} />
                 <Route path="/subjects/:courseCode/failures" element={<SubjectDetailPage />} />
                 <Route path="/subjects" element={<SubjectsCatalogPage />} />
                 <Route path="/data-quality" element={<DataQualityPage />} />

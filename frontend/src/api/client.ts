@@ -25,6 +25,7 @@ import type {
   StudentSummaryItem,
   SubjectFailureResponse,
   SubjectFailureSummaryResponse,
+  SubjectStudentsResponse,
   GroupedAnomalyRecord,
   SessionUploadResponse,
   SessionConfirmResponse,
@@ -384,6 +385,62 @@ export async function rollbackDataset(
     body: JSON.stringify({ dataset_id: datasetId.trim() }),
     adminKey,
     signal,
+  })
+}
+
+export async function getSubjectStudents(
+  courseCode: string,
+  params: { division?: string; result?: string; status?: string; search?: string; limit?: number; offset?: number } = {},
+  signal?: AbortSignal
+): Promise<SubjectStudentsResponse> {
+  const clean = encodeURIComponent(courseCode.trim())
+  const q = new URLSearchParams()
+  if (params.division?.trim()) q.set('division', params.division.trim())
+  if (params.result?.trim()) q.set('result', params.result.trim())
+  if (params.status?.trim()) q.set('status', params.status.trim())
+  if (params.search?.trim()) q.set('search', params.search.trim())
+  if (params.limit !== undefined) q.set('limit', String(params.limit))
+  if (params.offset !== undefined) q.set('offset', String(params.offset))
+  const qs = q.toString()
+  return request<SubjectStudentsResponse>(`/api/v1/subjects/${clean}/students${qs ? `?${qs}` : ''}`, { signal })
+}
+
+export async function downloadSubjectStudentsExcel(
+  courseCode: string,
+  reportType: 'all' | 'passed' | 'failed' | 'absent' = 'all',
+  division?: string | null
+): Promise<Blob> {
+  const clean = encodeURIComponent(courseCode.trim())
+  const q = new URLSearchParams()
+  if (division?.trim()) q.set('division', division.trim())
+  q.set('status', reportType)
+  q.set('report_type', reportType)
+  return requestBlob(`/api/v1/subjects/${clean}/export-excel?${q.toString()}`)
+}
+
+export async function downloadStudentsRosterExcel(params: StudentListParams = {}): Promise<Blob> {
+  const q = new URLSearchParams()
+  if (params.query?.trim()) q.set('query', params.query.trim())
+  if (params.division?.trim()) q.set('division', params.division.trim())
+  if (params.result?.trim()) q.set('result', params.result.trim())
+  if (params.course_code?.trim()) q.set('course_code', params.course_code.trim())
+  if (params.multi_fails !== undefined && params.multi_fails !== null) {
+    q.set('multi_fails', String(params.multi_fails))
+  }
+  const qs = q.toString()
+  return requestBlob(`/api/v1/students/export-excel${qs ? `?${qs}` : ''}`)
+}
+
+export async function downloadStudentBreakdownExcel(identifier: string): Promise<Blob> {
+  const clean = encodeURIComponent(identifier.trim())
+  return requestBlob(`/api/v1/students/${clean}/export-excel`)
+}
+
+export async function downloadInvestigationExcel(req: InvestigationQueryRequest): Promise<Blob> {
+  return requestBlob('/api/v1/investigation/export-excel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
   })
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, Filter, ArrowUpRight, GraduationCap } from 'lucide-react'
-import { getStudents, type StudentListParams } from '../api/client'
+import { Users, Filter, ArrowUpRight, GraduationCap, Download, Printer } from 'lucide-react'
+import { getStudents, downloadStudentsRosterExcel, saveBlobAsFile, type StudentListParams } from '../api/client'
 import { ApiError, type StudentSummaryItem, type PaginatedResponse } from '../api/types'
 import { SearchBar } from '../components/SearchBar'
 import { Pagination } from '../components/Pagination'
@@ -22,6 +22,11 @@ export const StudentsPage: React.FC = () => {
   const [resultFilter, setResultFilter] = useState<string>('')
   const [page, setPage] = useState<number>(1)
   const pageSize = 25
+
+  // Export & Print State
+  const [exporting, setExporting] = useState<boolean>(false)
+  const [printing, setPrinting] = useState<boolean>(false)
+  const [printStudents, setPrintStudents] = useState<StudentSummaryItem[] | null>(null)
 
   // Abort controller ref to cancel obsolete in-flight searches
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -75,7 +80,7 @@ export const StudentsPage: React.FC = () => {
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query)
-    setPage(1) // Reset to first page on search
+    setPage(1)
   }
 
   const handleDivisionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -88,8 +93,91 @@ export const StudentsPage: React.FC = () => {
     setPage(1)
   }
 
+  const handleExportExcel = async () => {
+    setExporting(true)
+    try {
+      const blob = await downloadStudentsRosterExcel({
+        query: searchQuery.trim() || undefined,
+        division: divisionFilter.trim() || undefined,
+        result: resultFilter.trim() || undefined,
+      })
+      const isFiltered = Boolean(searchQuery.trim() || divisionFilter.trim() || resultFilter.trim())
+      const filename = isFiltered ? 'student_roster_filtered.xlsx' : 'student_roster.xlsx'
+      saveBlobAsFile(blob, filename)
+    } catch {
+      alert('Failed to export student roster to Excel. Please try again.')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const handlePrintRoster = async () => {
+    setPrinting(true)
+    try {
+      if (students.length >= total) {
+        setPrintStudents(students)
+      } else {
+        const fullList = await getStudents({
+          query: searchQuery.trim() || undefined,
+          division: divisionFilter.trim() || undefined,
+          result: resultFilter.trim() || undefined,
+          limit: 2000,
+          offset: 0,
+        })
+        setPrintStudents(fullList.items || [])
+      }
+
+      setTimeout(() => {
+        window.print()
+        setPrinting(false)
+      }, 250)
+    } catch {
+      setPrinting(false)
+      window.print()
+    }
+  }
+
+  const hasActiveFilters = Boolean(searchQuery.trim() || divisionFilter.trim() || resultFilter.trim())
+
   return (
     <div>
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print-roster-view, .print-roster-view * {
+            visibility: visible;
+            display: block !important;
+          }
+          .print-roster-view {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
+          .print-roster-view table {
+            display: table !important;
+            width: 100% !important;
+            border-collapse: collapse !important;
+          }
+          .print-roster-view thead {
+            display: table-header-group !important;
+          }
+          .print-roster-view tr {
+            display: table-row !important;
+            page-break-inside: avoid;
+          }
+          .print-roster-view th, .print-roster-view td {
+            display: table-cell !important;
+            border: 1px solid #cbd5e1 !important;
+            padding: 5px 8px !important;
+          }
+        }
+      `}</style>
+
       {/* Header & Controls Card */}
       <div className="card" style={{ marginBottom: '1.25rem' }}>
         <div className="card-body">
@@ -104,8 +192,42 @@ export const StudentsPage: React.FC = () => {
                   Search student cohort by Roll No, Seat No, or Name. Click any student to view detailed component marks.
                 </div>
               </div>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                Total Verified: <strong>{total.toLocaleString()}</strong> students
+
+              {/* Scope & Count Badge + Actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  {hasActiveFilters ? (
+                    <span>Filtered Matching: <strong>{total.toLocaleString()}</strong> students</span>
+                  ) : (
+                    <span>Total Verified: <strong>{total.toLocaleString()}</strong> students</span>
+                  )}
+                </div>
+
+                {/* Export to Excel (.xlsx) */}
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  disabled={exporting || total === 0}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  title="Export filtered student roster to Excel (.xlsx)"
+                >
+                  <Download size={14} />
+                  <span>{exporting ? 'Exporting...' : 'Export to Excel (.xlsx)'}</span>
+                </button>
+
+                {/* Print Roster */}
+                <button
+                  type="button"
+                  onClick={handlePrintRoster}
+                  disabled={printing || total === 0}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  title="Print complete filtered student roster"
+                >
+                  <Printer size={14} />
+                  <span>{printing ? 'Preparing Print...' : 'Print Roster'}</span>
+                </button>
               </div>
             </div>
 
@@ -153,6 +275,22 @@ export const StudentsPage: React.FC = () => {
                   <option value="UNRESOLVED">Unresolved</option>
                 </select>
               </div>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setDivisionFilter('')
+                    setResultFilter('')
+                    setPage(1)
+                  }}
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  Reset Filters
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -174,12 +312,12 @@ export const StudentsPage: React.FC = () => {
           icon={<GraduationCap size={44} />}
           title="No Students Found"
           message={
-            searchQuery || divisionFilter || resultFilter
+            hasActiveFilters
               ? "No student records matched your specified search filters. Try clearing filters or searching with a different term."
               : "No students are currently ingested in the active dataset. Please import a marksheet to begin."
           }
           action={
-            (searchQuery || divisionFilter || resultFilter) ? (
+            hasActiveFilters ? (
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
@@ -193,8 +331,8 @@ export const StudentsPage: React.FC = () => {
                 Reset All Filters
               </button>
             ) : (
-              <Link to="/imports" className="btn btn-primary btn-sm">
-                Import Marksheet
+              <Link to="/upload" className="btn btn-primary btn-sm">
+                Upload Marksheet
               </Link>
             )
           }
@@ -284,6 +422,55 @@ export const StudentsPage: React.FC = () => {
               onPageChange={(p) => setPage(p)}
             />
           </div>
+        </div>
+      )}
+
+      {/* Print-Only Roster Section */}
+      {printing && printStudents && (
+        <div className="print-roster-view" style={{ display: 'none' }}>
+          <div style={{ marginBottom: '1.25rem', borderBottom: '2px solid #0f172a', paddingBottom: '0.5rem' }}>
+            <h1 style={{ fontSize: '18pt', fontWeight: 'bold', margin: '0 0 0.25rem 0', color: '#0f172a' }}>
+              EduQuery — Student Marks Roster
+            </h1>
+            <div style={{ fontSize: '9.5pt', color: '#475569' }}>
+              Generated: {new Date().toLocaleDateString()} &bull; Total Matching Students: {total}
+              {hasActiveFilters && (
+                <div style={{ marginTop: '0.25rem' }}>
+                  Active Filters:
+                  {searchQuery && ` Query: "${searchQuery}"`}
+                  {divisionFilter && ` | Division: ${divisionFilter}`}
+                  {resultFilter && ` | Outcome: ${resultFilter}`}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#f1f5f9', textAlign: 'left' }}>
+                <th style={{ padding: '6px 8px', width: '15%' }}>Roll / Seat</th>
+                <th style={{ padding: '6px 8px', width: '30%' }}>Student Name</th>
+                <th style={{ padding: '6px 8px', width: '10%' }}>Division</th>
+                <th style={{ padding: '6px 8px', width: '15%', textAlign: 'right' }}>Total Marks</th>
+                <th style={{ padding: '6px 8px', width: '15%', textAlign: 'right' }}>SGPI / CGPA</th>
+                <th style={{ padding: '6px 8px', width: '15%' }}>Outcome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {printStudents.map((st) => (
+                <tr key={st.student_id}>
+                  <td style={{ padding: '5px 8px', fontWeight: 600 }}>{st.roll_no || st.seat_no || st.student_id}</td>
+                  <td style={{ padding: '5px 8px' }}>{st.name}</td>
+                  <td style={{ padding: '5px 8px' }}>{st.division || '—'}</td>
+                  <td style={{ padding: '5px 8px', textAlign: 'right' }}>{st.total_marks ?? '—'}</td>
+                  <td style={{ padding: '5px 8px', textAlign: 'right' }}>
+                    {st.sgpi != null ? st.sgpi.toFixed(2) : st.cgpa != null ? st.cgpa.toFixed(2) : '—'}
+                  </td>
+                  <td style={{ padding: '5px 8px' }}>{st.overall_result || 'UNRESOLVED'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

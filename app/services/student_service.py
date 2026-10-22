@@ -16,7 +16,11 @@ from app.api.schemas.student import (
     StudentSubjectBreakdownSchema,
     StudentSummaryItem,
 )
-from app.reports.student_breakdown import escape_like_pattern, get_student_breakdown
+from app.reports.student_breakdown import (
+    escape_like_pattern,
+    get_student_breakdown,
+    get_students_subject_counts_batch,
+)
 
 
 def list_students(
@@ -38,8 +42,16 @@ def list_students(
         params.append(division.strip())
 
     if result and result.strip():
-        where_clauses.append("UPPER(TRIM(result)) = UPPER(TRIM(?))")
-        params.append(result.strip())
+        r_clean = result.strip().upper()
+        if "PASS" in r_clean:
+            where_clauses.append("UPPER(TRIM(result)) LIKE '%PASS%'")
+        elif "FAIL" in r_clean:
+            where_clauses.append("UPPER(TRIM(result)) LIKE '%FAIL%'")
+        elif "UNRESOLVED" in r_clean:
+            where_clauses.append("NOT (UPPER(TRIM(result)) LIKE '%PASS%' OR UPPER(TRIM(result)) LIKE '%FAIL%')")
+        else:
+            where_clauses.append("UPPER(TRIM(result)) = UPPER(TRIM(?))")
+            params.append(r_clean)
 
     if course_code and course_code.strip():
         where_clauses.append("student_id IN (SELECT student_id FROM enrollment WHERE UPPER(course_code) = UPPER(?))")
@@ -87,11 +99,16 @@ def list_students(
     query_params = list(params) + [limit, offset]
     rows = con.execute(select_sql, query_params).fetchall()
 
+    student_ids = [str(r[0]) for r in rows]
+    subject_counts = get_students_subject_counts_batch(con, student_ids)
+
     items: list[StudentSummaryItem] = []
     for r in rows:
+        sid = str(r[0])
+        passed_c, failed_c, unres_c = subject_counts.get(sid, (0, 0, 0))
         items.append(
             StudentSummaryItem(
-                student_id=str(r[0]),
+                student_id=sid,
                 seat_no=str(r[1]) if r[1] is not None else None,
                 roll_no=str(r[2]) if r[2] is not None else None,
                 name=str(r[3]),
@@ -101,6 +118,9 @@ def list_students(
                 overall_result=str(r[7]) if r[7] is not None else None,
                 sgpi=float(r[8]) if r[8] is not None else None,
                 cgpa=float(r[9]) if r[9] is not None else None,
+                passed_subject_count=passed_c,
+                failed_subject_count=failed_c,
+                unresolved_subject_count=unres_c,
             )
         )
 

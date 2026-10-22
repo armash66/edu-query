@@ -22,6 +22,9 @@ class StudentSummaryItem(BaseModel):
     overall_result: str | None = Field(default=None, description="Marksheet recorded overall outcome")
     sgpi: float | None = Field(default=None, description="Semester Grade Performance Index")
     cgpa: float | None = Field(default=None, description="Cumulative Grade Point Average")
+    passed_subject_count: int = Field(default=0, ge=0, description="Count of passed distinct subjects")
+    failed_subject_count: int = Field(default=0, ge=0, description="Count of confirmed failed distinct subjects")
+    unresolved_subject_count: int = Field(default=0, ge=0, description="Count of unresolved or absent distinct subjects")
 
 
 class ComponentScoreSchema(BaseModel):

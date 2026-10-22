@@ -17,7 +17,10 @@ from app.api.schemas.investigation import (
     InvestigationQueryResponse,
 )
 from app.api.schemas.student import StudentSummaryItem
-from app.reports.student_breakdown import escape_like_pattern
+from app.reports.student_breakdown import (
+    escape_like_pattern,
+    get_students_subject_counts_batch,
+)
 from app.services.export_service import sanitize_csv_cell
 
 # Maximum allowed conditions to prevent complex DoS queries
@@ -358,11 +361,16 @@ def execute_investigation_query(
     query_params = list(params) + [req.limit, req.offset]
     rows = con.execute(select_sql, query_params).fetchall()
 
+    student_ids = [str(r[0]) for r in rows]
+    subject_counts = get_students_subject_counts_batch(con, student_ids)
+
     items: list[StudentSummaryItem] = []
     for r in rows:
+        sid = str(r[0])
+        passed_c, failed_c, unres_c = subject_counts.get(sid, (0, 0, 0))
         items.append(
             StudentSummaryItem(
-                student_id=str(r[0]),
+                student_id=sid,
                 seat_no=str(r[1]) if r[1] is not None else None,
                 roll_no=str(r[2]) if r[2] is not None else None,
                 name=str(r[3]),
@@ -372,6 +380,9 @@ def execute_investigation_query(
                 overall_result=str(r[7]) if r[7] is not None else None,
                 sgpi=float(r[8]) if r[8] is not None else None,
                 cgpa=float(r[9]) if r[9] is not None else None,
+                passed_subject_count=passed_c,
+                failed_subject_count=failed_c,
+                unresolved_subject_count=unres_c,
             )
         )
 
@@ -444,3 +455,18 @@ def export_investigation_csv(
         ])
 
     return "investigation_roster.csv", buf.getvalue()
+
+
+def export_investigation_excel_service(
+    con: duckdb.DuckDBPyConnection,
+    req: InvestigationQueryRequest,
+) -> tuple[str, bytes]:
+    """Generate unpaginated Excel .xlsx export for matching investigation cohort records."""
+    from app.services.export_service import export_investigation_excel
+
+    where_sql, params, explanation = build_investigation_filter_sql(req.group, req.search)
+    sort_col = ALLOWED_SORT_COLUMNS.get(req.sort_by or "division", "division")
+    sort_dir = "DESC" if req.sort_dir == "desc" else "ASC"
+    order_clause = f"{sort_col} {sort_dir} NULLS LAST, student_id ASC"
+    return export_investigation_excel(con, where_sql, params, order_clause, explanation)
+
