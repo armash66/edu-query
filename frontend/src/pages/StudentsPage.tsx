@@ -366,17 +366,17 @@ export const StudentsPage: React.FC = () => {
       ) : (
         <div className="card">
           <div className="table-responsive">
-            <table className="table" style={{ width: '100%', tableLayout: 'fixed' }}>
+            <table className="table" style={{ width: '100%', minWidth: '980px', tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '15%' }}>Roll / Seat No</th>
-                  <th style={{ width: '23%' }}>Student Name</th>
-                  <th style={{ width: '7%' }}>Div</th>
-                  <th style={{ width: '16%' }}>Subjects (P / F / AB)</th>
-                  <th style={{ width: '11%', textAlign: 'right' }}>Total Marks</th>
-                  <th style={{ width: '11%', textAlign: 'right' }}>SGPI / CGPA</th>
-                  <th style={{ width: '10%' }}>Outcome</th>
-                  <th style={{ width: '7%', textAlign: 'right' }}>Actions</th>
+                  <th style={{ width: '13%', minWidth: '125px' }}>Roll / Seat No</th>
+                  <th style={{ width: '21%', minWidth: '180px' }}>Student Name</th>
+                  <th style={{ width: '6%', minWidth: '55px', textAlign: 'center' }}>Div</th>
+                  <th style={{ width: '18%', minWidth: '170px' }}>Subjects (P / F / AB)</th>
+                  <th style={{ width: '10%', minWidth: '95px', textAlign: 'right' }}>Total Marks</th>
+                  <th style={{ width: '10%', minWidth: '95px', textAlign: 'right' }}>SGPI / CGPA</th>
+                  <th style={{ width: '10%', minWidth: '105px', textAlign: 'center' }}>Outcome</th>
+                  <th style={{ width: '12%', minWidth: '120px', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -410,38 +410,44 @@ export const StudentsPage: React.FC = () => {
                           {student.name}
                         </Link>
                       </td>
-                      <td>{student.division || '—'}</td>
+                      <td style={{ textAlign: 'center' }}>{student.division || '—'}</td>
                       <td>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'nowrap' }}>
                           <span
                             className="badge badge-success"
-                            style={{ fontSize: '0.72rem', padding: '0.15rem 0.4rem', fontWeight: 600 }}
+                            style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem', fontWeight: 600 }}
                             title="Passed Distinct Subjects"
                           >
                             {student.passed_subject_count ?? 0} P
                           </span>
                           <span
-                            className="badge badge-danger"
-                            style={{ fontSize: '0.72rem', padding: '0.15rem 0.4rem', fontWeight: 600 }}
+                            className="badge"
+                            style={{
+                              fontSize: '0.72rem',
+                              padding: '0.15rem 0.45rem',
+                              fontWeight: 600,
+                              backgroundColor: (student.failed_subject_count ?? 0) > 0 ? '#fee2e2' : '#f1f5f9',
+                              color: (student.failed_subject_count ?? 0) > 0 ? '#991b1b' : '#64748b',
+                              border: (student.failed_subject_count ?? 0) > 0 ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                            }}
                             title="Failed Distinct Subjects"
                           >
                             {student.failed_subject_count ?? 0} F
                           </span>
-                          {(student.absent_subject_count ?? 0) > 0 && (
-                            <span
-                              className="badge badge-warning"
-                              style={{
-                                fontSize: '0.72rem',
-                                padding: '0.15rem 0.4rem',
-                                backgroundColor: '#fef3c7',
-                                color: '#92400e',
-                                fontWeight: 600,
-                              }}
-                              title="Distinct Subjects with Absent Marks"
-                            >
-                              {student.absent_subject_count} AB
-                            </span>
-                          )}
+                          <span
+                            className="badge"
+                            style={{
+                              fontSize: '0.72rem',
+                              padding: '0.15rem 0.45rem',
+                              fontWeight: 600,
+                              backgroundColor: (student.absent_subject_count ?? 0) > 0 ? '#fef3c7' : '#f1f5f9',
+                              color: (student.absent_subject_count ?? 0) > 0 ? '#92400e' : '#64748b',
+                              border: (student.absent_subject_count ?? 0) > 0 ? '1px solid #fde68a' : '1px solid #e2e8f0',
+                            }}
+                            title="Distinct Subjects with Absent Marks"
+                          >
+                            {student.absent_subject_count ?? 0} AB
+                          </span>
                         </div>
                       </td>
                       <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
@@ -450,10 +456,10 @@ export const StudentsPage: React.FC = () => {
                       <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                         {student.sgpi != null ? student.sgpi.toFixed(2) : student.cgpa != null ? student.cgpa.toFixed(2) : '—'}
                       </td>
-                      <td>
+                      <td style={{ textAlign: 'center' }}>
                         <StatusBadge status={statusType} text={student.overall_result || 'UNRESOLVED'} />
                       </td>
-                      <td style={{ textAlign: 'right' }}>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <Link
                           to={`/students/${encodeURIComponent(identifier)}`}
                           className="btn btn-secondary btn-sm"

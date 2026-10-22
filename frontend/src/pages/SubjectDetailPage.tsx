@@ -222,7 +222,7 @@ export const SubjectDetailPage: React.FC = () => {
                     title="Download complete subject enrollment as Excel (.xlsx)"
                   >
                     <Download size={14} />
-                    <span>{exportingType === 'all' ? 'Exporting...' : 'All (.xlsx)'}</span>
+                    <span>{exportingType === 'all' ? 'Exporting...' : 'All Students (.xlsx)'}</span>
                   </button>
 
                   <button
@@ -234,7 +234,7 @@ export const SubjectDetailPage: React.FC = () => {
                     title="Download passed students as Excel (.xlsx)"
                   >
                     <Download size={14} />
-                    <span>{exportingType === 'passed' ? 'Exporting...' : 'Passed (.xlsx)'}</span>
+                    <span>{exportingType === 'passed' ? 'Exporting...' : 'Passed Students (.xlsx)'}</span>
                   </button>
 
                   <button
@@ -246,7 +246,7 @@ export const SubjectDetailPage: React.FC = () => {
                     title="Download confirmed failed students as Excel (.xlsx)"
                   >
                     <Download size={14} />
-                    <span>{exportingType === 'failed' ? 'Exporting...' : 'Failed (.xlsx)'}</span>
+                    <span>{exportingType === 'failed' ? 'Exporting...' : 'Failed Students (.xlsx)'}</span>
                   </button>
 
                   <button
@@ -258,16 +258,16 @@ export const SubjectDetailPage: React.FC = () => {
                     title="Download absent students as Excel (.xlsx)"
                   >
                     <Download size={14} />
-                    <span>{exportingType === 'absent' ? 'Exporting...' : 'Absent (.xlsx)'}</span>
+                    <span>{exportingType === 'absent' ? 'Exporting...' : 'Absent Students (.xlsx)'}</span>
                   </button>
                 </div>
               </div>
             </div>
 
             {/* Course Metrics Ribbon */}
-            <div style={{ padding: '0.85rem 1.25rem', backgroundColor: '#fafbfc', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '2rem', flexWrap: 'wrap', fontSize: '0.85rem' }}>
+            <div style={{ padding: '0.85rem 1.25rem', backgroundColor: '#fafbfc', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '1.75rem', flexWrap: 'wrap', fontSize: '0.85rem' }}>
               <div>
-                Verified Enrolled: <strong>{data.total_enrolled}</strong>
+                Total Enrolled: <strong>{data.total_enrolled}</strong>
               </div>
               <div style={{ color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                 <CheckCircle size={14} style={{ color: '#10b981' }} />
@@ -277,24 +277,20 @@ export const SubjectDetailPage: React.FC = () => {
                 <AlertTriangle size={14} style={{ color: '#ef4444' }} />
                 Failed: <strong>{data.failed_count}</strong>
               </div>
-              {data.absent_count > 0 && (
-                <div style={{ color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <UserX size={14} style={{ color: '#d97706' }} />
-                  Absent / Excluded: <strong>{data.absent_count}</strong>
-                </div>
-              )}
-              {data.unresolved_count > 0 && (
-                <div style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <HelpCircle size={14} style={{ color: '#94a3b8' }} />
-                  Unresolved: <strong>{data.unresolved_count}</strong>
-                </div>
-              )}
+              <div style={{ color: (data.absent_count ?? 0) > 0 ? '#92400e' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <UserX size={14} style={{ color: (data.absent_count ?? 0) > 0 ? '#d97706' : '#94a3b8' }} />
+                Absent: <strong>{data.absent_count ?? 0}</strong>
+              </div>
+              <div style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <HelpCircle size={14} style={{ color: '#94a3b8' }} />
+                Unclassified: <strong>{data.unresolved_count ?? 0}</strong>
+              </div>
               <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                 <span style={{ fontWeight: 700, color: data.pass_percentage >= 50 ? '#059669' : '#b91c1c' }}>
                   Pass Percentage: {data.pass_percentage.toFixed(1)}%
                 </span>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }} title={data.denominator_explanation}>
-                  {data.denominator_explanation}
+                  {data.denominator_explanation || 'Passed / (Passed + Failed) [excludes absent and unclassified records]'}
                 </span>
               </div>
             </div>

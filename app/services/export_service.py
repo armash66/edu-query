@@ -84,7 +84,7 @@ sanitize_csv_cell = sanitize_cell_text
 
 
 def _apply_workbook_styles(ws: openpyxl.worksheet.worksheet.Worksheet, header_row_idx: int = 1) -> None:
-    """Apply professional typography, dark blue header fills, borders, and auto-adjusted column widths."""
+    """Apply professional typography, dark blue header fills, borders, frozen header, auto-filter, and auto-adjusted column widths."""
     header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
     header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
     thin_border = Border(
@@ -101,11 +101,21 @@ def _apply_workbook_styles(ws: openpyxl.worksheet.worksheet.Worksheet, header_ro
 
     ws.row_dimensions[header_row_idx].height = 26
 
+    # Freeze header row so it stays pinned during scroll
+    ws.freeze_panes = ws.cell(row=header_row_idx + 1, column=1)
+
+    # Enable Excel auto-filter across header columns
+    if ws.max_column >= 1 and ws.max_row >= header_row_idx:
+        ws.auto_filter.ref = f"A{header_row_idx}:{get_column_letter(ws.max_column)}{ws.max_row}"
+
     for row in ws.iter_rows(min_row=header_row_idx + 1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
         for cell in row:
             cell.border = thin_border
             if cell.data_type != "s":
                 cell.font = Font(name="Calibri", size=10)
+            if isinstance(cell.value, float):
+                if cell.number_format in (None, "General"):
+                    cell.number_format = "0.00"
 
     # Compute column widths strictly from header_row_idx downwards to avoid metadata title blowup
     for col_idx in range(1, ws.max_column + 1):
