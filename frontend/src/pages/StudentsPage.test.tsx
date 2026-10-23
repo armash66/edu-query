@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { StudentsPage } from './StudentsPage'
 import * as client from '../api/client'
+import * as excelExport from '../utils/excelExport'
 import { ApiError } from '../api/types'
 
 describe('StudentsPage', () => {
@@ -145,5 +146,55 @@ describe('StudentsPage', () => {
     fireEvent.click(retryBtn)
 
     expect(errorSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('triggers SheetJS Excel export on Export to Excel button click', async () => {
+    vi.spyOn(client, 'getStudents').mockResolvedValue({
+      total: 1,
+      limit: 25,
+      offset: 0,
+      items: [
+        {
+          student_id: 'STU001',
+          name: 'Alice Johnson',
+          roll_no: '101',
+          seat_no: 'SEAT_A1',
+          division: 'A',
+          level: 'UG',
+          total_marks: 450,
+          overall_result: 'PASS',
+          sgpi: 8.5,
+          cgpa: 8.2,
+        },
+      ],
+    })
+
+    const exportSpy = vi.spyOn(excelExport, 'exportStudentsRoster').mockReturnValue({
+      workbook: {} as any,
+      blob: new Blob(['fake-xlsx']),
+      filename: 'EduQuery_Students.xlsx',
+    })
+
+    render(
+      <MemoryRouter>
+        <StudentsPage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Alice Johnson')).toBeInTheDocument()
+    })
+
+    const exportBtn = screen.getByRole('button', { name: /export to excel/i })
+    fireEvent.click(exportBtn)
+
+    await waitFor(() => {
+      expect(exportSpy).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Alice Johnson' })
+        ]),
+        false
+      )
+    })
   })
 })

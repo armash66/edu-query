@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AbsentStudentsPage } from './AbsentStudentsPage'
 import * as client from '../api/client'
+import * as excelExport from '../utils/excelExport'
 import { ApiError } from '../api/types'
 
 describe('AbsentStudentsPage', () => {
@@ -176,8 +177,11 @@ describe('AbsentStudentsPage', () => {
         },
       ],
     })
-    const exportSpy = vi.spyOn(client, 'downloadAbsentStudentsExcel').mockResolvedValue(new Blob(['fake-xlsx']))
-    const saveBlobSpy = vi.spyOn(client, 'saveBlobAsFile').mockImplementation(() => {})
+    const exportSpy = vi.spyOn(excelExport, 'exportAbsentStudents').mockReturnValue({
+      workbook: {} as any,
+      blob: new Blob(['fake-xlsx']),
+      filename: 'EduQuery_Absent_Students_Roster.xlsx',
+    })
 
     render(
       <MemoryRouter>
@@ -193,8 +197,12 @@ describe('AbsentStudentsPage', () => {
     fireEvent.click(exportBtn)
 
     await waitFor(() => {
-      expect(exportSpy).toHaveBeenCalled()
-      expect(saveBlobSpy).toHaveBeenCalledWith(expect.any(Blob), 'EduQuery_Absent_Students_Roster.xlsx')
+      expect(exportSpy).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'Charlie Brown' })
+        ]),
+        false
+      )
     })
   })
 

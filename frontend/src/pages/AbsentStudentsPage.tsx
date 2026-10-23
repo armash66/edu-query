@@ -3,11 +3,10 @@ import { Link } from 'react-router-dom'
 import { UserX, Filter, Download, Printer, AlertTriangle, BookOpen, Users } from 'lucide-react'
 import {
   getAbsentStudents,
-  downloadAbsentStudentsExcel,
   getAbsentComponents,
   getSubjects,
-  saveBlobAsFile,
 } from '../api/client'
+import { exportAbsentStudents } from '../utils/excelExport'
 import {
   ApiError,
   type AbsentStudentItem,
@@ -144,15 +143,41 @@ export const AbsentStudentsPage: React.FC = () => {
   const handleExportExcel = async () => {
     setExporting(true)
     try {
-      const blob = await downloadAbsentStudentsExcel({
-        query: searchQuery.trim() || undefined,
-        division: divisionFilter.trim() || undefined,
-        course_code: courseFilter.trim() || undefined,
-        component: componentFilter.trim() || undefined,
-      })
       const isFiltered = Boolean(searchQuery.trim() || divisionFilter.trim() || courseFilter.trim() || componentFilter.trim())
-      const filename = isFiltered ? 'EduQuery_Absent_Students_Filtered.xlsx' : 'EduQuery_Absent_Students_Roster.xlsx'
-      saveBlobAsFile(blob, filename)
+      let recordsToExport: AbsentStudentItem[] = []
+      if (records.length >= total && records.length > 0) {
+        recordsToExport = records
+      } else if (total <= 100) {
+        const fullList = await getAbsentStudents({
+          query: searchQuery.trim() || undefined,
+          division: divisionFilter.trim() || undefined,
+          course_code: courseFilter.trim() || undefined,
+          component: componentFilter.trim() || undefined,
+          limit: Math.min(Math.max(total, 1), 100),
+          offset: 0,
+        })
+        recordsToExport = fullList?.items && fullList.items.length > 0 ? fullList.items : records
+      } else {
+        const batchSize = 100
+        const pagesNeeded = Math.ceil(total / batchSize)
+        const fetchPromises = []
+        for (let i = 0; i < pagesNeeded; i++) {
+          fetchPromises.push(
+            getAbsentStudents({
+              query: searchQuery.trim() || undefined,
+              division: divisionFilter.trim() || undefined,
+              course_code: courseFilter.trim() || undefined,
+              component: componentFilter.trim() || undefined,
+              limit: batchSize,
+              offset: i * batchSize,
+            })
+          )
+        }
+        const pages = await Promise.all(fetchPromises)
+        const allItems = pages.flatMap((p) => p.items || [])
+        recordsToExport = allItems.length > 0 ? allItems : records
+      }
+      exportAbsentStudents(recordsToExport, isFiltered)
     } catch {
       alert('Failed to export absent students to Excel. Please try again.')
     } finally {

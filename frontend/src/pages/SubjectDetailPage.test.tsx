@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { SubjectDetailPage } from './SubjectDetailPage'
 import * as client from '../api/client'
+import * as excelExport from '../utils/excelExport'
 
 describe('SubjectDetailPage', () => {
   beforeEach(() => {
@@ -107,8 +108,11 @@ describe('SubjectDetailPage', () => {
       students: [],
     })
 
-    const exportMock = vi.spyOn(client, 'downloadSubjectStudentsExcel').mockResolvedValue(new Blob(['fake-excel-data']))
-    const saveMock = vi.spyOn(client, 'saveBlobAsFile').mockImplementation(() => {})
+    const exportMock = vi.spyOn(excelExport, 'exportSubjectRoster').mockReturnValue({
+      workbook: {} as any,
+      blob: new Blob(['fake-excel-data']),
+      filename: 'EduQuery_CSC501_All_Students.xlsx',
+    })
 
     render(
       <MemoryRouter initialEntries={['/subjects/CSC501']}>
@@ -129,8 +133,7 @@ describe('SubjectDetailPage', () => {
     fireEvent.click(exportBtn)
 
     await waitFor(() => {
-      expect(exportMock).toHaveBeenCalledWith('CSC501', 'all', null)
-      expect(saveMock).toHaveBeenCalledWith(expect.any(Blob), 'EduQuery_CSC501_All_Students.xlsx')
+      expect(exportMock).toHaveBeenCalledWith('CSC501', 'Software Engineering', 'all', [], null)
     })
   })
 })

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Users, Filter, ArrowUpRight, GraduationCap, Download, Printer } from 'lucide-react'
-import { getStudents, downloadStudentsRosterExcel, saveBlobAsFile, type StudentListParams } from '../api/client'
+import { getStudents, type StudentListParams } from '../api/client'
+import { exportStudentsRoster } from '../utils/excelExport'
 import { ApiError, type StudentSummaryItem, type PaginatedResponse } from '../api/types'
 import { SearchBar } from '../components/SearchBar'
 import { Pagination } from '../components/Pagination'
@@ -96,14 +97,39 @@ export const StudentsPage: React.FC = () => {
   const handleExportExcel = async () => {
     setExporting(true)
     try {
-      const blob = await downloadStudentsRosterExcel({
-        query: searchQuery.trim() || undefined,
-        division: divisionFilter.trim() || undefined,
-        result: resultFilter.trim() || undefined,
-      })
+      let recordsToExport: StudentSummaryItem[] = []
+      if (students.length >= total && students.length > 0) {
+        recordsToExport = students
+      } else if (total <= 100) {
+        const fullList = await getStudents({
+          query: searchQuery.trim() || undefined,
+          division: divisionFilter.trim() || undefined,
+          result: resultFilter.trim() || undefined,
+          limit: Math.min(Math.max(total, 1), 100),
+          offset: 0,
+        })
+        recordsToExport = fullList?.items && fullList.items.length > 0 ? fullList.items : students
+      } else {
+        const batchSize = 100
+        const pagesNeeded = Math.ceil(total / batchSize)
+        const fetchPromises = []
+        for (let i = 0; i < pagesNeeded; i++) {
+          fetchPromises.push(
+            getStudents({
+              query: searchQuery.trim() || undefined,
+              division: divisionFilter.trim() || undefined,
+              result: resultFilter.trim() || undefined,
+              limit: batchSize,
+              offset: i * batchSize,
+            })
+          )
+        }
+        const pages = await Promise.all(fetchPromises)
+        const allItems = pages.flatMap((p) => p.items || [])
+        recordsToExport = allItems.length > 0 ? allItems : students
+      }
       const isFiltered = Boolean(searchQuery.trim() || divisionFilter.trim() || resultFilter.trim())
-      const filename = isFiltered ? 'EduQuery_Students_Filtered.xlsx' : 'EduQuery_Students.xlsx'
-      saveBlobAsFile(blob, filename)
+      exportStudentsRoster(recordsToExport, isFiltered)
     } catch {
       alert('Failed to export student roster to Excel. Please try again.')
     } finally {

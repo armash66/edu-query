@@ -16,9 +16,8 @@ import {
 } from 'lucide-react'
 import {
   getSubjectStudents,
-  downloadSubjectStudentsExcel,
-  saveBlobAsFile,
 } from '../api/client'
+import { exportSubjectRoster } from '../utils/excelExport'
 import {
   ApiError,
   type SubjectStudentsResponse,
@@ -132,22 +131,61 @@ export const SubjectDetailPage: React.FC = () => {
     if (!courseCode) return
     setExportingType(type)
     try {
-      const safeCode = courseCode.replace(/[^a-zA-Z0-9_-]/g, '_')
-      let filename = `EduQuery_${safeCode}_All_Students.xlsx`
-      if (type === 'passed') {
-        filename = `EduQuery_${safeCode}_Passed_Students.xlsx`
-      } else if (type === 'failed') {
-        filename = `EduQuery_${safeCode}_Failed_Students.xlsx`
-      } else if (type === 'absent') {
-        filename = `EduQuery_${safeCode}_Absent_Students.xlsx`
+      let recordsToExport: SubjectStudentItem[] = []
+      const currentList = data?.students || []
+      const targetTotal =
+        type === 'passed'
+          ? (data?.passed_count ?? 0)
+          : type === 'failed'
+          ? (data?.failed_count ?? 0)
+          : type === 'absent'
+          ? (data?.absent_count ?? 0)
+          : (data?.total_enrolled ?? 0)
+
+      if (targetTotal <= 200) {
+        const fullRes = await getSubjectStudents(courseCode, {
+          division: divisionParam.trim() || undefined,
+          result: type === 'all' ? undefined : type,
+          status: type === 'all' ? undefined : type,
+          limit: Math.min(Math.max(targetTotal, 1), 200),
+          offset: 0,
+        })
+        recordsToExport = fullRes?.students || []
+      } else {
+        const batchSize = 200
+        const pagesNeeded = Math.ceil(targetTotal / batchSize)
+        const fetchPromises = []
+        for (let i = 0; i < pagesNeeded; i++) {
+          fetchPromises.push(
+            getSubjectStudents(courseCode, {
+              division: divisionParam.trim() || undefined,
+              result: type === 'all' ? undefined : type,
+              status: type === 'all' ? undefined : type,
+              limit: batchSize,
+              offset: i * batchSize,
+            })
+          )
+        }
+        const pages = await Promise.all(fetchPromises)
+        recordsToExport = pages.flatMap((p) => p?.students || [])
       }
 
-      const blob = await downloadSubjectStudentsExcel(
+      if (recordsToExport.length === 0) {
+        recordsToExport = currentList.filter((s) => {
+          if (type === 'passed') return s.status === 'passed'
+          if (type === 'failed') return s.status === 'failed'
+          if (type === 'absent') return s.is_absent || s.status === 'absent'
+          return true
+        })
+      }
+
+      exportSubjectRoster(
         courseCode,
+        data?.course_name || courseCode,
         type,
+        recordsToExport,
         divisionParam.trim() || null
       )
-      saveBlobAsFile(blob, filename)
     } catch {
       alert(`Failed to download ${type} students Excel workbook. Please try again.`)
     } finally {
