@@ -22,6 +22,33 @@ class StudentSummaryItem(BaseModel):
     overall_result: str | None = Field(default=None, description="Marksheet recorded overall outcome")
     sgpi: float | None = Field(default=None, description="Semester Grade Performance Index")
     cgpa: float | None = Field(default=None, description="Cumulative Grade Point Average")
+    passed_subject_count: int = Field(default=0, ge=0, description="Count of passed distinct subjects")
+    failed_subject_count: int = Field(default=0, ge=0, description="Count of confirmed failed distinct subjects")
+    absent_subject_count: int = Field(default=0, ge=0, description="Count of distinct subjects with verified absent marks")
+    unresolved_subject_count: int = Field(default=0, ge=0, description="Count of unresolved distinct subjects")
+
+
+class AbsentStudentItem(BaseModel):
+    """Student examination instance record with verified absent marker."""
+    model_config = ConfigDict(extra="forbid")
+
+    student_id: str = Field(description="Canonical student identifier")
+    roll_no: str | None = Field(default=None, description="Class roll number")
+    seat_no: str | None = Field(default=None, description="Examination seat number")
+    name: str = Field(description="Student full name")
+    division: str | None = Field(default=None, description="Class division")
+    course_code: str = Field(description="Subject code")
+    course_name: str = Field(description="Subject title")
+    component: str = Field(description="Examination component code (e.g. ESE, MSE, IA)")
+    raw_text: str | None = Field(default=None, description="Raw absent marker from marksheet (e.g. AB, A)")
+    marks: float | None = Field(default=None, description="Numeric marks if recorded")
+    total_marks: float | None = Field(default=None, description="Student total marks across marksheet")
+    overall_result: str | None = Field(default=None, description="Marksheet recorded overall student result")
+    passed_subject_count: int = Field(default=0, ge=0, description="Count of distinct passed subjects")
+    failed_subject_count: int = Field(default=0, ge=0, description="Count of distinct failed subjects")
+    absent_subject_count: int = Field(default=0, ge=0, description="Count of distinct subjects with absent marks")
+    source_sheet: str | None = Field(default=None, description="Source worksheet")
+    source_row: int | None = Field(default=None, description="Source row in worksheet")
 
 
 class ComponentScoreSchema(BaseModel):

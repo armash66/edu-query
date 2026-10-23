@@ -98,8 +98,8 @@ describe('ExplorePage - Interactive Investigation Engine', () => {
     expect(screen.getByText(/Showing students where: Division is 'A'/i)).toBeInTheDocument()
     expect(screen.getByText(/145/)).toBeInTheDocument()
 
-    // Verify export button
-    expect(screen.getByRole('button', { name: /Export Matching CSV/i })).toBeInTheDocument()
+    // Verify Excel export button (.xlsx only per policy)
+    expect(screen.getByRole('button', { name: /Export to Excel/i })).toBeInTheDocument()
 
     expect(runQuerySpy).toHaveBeenCalledWith(
       expect.objectContaining({ limit: 25, offset: 0 }),

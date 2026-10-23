@@ -7,6 +7,7 @@ from typing import Any
 import duckdb
 
 from app.reports.student_breakdown import (
+    ABSENT_MARKERS,
     ComponentScoreDetail,
     classify_subject_result,
     classify_subject_result_with_reason,
@@ -52,6 +53,46 @@ class FailingStudentDetail:
 
 
 @dataclass
+class SubjectStudentDetail:
+    student_id: str
+    name: str
+    roll_no: str | None
+    seat_no: str | None
+    division: str | None
+    course_code: str
+    course_name: str
+    total_marks: float | None
+    letter_grade: str | None
+    status: str  # "passed", "failed", "unresolved", "absent"
+    flags: list[str]
+    is_absent: bool
+    components: dict[str, ComponentScoreDetail]
+    source_sheet: str
+    source_row: int
+    classification_reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "student_id": self.student_id,
+            "name": self.name,
+            "roll_no": self.roll_no,
+            "seat_no": self.seat_no,
+            "division": self.division,
+            "course_code": self.course_code,
+            "course_name": self.course_name,
+            "total_marks": self.total_marks,
+            "letter_grade": self.letter_grade,
+            "status": self.status,
+            "flags": self.flags,
+            "is_absent": self.is_absent,
+            "components": {k: v.to_dict() for k, v in self.components.items()},
+            "source_sheet": self.source_sheet,
+            "source_row": self.source_row,
+            "classification_reason": self.classification_reason,
+        }
+
+
+@dataclass
 class SubjectFailureReport:
     status: str  # "success", "not_found", "ambiguous"
     query: str
@@ -66,8 +107,12 @@ class SubjectFailureReport:
     confirmed_failures_count: int = 0
     passed_count: int = 0
     unresolved_count: int = 0
+    absent_count: int = 0
     failure_rate_percent: float = 0.0
+    pass_percentage: float = 0.0
+    denominator_explanation: str = "Pass percentage is calculated as: Passed / (Passed + Failed) among classified eligible students."
     failing_students: list[FailingStudentDetail] = field(default_factory=list)
+    all_students: list[SubjectStudentDetail] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -84,8 +129,12 @@ class SubjectFailureReport:
             "confirmed_failures_count": self.confirmed_failures_count,
             "passed_count": self.passed_count,
             "unresolved_count": self.unresolved_count,
+            "absent_count": self.absent_count,
             "failure_rate_percent": round(self.failure_rate_percent, 2),
+            "pass_percentage": round(self.pass_percentage, 2),
+            "denominator_explanation": self.denominator_explanation,
             "failing_students": [s.to_dict() for s in self.failing_students],
+            "all_students": [s.to_dict() for s in self.all_students],
         }
 
 
@@ -197,37 +246,45 @@ def get_subject_failures(
     enrolled_students = con.execute(query_sql, params).fetchall()
 
     failing_students: list[FailingStudentDetail] = []
+    all_students: list[SubjectStudentDetail] = []
     passed_count = 0
     confirmed_failures_count = 0
     unresolved_count = 0
+    absent_count = 0
+
+    # Batch load reconciliation, grades, and scores for this course
+    recon_rows = con.execute("""
+        SELECT student_id, printed_total, computed_total, total_match, grade, flags
+        FROM reconciliation
+        WHERE course_code = ?
+    """, [course_code]).fetchall()
+    recon_map = {r[0]: r for r in recon_rows}
+
+    grade_rows = con.execute("""
+        SELECT student_id, letter FROM grades WHERE course_code = ?
+    """, [course_code]).fetchall()
+    grade_map = {r[0]: r[1] for r in grade_rows}
+
+    score_rows = con.execute("""
+        SELECT student_id, component, value, flag, state, raw_text, source_sheet, source_row
+        FROM scores
+        WHERE course_code = ? AND component != 'TOT1'
+        ORDER BY component
+    """, [course_code]).fetchall()
+    score_map: dict[str, list[Any]] = {}
+    for sr in score_rows:
+        score_map.setdefault(sr[0], []).append(sr[1:])
 
     for sid, name, roll_no, seat_no, s_div, s_sheet, s_row in enrolled_students:
-        # Get reconciliation and letter grade
-        recon_row = con.execute("""
-            SELECT printed_total, computed_total, total_match, grade, flags
-            FROM reconciliation
-            WHERE student_id = ? AND course_code = ?
-        """, [sid, course_code]).fetchone()
+        recon_row = recon_map.get(sid)
+        printed_total = float(recon_row[1]) if recon_row and recon_row[1] is not None else None
+        computed_total = float(recon_row[2]) if recon_row and recon_row[2] is not None else None
+        recon_flags = [f.strip().upper() for f in recon_row[5].split(",") if f.strip()] if recon_row and recon_row[5] else []
 
-        printed_total = float(recon_row[0]) if recon_row and recon_row[0] is not None else None
-        computed_total = float(recon_row[1]) if recon_row and recon_row[1] is not None else None
-        recon_flags = [f.strip().upper() for f in recon_row[4].split(",") if f.strip()] if recon_row and recon_row[4] else []
-
-        grade_row = con.execute("""
-            SELECT letter FROM grades WHERE student_id = ? AND course_code = ?
-        """, [sid, course_code]).fetchone()
-
-        raw_grade = grade_row[0] if grade_row and grade_row[0] is not None else (recon_row[3] if recon_row else None)
+        raw_grade = grade_map.get(sid, recon_row[4] if recon_row else None)
         letter_grade = str(raw_grade).strip() if raw_grade is not None else None
 
-        # Component scores
-        raw_comp_scores = con.execute("""
-            SELECT component, value, flag, state, raw_text, source_sheet, source_row
-            FROM scores
-            WHERE student_id = ? AND course_code = ? AND component != 'TOT1'
-            ORDER BY component
-        """, [sid, course_code]).fetchall()
-
+        raw_comp_scores = score_map.get(sid, [])
         comp_dict: dict[str, ComponentScoreDetail] = {}
         comp_flags: list[str] = []
         is_absent = False
@@ -245,10 +302,12 @@ def get_subject_failures(
             if flag:
                 clean_f = str(flag).strip().upper()
                 comp_flags.append(clean_f)
-                if clean_f in {"AB", "ABS"}:
+                if clean_f in ABSENT_MARKERS:
                     is_absent = True
+            if raw_text and str(raw_text).strip().upper() in ABSENT_MARKERS:
+                is_absent = True
 
-        if letter_grade and letter_grade.upper() in {"AB", "ABS"}:
+        if letter_grade and letter_grade.upper() in {"AB", "ABS", "ABSENT"}:
             is_absent = True
 
         all_flags = sorted(set(comp_flags + recon_flags))
@@ -256,7 +315,11 @@ def get_subject_failures(
 
         result, reason = classify_subject_result_with_reason(letter_grade, all_flags, is_absent=is_absent)
 
-        if result == "failed":
+        student_status = result
+        if is_absent and result == "unresolved":
+            student_status = "absent"
+            absent_count += 1
+        elif result == "failed":
             confirmed_failures_count += 1
             failing_students.append(
                 FailingStudentDetail(
@@ -282,8 +345,31 @@ def get_subject_failures(
         else:
             unresolved_count += 1
 
+        all_students.append(
+            SubjectStudentDetail(
+                student_id=str(sid),
+                name=str(name),
+                roll_no=str(roll_no) if roll_no is not None else None,
+                seat_no=str(seat_no) if seat_no is not None else None,
+                division=str(s_div) if s_div is not None else None,
+                course_code=course_code,
+                course_name=course_name,
+                total_marks=total_marks,
+                letter_grade=letter_grade,
+                status=student_status,
+                flags=all_flags,
+                is_absent=is_absent,
+                components=comp_dict,
+                source_sheet=str(s_sheet) if s_sheet is not None else "",
+                source_row=int(s_row) if s_row is not None else 0,
+                classification_reason=reason,
+            )
+        )
+
     total_enrolled = len(enrolled_students)
     failure_rate = (confirmed_failures_count / total_enrolled * 100.0) if total_enrolled > 0 else 0.0
+    classified_denominator = passed_count + confirmed_failures_count
+    pass_pct = (passed_count / classified_denominator * 100.0) if classified_denominator > 0 else 0.0
 
     return SubjectFailureReport(
         status="success",
@@ -297,8 +383,12 @@ def get_subject_failures(
         confirmed_failures_count=confirmed_failures_count,
         passed_count=passed_count,
         unresolved_count=unresolved_count,
+        absent_count=absent_count,
         failure_rate_percent=failure_rate,
+        pass_percentage=pass_pct,
+        denominator_explanation="Pass percentage is calculated as: Passed / (Passed + Failed) among classified eligible students.",
         failing_students=failing_students,
+        all_students=all_students,
     )
 
 
@@ -306,24 +396,102 @@ def list_all_subjects_failure_summary(
     con: duckdb.DuckDBPyConnection,
     division: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Generate high-level failure statistics for all courses in the catalog."""
-    courses = con.execute("SELECT code, name FROM courses ORDER BY code").fetchall()
-    summaries = []
+    """Generate high-level failure statistics for all courses in the catalog using vectorized batch query."""
+    clean_div = division.strip().upper() if division and division.strip() else None
 
-    for code, name in courses:
-        rep = get_subject_failures(con, str(code), division=division)
-        if rep.status == "success" and rep.total_enrolled > 0:
+    courses = con.execute("SELECT code, name, credits, kind FROM courses ORDER BY code").fetchall()
+    if not courses:
+        return []
+
+    div_filter = "AND UPPER(TRIM(s.division)) = ?" if clean_div else ""
+    params = [clean_div] if clean_div else []
+
+    batch_query = f"""
+        WITH comp_flags AS (
+            SELECT student_id, course_code, 
+                   STRING_AGG(DISTINCT flag, ',') AS comp_flags,
+                   BOOL_OR(UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+                           OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')) AS has_absent
+            FROM scores
+            WHERE component != 'TOT1' AND ((flag IS NOT NULL AND TRIM(flag) != '') OR (raw_text IS NOT NULL AND TRIM(raw_text) != ''))
+            GROUP BY student_id, course_code
+        )
+        SELECT 
+            e.course_code,
+            c.name AS course_name,
+            c.credits,
+            c.kind,
+            e.student_id,
+            COALESCE(g.letter, r.grade) AS letter_grade,
+            r.flags AS recon_flags,
+            cf.comp_flags,
+            COALESCE(cf.has_absent, false) AS comp_absent
+        FROM enrollment e
+        JOIN courses c ON e.course_code = c.code
+        JOIN students s ON e.student_id = s.student_id
+        LEFT JOIN reconciliation r ON e.student_id = r.student_id AND e.course_code = r.course_code
+        LEFT JOIN grades g ON e.student_id = g.student_id AND e.course_code = g.course_code
+        LEFT JOIN comp_flags cf ON e.student_id = cf.student_id AND e.course_code = cf.course_code
+        WHERE 1=1 {div_filter}
+        ORDER BY e.course_code
+    """
+    rows = con.execute(batch_query, params).fetchall()
+
+    from collections import defaultdict
+    course_stats: dict[str, dict[str, Any]] = defaultdict(lambda: {
+        'total_enrolled': 0,
+        'confirmed_failures_count': 0,
+        'passed_count': 0,
+        'absent_count': 0,
+        'unresolved_count': 0,
+        'credits': None,
+        'kind': None,
+        'course_name': '',
+    })
+
+    for r in rows:
+        c_code, c_name, credits_val, kind_val, sid, letter_grade, recon_flags_str, comp_flags_str, comp_absent = r
+        stats = course_stats[c_code]
+        stats['total_enrolled'] += 1
+        stats['course_name'] = c_name
+        stats['credits'] = credits_val
+        stats['kind'] = kind_val
+
+        comp_flags = [f.strip().upper() for f in comp_flags_str.split(',') if f.strip()] if comp_flags_str else []
+        recon_flags = [f.strip().upper() for f in recon_flags_str.split(',') if f.strip()] if recon_flags_str else []
+        all_flags = sorted(set(comp_flags + recon_flags))
+
+        clean_grade = str(letter_grade).strip() if letter_grade is not None else None
+        is_absent = bool(comp_absent) or (clean_grade is not None and clean_grade.upper() in ABSENT_MARKERS)
+        if is_absent:
+            stats['absent_count'] += 1
+
+        result, reason = classify_subject_result_with_reason(clean_grade, all_flags, is_absent=is_absent)
+        if result == 'failed':
+            stats['confirmed_failures_count'] += 1
+        elif result == 'passed':
+            stats['passed_count'] += 1
+        else:
+            stats['unresolved_count'] += 1
+
+    summaries = []
+    for c_code, stats in course_stats.items():
+        if stats['total_enrolled'] > 0:
+            tot = stats['total_enrolled']
+            fails = stats['confirmed_failures_count']
+            rate = (fails / tot * 100.0) if tot > 0 else 0.0
             summaries.append({
-                "course_code": rep.course_code,
-                "course_name": rep.course_name,
-                "credits": rep.credits,
-                "kind": rep.kind,
-                "division_filter": rep.division_filter,
-                "total_enrolled": rep.total_enrolled,
-                "confirmed_failures_count": rep.confirmed_failures_count,
-                "passed_count": rep.passed_count,
-                "unresolved_count": rep.unresolved_count,
-                "failure_rate_percent": rep.failure_rate_percent,
+                "course_code": c_code,
+                "course_name": stats['course_name'],
+                "credits": stats['credits'],
+                "kind": stats['kind'],
+                "division_filter": clean_div,
+                "total_enrolled": tot,
+                "confirmed_failures_count": fails,
+                "passed_count": stats['passed_count'],
+                "absent_count": stats['absent_count'],
+                "unresolved_count": stats['unresolved_count'],
+                "failure_rate_percent": rate,
             })
 
     # Sort courses by failure count descending

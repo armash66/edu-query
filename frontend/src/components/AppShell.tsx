@@ -5,6 +5,7 @@ import {
   Compass,
   Users,
   BookOpen,
+  UserX,
   ShieldCheck,
   UploadCloud,
   RefreshCw,
@@ -35,9 +36,10 @@ export const AppShell: React.FC = () => {
       return hasActiveSession ? 'Academic Analysis Overview' : 'Analyze a Marksheet'
     }
     if (pathname === '/explore') return 'Explore Academic Data'
+    if (pathname === '/absent-students') return 'Absent Students Audit'
     if (pathname.startsWith('/students/')) return 'Student Performance Breakdown'
-    if (pathname === '/students') return 'Student Roster'
-    if (pathname.startsWith('/subjects/') && pathname.includes('/failures')) return 'Subject Failure Roster'
+    if (pathname.startsWith('/subjects/') && pathname.includes('/failures')) return 'Subject Student Roster'
+    if (pathname.startsWith('/subjects/')) return 'Subject Student Evaluation Roster'
     if (pathname === '/failures') return 'Subject Failures Analysis'
     if (pathname === '/subjects') return 'Curriculum & Course Performance'
     if (pathname === '/data-quality') return 'Data Quality & Anomaly Audit'
@@ -69,7 +71,7 @@ export const AppShell: React.FC = () => {
           <div className="brand-badge">FACULTY ANALYSIS</div>
           <div className="brand-title">
             <Database size={20} style={{ color: '#0284c7' }} />
-            <span>EduQuery V3</span>
+            <span>EduQuery</span>
           </div>
           <div className="brand-subtitle">Privacy-First Academic Analysis</div>
         </div>
@@ -103,6 +105,15 @@ export const AppShell: React.FC = () => {
               >
                 <BookOpen size={18} />
                 <span>Subjects</span>
+              </NavLink>
+
+              <NavLink
+                to="/absent-students"
+                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <UserX size={18} />
+                <span>Absent Students</span>
               </NavLink>
 
               <NavLink
@@ -171,7 +182,7 @@ export const AppShell: React.FC = () => {
             )}
 
             <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.5rem', borderTop: '1px solid #e2e8f0', paddingTop: '0.5rem' }}>
-              EduQuery V3 &bull; Privacy-First Architecture
+              EduQuery &bull; Privacy-First Architecture
             </div>
           </div>
         </div>

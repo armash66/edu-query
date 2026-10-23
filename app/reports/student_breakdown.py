@@ -8,6 +8,7 @@ import duckdb
 
 PASSING_GRADES: frozenset[str] = frozenset({"O", "A+", "A", "B+", "B", "C", "D", "E", "P", "PASS", "PASSED"})
 FAILING_GRADES: frozenset[str] = frozenset({"F", "FAIL", "FAILS"})
+ABSENT_MARKERS: frozenset[str] = frozenset({"A", "AB", "ABS", "ABSENT"})
 
 
 @dataclass
@@ -135,7 +136,7 @@ def classify_subject_result_with_reason(
     clean_grade = (letter_grade or "").strip().upper()
     clean_flags = {f.strip().upper() for f in component_flags if f}
     has_fail_flag = "F" in clean_flags
-    has_absent_flag = is_absent or any(f in {"AB", "ABS"} for f in clean_flags)
+    has_absent_flag = is_absent or any(f in ABSENT_MARKERS for f in clean_flags) or (clean_grade in {"AB", "ABS", "ABSENT"})
 
     # 1. Conflicting indicators: passing letter grade recorded, but component has failure flag 'F'
     if clean_grade in PASSING_GRADES and has_fail_flag:
@@ -369,7 +370,7 @@ def get_student_breakdown(con: duckdb.DuckDBPyConnection, identifier: str) -> St
             if flag:
                 clean_f = str(flag).strip().upper()
                 comp_flags.append(clean_f)
-                if clean_f in {"AB", "ABS"}:
+                if clean_f in ABSENT_MARKERS:
                     is_absent = True
 
             if val is None and state in {"uncalculated", "flagged", "not_enrolled"}:
@@ -395,7 +396,7 @@ def get_student_breakdown(con: duckdb.DuckDBPyConnection, identifier: str) -> St
         raw_grade = grade_row[0] if grade_row and grade_row[0] is not None else (recon_row[3] if recon_row else None)
         letter_grade = str(raw_grade).strip() if raw_grade is not None else None
 
-        if letter_grade and letter_grade.upper() in {"AB", "ABS"}:
+        if letter_grade and letter_grade.upper() in {"AB", "ABS", "ABSENT"}:
             is_absent = True
 
         # Combine all unique flags
@@ -449,3 +450,122 @@ def get_student_breakdown(con: duckdb.DuckDBPyConnection, identifier: str) -> St
         unresolved_count=unresolved_count,
         subjects=subjects,
     )
+
+
+from typing import NamedTuple
+
+
+class StudentSubjectCounts(NamedTuple):
+    passed: int
+    failed: int
+    absent: int
+    unresolved: int
+
+
+def get_students_subject_counts_batch(
+    con: duckdb.DuckDBPyConnection,
+    student_ids: list[str],
+) -> dict[str, StudentSubjectCounts]:
+    """Compute (passed_count, failed_count, absent_count, unresolved_count) for each student_id in a batch.
+
+    Returns:
+        dict mapping student_id -> StudentSubjectCounts(passed, failed, absent, unresolved)
+    """
+    if not student_ids:
+        return {}
+
+    clean_sids = [str(sid).strip() for sid in student_ids if str(sid).strip()]
+    if not clean_sids:
+        return {}
+
+    placeholders = ", ".join(["?"] * len(clean_sids))
+
+    # 1. Enrolled courses per student
+    enr_rows = con.execute(
+        f"SELECT student_id, course_code FROM enrollment WHERE student_id IN ({placeholders})",
+        clean_sids,
+    ).fetchall()
+
+    if not enr_rows:
+        return {sid: StudentSubjectCounts(0, 0, 0, 0) for sid in clean_sids}
+
+    # 2. Batch load reconciliation
+    recon_rows = con.execute(
+        f"SELECT student_id, course_code, grade, flags FROM reconciliation WHERE student_id IN ({placeholders})",
+        clean_sids,
+    ).fetchall()
+    recon_map = {(r[0], r[1]): (r[2], r[3]) for r in recon_rows}
+
+    # 3. Batch load grades
+    grade_rows = con.execute(
+        f"SELECT student_id, course_code, letter FROM grades WHERE student_id IN ({placeholders})",
+        clean_sids,
+    ).fetchall()
+    grade_map = {(r[0], r[1]): r[2] for r in grade_rows}
+
+    # 4. Batch load scores with flags or absent markers
+    score_rows = con.execute(
+        f"""
+        SELECT student_id, course_code, flag, raw_text
+        FROM scores
+        WHERE student_id IN ({placeholders})
+          AND component != 'TOT1'
+          AND (flag IS NOT NULL OR raw_text IN ('A', 'AB', 'ABS', 'ABSENT', 'a', 'ab', 'abs', 'absent'))
+        """,
+        clean_sids,
+    ).fetchall()
+    score_flags_map: dict[tuple[str, str], list[str]] = {}
+    score_absent_map: dict[tuple[str, str], bool] = {}
+    for sid, ccode, flg, raw_t in score_rows:
+        key = (sid, ccode)
+        if flg:
+            clean_f = str(flg).strip().upper()
+            score_flags_map.setdefault(key, []).append(clean_f)
+            if clean_f in ABSENT_MARKERS:
+                score_absent_map[key] = True
+        if raw_t and str(raw_t).strip().upper() in ABSENT_MARKERS:
+            score_absent_map[key] = True
+
+    # Aggregate counts per student
+    counts: dict[str, list[int]] = {sid: [0, 0, 0] for sid in clean_sids}
+    absent_courses_per_student: dict[str, set[str]] = {sid: set() for sid in clean_sids}
+
+    for sid, ccode in enr_rows:
+        key = (sid, ccode)
+        rc = recon_map.get(key)
+        recon_grade = rc[0] if rc else None
+        recon_flags_raw = rc[1] if rc else None
+        recon_flags = [f.strip().upper() for f in recon_flags_raw.split(",") if f.strip()] if recon_flags_raw else []
+
+        gr = grade_map.get(key, recon_grade)
+        letter_grade = str(gr).strip() if gr is not None else None
+
+        comp_flags = score_flags_map.get(key, [])
+        all_flags = sorted(set(comp_flags + recon_flags))
+
+        is_absent = score_absent_map.get(key, False)
+        if letter_grade and letter_grade.upper() in {"AB", "ABS", "ABSENT"}:
+            is_absent = True
+
+        if is_absent and sid in absent_courses_per_student:
+            absent_courses_per_student[sid].add(ccode)
+
+        outcome, _ = classify_subject_result_with_reason(letter_grade, all_flags, is_absent=is_absent)
+        if sid in counts:
+            if outcome == "passed":
+                counts[sid][0] += 1
+            elif outcome == "failed":
+                counts[sid][1] += 1
+            else:
+                counts[sid][2] += 1
+
+    return {
+        sid: StudentSubjectCounts(
+            passed=c[0],
+            failed=c[1],
+            absent=len(absent_courses_per_student.get(sid, set())),
+            unresolved=c[2],
+        )
+        for sid, c in counts.items()
+    }
+

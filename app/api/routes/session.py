@@ -150,20 +150,23 @@ def check_session_status(
         from pathlib import Path
         import json
         p_file = Path(pointer_path).resolve()
+        datasets_dir = (Path(settings.data_dir).resolve() / "datasets").resolve()
         if p_file.is_file():
             try:
                 p_data = json.loads(p_file.read_text(encoding="utf-8"))
                 target_db = p_data.get("active_database_path")
                 active_id = p_data.get("active_dataset_id")
-                if target_db and active_id and Path(target_db).is_file():
-                    return {
-                        "active": True,
-                        "mode": "persistent",
-                        "session_id": active_id,
-                        "filename": p_data.get("filename", "Institutional Dataset"),
-                        "students_count": p_data.get("students_count"),
-                        "courses_count": p_data.get("courses_count"),
-                    }
+                if target_db and active_id:
+                    resolved_target = Path(target_db).resolve()
+                    if resolved_target.is_file() and resolved_target.is_relative_to(datasets_dir):
+                        return {
+                            "active": True,
+                            "mode": "persistent",
+                            "session_id": active_id,
+                            "filename": p_data.get("filename", "Institutional Dataset"),
+                            "students_count": p_data.get("students_count"),
+                            "courses_count": p_data.get("courses_count"),
+                        }
             except Exception:
                 pass
 

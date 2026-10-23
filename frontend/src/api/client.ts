@@ -1,5 +1,7 @@
 import { ApiError } from './types'
 import type {
+  AbsentStudentItem,
+  AbsentStudentsParams,
   AnalysisRegistryResponse,
   AnalyticsOverviewResponse,
   AnomalyListResponse,
@@ -25,6 +27,7 @@ import type {
   StudentSummaryItem,
   SubjectFailureResponse,
   SubjectFailureSummaryResponse,
+  SubjectStudentsResponse,
   GroupedAnomalyRecord,
   SessionUploadResponse,
   SessionConfirmResponse,
@@ -138,10 +141,30 @@ export async function request<T>(path: string, options: FetchOptions = {}): Prom
   return data as T
 }
 
+export function extractFilenameFromHeader(disposition: string | null, fallback: string): string {
+  if (!disposition) return fallback
+  const utf8Match = disposition.match(/filename\*\s*=\s*(?:UTF-8''|utf-8'')([^;]+)/i)
+  if (utf8Match && utf8Match[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].trim().replace(/^["']|["']$/g, ''))
+    } catch {
+      // fallback to standard match
+    }
+  }
+  const standardMatch = disposition.match(/filename\s*=\s*"?([^";]+)"?/i)
+  if (standardMatch && standardMatch[1]) {
+    return standardMatch[1].trim()
+  }
+  return fallback
+}
+
 export async function requestBlob(path: string, options: FetchOptions = {}): Promise<Blob> {
   const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+  const defaultAccept = path.includes('excel') || path.endsWith('.xlsx')
+    ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*'
+    : 'text/csv, application/octet-stream, */*'
   const headers: Record<string, string> = {
-    Accept: 'text/csv, application/octet-stream, */*',
+    Accept: defaultAccept,
     ...(options.headers as Record<string, string>),
   }
 
@@ -173,7 +196,8 @@ export async function requestBlob(path: string, options: FetchOptions = {}): Pro
     )
   }
 
-  if (!response.ok) {
+  const contentType = response.headers.get('content-type') || ''
+  if (!response.ok || contentType.includes('application/json')) {
     let errMessage = `Export failed with HTTP ${response.status}`
     try {
       const errData = await response.json()
@@ -187,15 +211,107 @@ export async function requestBlob(path: string, options: FetchOptions = {}): Pro
   return response.blob()
 }
 
-export function saveBlobAsFile(blob: Blob, filename: string): void {
-  const url = window.URL.createObjectURL(blob)
+export async function downloadAndSaveFile(
+  path: string,
+  fallbackFilename: string,
+  options: FetchOptions = {}
+): Promise<string> {
+  const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
+  const defaultAccept = path.includes('excel') || path.endsWith('.xlsx')
+    ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*'
+    : 'text/csv, application/octet-stream, */*'
+  const headers: Record<string, string> = {
+    Accept: defaultAccept,
+    ...(options.headers as Record<string, string>),
+  }
+
+  const activeSessionToken = options.sessionToken ?? getSessionToken()
+  if (activeSessionToken) {
+    headers['X-EduQuery-Session-Token'] = activeSessionToken
+  }
+
+  if (options.adminKey) {
+    headers['X-EduQuery-Import-Key'] = options.adminKey.trim()
+  }
+
+  let response: Response
+  try {
+    response = await fetch(url, {
+      credentials: 'same-origin',
+      ...options,
+      headers,
+    })
+  } catch (err: unknown) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
+    const message = err instanceof Error ? err.message : 'Network request failed'
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      `Cannot connect to EduQuery backend at ${BASE_URL || 'local server'}. (${message})`
+    )
+  }
+
+  const contentType = response.headers.get('content-type') || ''
+  if (!response.ok || contentType.includes('application/json')) {
+    let errMessage = `Export failed with HTTP ${response.status}`
+    try {
+      const errData = await response.json()
+      if (errData?.message) errMessage = errData.message
+    } catch {
+      // Ignore JSON parse error
+    }
+    throw new ApiError(response.status, 'EXPORT_FAILED', errMessage)
+  }
+
+  const disposition = response.headers.get('content-disposition')
+  const resolvedFilename = extractFilenameFromHeader(disposition, fallbackFilename)
+  const blob = await response.blob()
+  saveBlobAsFile(blob, resolvedFilename)
+  return resolvedFilename
+}
+
+export function saveBlobAsFile(blob: Blob, rawFilename: string): void {
+  const filename = (rawFilename || 'EduQuery_Export.xlsx').trim()
+  const mimeType = filename.toLowerCase().endsWith('.xlsx')
+    ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    : 'text/csv;charset=utf-8'
+
+  // Ensure blob has explicit target MIME type
+  const downloadBlob = blob.type === mimeType ? blob : new Blob([blob], { type: mimeType })
+
+  const url = window.URL.createObjectURL(downloadBlob)
   const a = document.createElement('a')
+  a.style.position = 'fixed'
+  a.style.left = '-9999px'
+  a.style.top = '-9999px'
+  a.style.opacity = '0'
   a.href = url
   a.download = filename
+  a.setAttribute('download', filename)
+  // CRITICAL: NEVER set a.rel = 'noopener' or target = '_blank' on download anchors!
+  // In Chromium and Microsoft Edge on Windows, rel="noopener" causes the download attribute
+  // to be discarded and the file to be saved as the blob URL's UUID pathname without an extension.
   document.body.appendChild(a)
-  a.click()
-  a.remove()
-  window.URL.revokeObjectURL(url)
+
+  try {
+    a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))
+  } catch {
+    a.click()
+  }
+
+  // Clean up the DOM element after dispatch
+  setTimeout(() => {
+    if (a.parentNode) {
+      a.parentNode.removeChild(a)
+    }
+  }, 1000)
+
+  // Retain the URL in memory for 60 seconds before releasing to let browser spooler finish
+  setTimeout(() => {
+    window.URL.revokeObjectURL(url)
+  }, 60000)
 }
 
 // =========================================================================
@@ -245,6 +361,37 @@ export async function getStudentBreakdown(
 ): Promise<StudentBreakdownResponse> {
   const encoded = encodeURIComponent(identifier.trim())
   return request<StudentBreakdownResponse>(`/api/v1/students/${encoded}/breakdown`, { signal })
+}
+
+export async function getAbsentStudents(
+  params: AbsentStudentsParams = {},
+  signal?: AbortSignal
+): Promise<PaginatedResponse<AbsentStudentItem>> {
+  const searchParams = new URLSearchParams()
+  if (params.division?.trim()) searchParams.set('division', params.division.trim())
+  if (params.course_code?.trim()) searchParams.set('course_code', params.course_code.trim())
+  if (params.component?.trim()) searchParams.set('component', params.component.trim())
+  if (params.query?.trim()) searchParams.set('query', params.query.trim())
+  if (params.limit !== undefined) searchParams.set('limit', String(params.limit))
+  if (params.offset !== undefined) searchParams.set('offset', String(params.offset))
+
+  const qs = searchParams.toString()
+  return request<PaginatedResponse<AbsentStudentItem>>(`/api/v1/students/absent${qs ? `?${qs}` : ''}`, { signal })
+}
+
+export async function downloadAbsentStudentsExcel(params: AbsentStudentsParams = {}): Promise<Blob> {
+  const searchParams = new URLSearchParams()
+  if (params.division?.trim()) searchParams.set('division', params.division.trim())
+  if (params.course_code?.trim()) searchParams.set('course_code', params.course_code.trim())
+  if (params.component?.trim()) searchParams.set('component', params.component.trim())
+  if (params.query?.trim()) searchParams.set('query', params.query.trim())
+
+  const qs = searchParams.toString()
+  return requestBlob(`/api/v1/students/absent/export-excel${qs ? `?${qs}` : ''}`)
+}
+
+export async function getAbsentComponents(signal?: AbortSignal): Promise<string[]> {
+  return request<string[]>('/api/v1/students/absent/components', { signal })
 }
 
 // =========================================================================
@@ -387,6 +534,62 @@ export async function rollbackDataset(
   })
 }
 
+export async function getSubjectStudents(
+  courseCode: string,
+  params: { division?: string; result?: string; status?: string; search?: string; limit?: number; offset?: number } = {},
+  signal?: AbortSignal
+): Promise<SubjectStudentsResponse> {
+  const clean = encodeURIComponent(courseCode.trim())
+  const q = new URLSearchParams()
+  if (params.division?.trim()) q.set('division', params.division.trim())
+  if (params.result?.trim()) q.set('result', params.result.trim())
+  if (params.status?.trim()) q.set('status', params.status.trim())
+  if (params.search?.trim()) q.set('search', params.search.trim())
+  if (params.limit !== undefined) q.set('limit', String(params.limit))
+  if (params.offset !== undefined) q.set('offset', String(params.offset))
+  const qs = q.toString()
+  return request<SubjectStudentsResponse>(`/api/v1/subjects/${clean}/students${qs ? `?${qs}` : ''}`, { signal })
+}
+
+export async function downloadSubjectStudentsExcel(
+  courseCode: string,
+  reportType: 'all' | 'passed' | 'failed' | 'absent' = 'all',
+  division?: string | null
+): Promise<Blob> {
+  const clean = encodeURIComponent(courseCode.trim())
+  const q = new URLSearchParams()
+  if (division?.trim()) q.set('division', division.trim())
+  q.set('status', reportType)
+  q.set('report_type', reportType)
+  return requestBlob(`/api/v1/subjects/${clean}/export-excel?${q.toString()}`)
+}
+
+export async function downloadStudentsRosterExcel(params: StudentListParams = {}): Promise<Blob> {
+  const q = new URLSearchParams()
+  if (params.query?.trim()) q.set('query', params.query.trim())
+  if (params.division?.trim()) q.set('division', params.division.trim())
+  if (params.result?.trim()) q.set('result', params.result.trim())
+  if (params.course_code?.trim()) q.set('course_code', params.course_code.trim())
+  if (params.multi_fails !== undefined && params.multi_fails !== null) {
+    q.set('multi_fails', String(params.multi_fails))
+  }
+  const qs = q.toString()
+  return requestBlob(`/api/v1/students/export-excel${qs ? `?${qs}` : ''}`)
+}
+
+export async function downloadStudentBreakdownExcel(identifier: string): Promise<Blob> {
+  const clean = encodeURIComponent(identifier.trim())
+  return requestBlob(`/api/v1/students/${clean}/export-excel`)
+}
+
+export async function downloadInvestigationExcel(req: InvestigationQueryRequest): Promise<Blob> {
+  return requestBlob('/api/v1/investigation/export-excel', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+}
+
 export async function downloadStudentBreakdownCsv(identifier: string): Promise<Blob> {
   const clean = encodeURIComponent(identifier.trim())
   return requestBlob(`/api/v1/students/${clean}/export`)
@@ -445,6 +648,66 @@ export function getStudentsRosterExportUrl(params: StudentListParams = {}): stri
   }
   const qs = q.toString()
   return `${BASE_URL}/api/v1/students/export${qs ? `?${qs}` : ''}`
+}
+
+export function getSubjectStudentsExcelExportUrl(
+  courseCode: string,
+  reportType: 'all' | 'passed' | 'failed' | 'absent' = 'all',
+  division?: string | null
+): string {
+  const clean = encodeURIComponent(courseCode.trim())
+  const q = new URLSearchParams()
+  if (division?.trim()) q.set('division', division.trim())
+  q.set('status', reportType)
+  q.set('report_type', reportType)
+  return `${BASE_URL}/api/v1/subjects/${clean}/export-excel?${q.toString()}`
+}
+
+export function getStudentsRosterExcelExportUrl(params: StudentListParams = {}): string {
+  const q = new URLSearchParams()
+  if (params.query?.trim()) q.set('query', params.query.trim())
+  if (params.division?.trim()) q.set('division', params.division.trim())
+  if (params.result?.trim()) q.set('result', params.result.trim())
+  if (params.course_code?.trim()) q.set('course_code', params.course_code.trim())
+  if (params.multi_fails !== undefined && params.multi_fails !== null) {
+    q.set('multi_fails', String(params.multi_fails))
+  }
+  const qs = q.toString()
+  return `${BASE_URL}/api/v1/students/export-excel${qs ? `?${qs}` : ''}`
+}
+
+export function getAbsentStudentsExcelExportUrl(params: AbsentStudentsParams = {}): string {
+  const searchParams = new URLSearchParams()
+  if (params.division?.trim()) searchParams.set('division', params.division.trim())
+  if (params.course_code?.trim()) searchParams.set('course_code', params.course_code.trim())
+  if (params.component?.trim()) searchParams.set('component', params.component.trim())
+  if (params.query?.trim()) searchParams.set('query', params.query.trim())
+  const qs = searchParams.toString()
+  return `${BASE_URL}/api/v1/students/absent/export-excel${qs ? `?${qs}` : ''}`
+}
+
+export function triggerDirectDownload(url: string, filename?: string): void {
+  const a = document.createElement('a')
+  a.style.position = 'fixed'
+  a.style.left = '-9999px'
+  a.style.top = '-9999px'
+  a.style.opacity = '0'
+  a.href = url
+  if (filename) {
+    a.download = filename
+    a.setAttribute('download', filename)
+  }
+  document.body.appendChild(a)
+  try {
+    a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))
+  } catch {
+    a.click()
+  }
+  setTimeout(() => {
+    if (a.parentNode) {
+      a.parentNode.removeChild(a)
+    }
+  }, 1000)
 }
 
 // =========================================================================

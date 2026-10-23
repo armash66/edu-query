@@ -14,6 +14,7 @@ import {
 import {
   getStudentBreakdown,
   downloadStudentBreakdownCsv,
+  downloadStudentBreakdownExcel,
   saveBlobAsFile,
 } from '../api/client'
 import {
@@ -42,17 +43,31 @@ export const StudentDetailPage: React.FC = () => {
   const [isDisambiguationOpen, setIsDisambiguationOpen] = useState<boolean>(false)
 
   const [exporting, setExporting] = useState<boolean>(false)
+  const [exportingExcel, setExportingExcel] = useState<boolean>(false)
 
   const handleExport = async () => {
     if (!identifier) return
     setExporting(true)
     try {
       const blob = await downloadStudentBreakdownCsv(identifier)
-      saveBlobAsFile(blob, `student_breakdown_${identifier}.csv`)
+      saveBlobAsFile(blob, `EduQuery_Student_${identifier}_Breakdown.csv`)
     } catch {
       alert('Failed to download student breakdown CSV. Please try again.')
     } finally {
       setExporting(false)
+    }
+  }
+
+  const handleExportExcel = async () => {
+    if (!identifier) return
+    setExportingExcel(true)
+    try {
+      const blob = await downloadStudentBreakdownExcel(identifier)
+      saveBlobAsFile(blob, `EduQuery_Student_${identifier}_Breakdown.xlsx`)
+    } catch {
+      alert('Failed to download student breakdown Excel workbook. Please try again.')
+    } finally {
+      setExportingExcel(false)
     }
   }
 
@@ -175,16 +190,28 @@ export const StudentDetailPage: React.FC = () => {
         >
           <ArrowLeft size={14} /> Back to Student Roster
         </Link>
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={exporting}
-          className="btn btn-secondary btn-sm"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-          title="Export complete student subject breakdown as CSV"
-        >
-          <Download size={14} /> {exporting ? 'Exporting...' : 'Export Breakdown (CSV)'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            disabled={exportingExcel}
+            className="btn btn-primary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Export complete student subject breakdown as Excel workbook (.xlsx)"
+          >
+            <Download size={14} /> {exportingExcel ? 'Exporting...' : 'Export to Excel (.xlsx)'}
+          </button>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Export complete student subject breakdown as CSV"
+          >
+            <Download size={14} /> {exporting ? 'Exporting...' : 'Export (CSV)'}
+          </button>
+        </div>
       </div>
 
       {/* Student Identity Card */}

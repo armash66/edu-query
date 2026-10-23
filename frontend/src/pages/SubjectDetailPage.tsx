@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -7,18 +7,21 @@ import {
   CheckCircle,
   HelpCircle,
   ArrowUpRight,
-  ShieldCheck,
   Download,
+  ChevronDown,
+  Users,
+  UserX,
+  Search,
+  BookOpen,
 } from 'lucide-react'
 import {
-  getSubjectFailures,
-  downloadSubjectFailuresCsv,
-  saveBlobAsFile,
+  getSubjectStudents,
 } from '../api/client'
+import { exportSubjectRoster } from '../utils/excelExport'
 import {
   ApiError,
-  type SubjectFailureResponse,
-  type FailingStudentItem,
+  type SubjectStudentsResponse,
+  type SubjectStudentItem,
   type ComponentScoreSchema,
 } from '../api/types'
 import { Pagination } from '../components/Pagination'
@@ -30,55 +33,59 @@ export const SubjectDetailPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const divisionParam = searchParams.get('division') || ''
+  const statusParam = (searchParams.get('status') as 'all' | 'passed' | 'failed' | 'absent') || 'all'
+  const searchParam = searchParams.get('search') || ''
   const pageParam = parseInt(searchParams.get('page') || '1', 10)
 
-  const [data, setData] = useState<SubjectFailureResponse | null>(null)
+  const [data, setData] = useState<SubjectStudentsResponse | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<ApiError | null>(null)
 
+  const [exportingType, setExportingType] = useState<string | null>(null)
+  const [exportMenuOpen, setExportMenuOpen] = useState<boolean>(false)
+  const [searchInput, setSearchInput] = useState<string>(searchParam)
+
   const pageSize = 25
-  const [exporting, setExporting] = useState<boolean>(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
-  const handleExport = async () => {
+  const fetchCourseStudents = useCallback(async () => {
     if (!courseCode) return
-    setExporting(true)
-    try {
-      const blob = await downloadSubjectFailuresCsv(courseCode, divisionParam || null)
-      const filename = `subject_failures_${courseCode}${divisionParam ? `_div_${divisionParam}` : ''}.csv`
-      saveBlobAsFile(blob, filename)
-    } catch {
-      alert('Failed to download subject failures CSV. Please try again.')
-    } finally {
-      setExporting(false)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
     }
-  }
+    const controller = new AbortController()
+    abortControllerRef.current = controller
 
-  const fetchCourseFailures = useCallback(async () => {
-    if (!courseCode) return
     setLoading(true)
     setError(null)
 
     try {
-      const res = await getSubjectFailures(courseCode, {
+      const res = await getSubjectStudents(courseCode, {
         division: divisionParam.trim() || undefined,
+        status: statusParam,
+        search: searchParam.trim() || undefined,
         limit: pageSize,
         offset: (pageParam - 1) * pageSize,
       })
       setData(res)
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
       if (err instanceof ApiError) {
         setError(err)
       } else {
-        setError(new ApiError(0, 'CLIENT_ERROR', 'Failed to retrieve subject failure roster'))
+        setError(new ApiError(0, 'CLIENT_ERROR', 'Failed to retrieve subject student roster'))
       }
     } finally {
       setLoading(false)
     }
-  }, [courseCode, divisionParam, pageParam])
+  }, [courseCode, divisionParam, statusParam, searchParam, pageParam])
 
   useEffect(() => {
-    fetchCourseFailures()
-  }, [fetchCourseFailures])
+    fetchCourseStudents()
+    return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort()
+    }
+  }, [fetchCourseStudents])
 
   const handleDivisionChange = (newDivision: string) => {
     const nextParams = new URLSearchParams(searchParams)
@@ -91,40 +98,135 @@ export const SubjectDetailPage: React.FC = () => {
     setSearchParams(nextParams)
   }
 
+  const handleStatusChange = (newStatus: 'all' | 'passed' | 'failed' | 'absent') => {
+    const nextParams = new URLSearchParams(searchParams)
+    if (newStatus !== 'all') {
+      nextParams.set('status', newStatus)
+    } else {
+      nextParams.delete('status')
+    }
+    nextParams.set('page', '1')
+    setSearchParams(nextParams)
+  }
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const nextParams = new URLSearchParams(searchParams)
+    if (searchInput.trim()) {
+      nextParams.set('search', searchInput.trim())
+    } else {
+      nextParams.delete('search')
+    }
+    nextParams.set('page', '1')
+    setSearchParams(nextParams)
+  }
+
   const handlePageChange = (newPage: number) => {
     const nextParams = new URLSearchParams(searchParams)
     nextParams.set('page', String(newPage))
     setSearchParams(nextParams)
   }
 
-  if (loading && !data) {
-    return <LoadingState message={`Retrieving failure roster for course "${courseCode}"...`} />
+  const handleExportExcel = async (type: 'all' | 'passed' | 'failed' | 'absent') => {
+    if (!courseCode) return
+    setExportingType(type)
+    try {
+      let recordsToExport: SubjectStudentItem[] = []
+      const currentList = data?.students || []
+      const targetTotal =
+        type === 'passed'
+          ? (data?.passed_count ?? 0)
+          : type === 'failed'
+          ? (data?.failed_count ?? 0)
+          : type === 'absent'
+          ? (data?.absent_count ?? 0)
+          : (data?.total_enrolled ?? 0)
+
+      if (targetTotal <= 200) {
+        const fullRes = await getSubjectStudents(courseCode, {
+          division: divisionParam.trim() || undefined,
+          result: type === 'all' ? undefined : type,
+          status: type === 'all' ? undefined : type,
+          limit: Math.min(Math.max(targetTotal, 1), 200),
+          offset: 0,
+        })
+        recordsToExport = fullRes?.students || []
+      } else {
+        const batchSize = 200
+        const pagesNeeded = Math.ceil(targetTotal / batchSize)
+        const fetchPromises = []
+        for (let i = 0; i < pagesNeeded; i++) {
+          fetchPromises.push(
+            getSubjectStudents(courseCode, {
+              division: divisionParam.trim() || undefined,
+              result: type === 'all' ? undefined : type,
+              status: type === 'all' ? undefined : type,
+              limit: batchSize,
+              offset: i * batchSize,
+            })
+          )
+        }
+        const pages = await Promise.all(fetchPromises)
+        recordsToExport = pages.flatMap((p) => p?.students || [])
+      }
+
+      if (recordsToExport.length === 0) {
+        recordsToExport = currentList.filter((s) => {
+          if (type === 'passed') return s.status === 'passed'
+          if (type === 'failed') return s.status === 'failed'
+          if (type === 'absent') return s.is_absent || s.status === 'absent'
+          return true
+        })
+      }
+
+      exportSubjectRoster(
+        courseCode,
+        data?.course_name || courseCode,
+        type,
+        recordsToExport,
+        divisionParam.trim() || null
+      )
+    } catch {
+      alert(`Failed to download ${type} students Excel workbook. Please try again.`)
+    } finally {
+      setExportingType(null)
+    }
   }
+
+  if (loading && !data) {
+    return <LoadingState message={`Retrieving student roster for subject "${courseCode}"...`} />
+  }
+
+  // Filter matching count
+  let displayedTotal = data?.total_enrolled ?? 0
+  if (statusParam === 'passed') displayedTotal = data?.passed_count ?? 0
+  else if (statusParam === 'failed') displayedTotal = data?.failed_count ?? 0
+  else if (statusParam === 'absent') displayedTotal = data?.absent_count ?? 0
 
   return (
     <div>
       {/* Top Navigation */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
         <Link
-          to={`/failures${divisionParam ? `?division=${encodeURIComponent(divisionParam)}` : ''}`}
+          to="/subjects"
           className="btn btn-secondary btn-sm"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
         >
-          <ArrowLeft size={14} /> Back to Failure Summary
+          <ArrowLeft size={14} /> Back to Course Catalog
         </Link>
       </div>
 
       {error && (
         <ErrorBanner
           error={error}
-          title="Could not load failure roster"
-          onRetry={fetchCourseFailures}
+          title="Could not load subject roster"
+          onRetry={fetchCourseStudents}
         />
       )}
 
       {data && (
         <>
-          {/* Course Details & Stats Header Card */}
+          {/* Course Details Header Card */}
           <div className="card" style={{ marginBottom: '1.5rem' }}>
             <div className="card-body">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
@@ -146,47 +248,152 @@ export const SubjectDetailPage: React.FC = () => {
                     {data.course_name}
                   </h2>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Verified failing students confirmed by course-specific passing thresholds
+                    Unified student evaluation roster showing passed, failed, and absent candidates
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                  {/* Division Filter */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Filter size={15} style={{ color: 'var(--text-muted)' }} />
-                    <select
-                      className="form-control"
-                      style={{ width: '150px', padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
-                      value={divisionParam}
-                      onChange={(e) => handleDivisionChange(e.target.value)}
-                      aria-label="Filter roster by division"
-                    >
-                      <option value="">All Divisions</option>
-                      <option value="A">Division A</option>
-                      <option value="B">Division B</option>
-                      <option value="C">Division C</option>
-                      <option value="D">Division D</option>
-                    </select>
-                  </div>
-
+                {/* One Export Button near Top of Subject Detail Page */}
+                <div style={{ position: 'relative' }}>
                   <button
                     type="button"
-                    onClick={handleExport}
-                    disabled={exporting}
+                    onClick={() => setExportMenuOpen((prev) => !prev)}
+                    disabled={exportingType !== null}
                     className="btn btn-secondary btn-sm"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                    title="Export confirmed subject failures roster as CSV"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
+                    title="Export subject roster to Excel (.xlsx)"
+                    aria-expanded={exportMenuOpen}
+                    aria-label="Export Course Roster Menu"
                   >
-                    <Download size={14} /> {exporting ? 'Exporting...' : 'Export Failures (CSV)'}
+                    <Download size={14} />
+                    <span>{exportingType ? 'Exporting...' : 'Export (.xlsx)'}</span>
+                    <ChevronDown size={13} style={{ transform: exportMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
                   </button>
+
+                  {exportMenuOpen && (
+                    <>
+                      <div
+                        style={{ position: 'fixed', inset: 0, zIndex: 40 }}
+                        onClick={() => setExportMenuOpen(false)}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: 'calc(100% + 4px)',
+                          backgroundColor: '#ffffff',
+                          borderRadius: '6px',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                          border: '1px solid #e2e8f0',
+                          minWidth: '220px',
+                          zIndex: 50,
+                          padding: '0.35rem 0',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: '0.35rem 0.75rem',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            color: '#64748b',
+                            borderBottom: '1px solid #f1f5f9',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                          }}
+                        >
+                          Export {data.course_code} Rosters
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExportMenuOpen(false)
+                            handleExportExcel('all')
+                          }}
+                          disabled={exportingType !== null}
+                          className="dropdown-item-btn"
+                          title="Download complete subject enrollment as Excel (.xlsx)"
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '0.5rem 0.75rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.8rem',
+                            color: '#1e293b',
+                          }}
+                        >
+                          <Users size={14} style={{ color: '#0284c7' }} />
+                          <span>All Students (.xlsx)</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExportMenuOpen(false)
+                            handleExportExcel('passed')
+                          }}
+                          disabled={exportingType !== null || data.passed_count === 0}
+                          className="dropdown-item-btn"
+                          title="Download passed students as Excel (.xlsx)"
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '0.5rem 0.75rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: data.passed_count === 0 ? 'not-allowed' : 'pointer',
+                            opacity: data.passed_count === 0 ? 0.5 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.8rem',
+                            color: '#065f46',
+                          }}
+                        >
+                          <CheckCircle size={14} style={{ color: '#10b981' }} />
+                          <span>Passed Students ({data.passed_count})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setExportMenuOpen(false)
+                            handleExportExcel('failed')
+                          }}
+                          disabled={exportingType !== null || data.failed_count === 0}
+                          className="dropdown-item-btn"
+                          title="Download confirmed failed students as Excel (.xlsx)"
+                          style={{
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '0.5rem 0.75rem',
+                            background: 'none',
+                            border: 'none',
+                            cursor: data.failed_count === 0 ? 'not-allowed' : 'pointer',
+                            opacity: data.failed_count === 0 ? 0.5 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.8rem',
+                            color: '#991b1b',
+                          }}
+                        >
+                          <AlertTriangle size={14} style={{ color: '#ef4444' }} />
+                          <span>Failed Students ({data.failed_count})</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Course Metrics Ribbon */}
-            <div style={{ padding: '0.85rem 1.25rem', backgroundColor: '#fafbfc', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '2rem', flexWrap: 'wrap', fontSize: '0.85rem' }}>
+            <div style={{ padding: '0.85rem 1.25rem', backgroundColor: '#fafbfc', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '1.75rem', flexWrap: 'wrap', fontSize: '0.85rem' }}>
               <div>
-                Enrolled: <strong>{data.total_enrolled}</strong>
+                Total Enrolled: <strong>{data.total_enrolled}</strong>
               </div>
               <div style={{ color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                 <CheckCircle size={14} style={{ color: '#10b981' }} />
@@ -194,80 +401,183 @@ export const SubjectDetailPage: React.FC = () => {
               </div>
               <div style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                 <AlertTriangle size={14} style={{ color: '#ef4444' }} />
-                Confirmed Failures: <strong>{data.confirmed_failures_count}</strong>
+                Failed: <strong>{data.failed_count}</strong>
               </div>
-              {data.unresolved_count > 0 && (
-                <div style={{ color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <HelpCircle size={14} style={{ color: '#f59e0b' }} />
-                  Unresolved: <strong>{data.unresolved_count}</strong>
-                </div>
-              )}
-              <div style={{ marginLeft: 'auto', fontWeight: 700, color: data.confirmed_failures_count > 0 ? '#b91c1c' : '#10b981' }}>
-                Failure Rate: {data.failure_rate_percent.toFixed(1)}%
+              <div style={{ color: (data.absent_count ?? 0) > 0 ? '#92400e' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <UserX size={14} style={{ color: (data.absent_count ?? 0) > 0 ? '#d97706' : '#94a3b8' }} />
+                Absent: <strong>{data.absent_count ?? 0}</strong>
+              </div>
+              <div style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <HelpCircle size={14} style={{ color: '#94a3b8' }} />
+                Unclassified: <strong>{data.unresolved_count ?? 0}</strong>
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <span style={{ fontWeight: 700, color: data.pass_percentage >= 50 ? '#059669' : '#b91c1c' }}>
+                  Pass Percentage: {data.pass_percentage.toFixed(1)}%
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }} title={data.denominator_explanation}>
+                  {data.denominator_explanation || 'Passed / (Passed + Failed) [excludes absent and unclassified records]'}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Roster Table or Zero Failures Message */}
-          {data.confirmed_failures_count === 0 ? (
+          {/* Filters & Search Control Card */}
+          <div className="card" style={{ marginBottom: '1rem', padding: '0.75rem 1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+              {/* Search Bar */}
+              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 260px' }}>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <Search
+                    size={15}
+                    style={{
+                      position: 'absolute',
+                      left: '0.65rem',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: 'var(--text-muted)',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search by student name, roll no, or seat no..."
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    style={{ paddingLeft: '2rem', fontSize: '0.82rem' }}
+                  />
+                </div>
+                <button type="submit" className="btn btn-secondary btn-sm">
+                  Search
+                </button>
+              </form>
+
+              {/* Status Filter Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className={`btn btn-xs ${statusParam === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => handleStatusChange('all')}
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
+                >
+                  All ({data.total_enrolled})
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-xs ${statusParam === 'passed' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => handleStatusChange('passed')}
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
+                >
+                  Passed ({data.passed_count})
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-xs ${statusParam === 'failed' ? 'btn-primary' : 'btn-secondary'}`}
+                  onClick={() => handleStatusChange('failed')}
+                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
+                >
+                  Failed ({data.failed_count})
+                </button>
+                {data.absent_count > 0 && (
+                  <button
+                    type="button"
+                    className={`btn btn-xs ${statusParam === 'absent' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => handleStatusChange('absent')}
+                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
+                  >
+                    Absent ({data.absent_count})
+                  </button>
+                )}
+              </div>
+
+              {/* Division Select */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <Filter size={14} style={{ color: 'var(--text-muted)' }} />
+                <select
+                  className="form-control"
+                  style={{ width: '130px', padding: '0.35rem 0.6rem', fontSize: '0.82rem' }}
+                  value={divisionParam}
+                  onChange={(e) => handleDivisionChange(e.target.value)}
+                  aria-label="Filter roster by division"
+                >
+                  <option value="">All Divisions</option>
+                  <option value="A">Division A</option>
+                  <option value="B">Division B</option>
+                  <option value="C">Division C</option>
+                  <option value="D">Division D</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Unified Student Table */}
+          {data.students.length === 0 ? (
             <div className="card">
               <div className="card-body" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
                 <div
                   style={{
-                    width: '56px',
-                    height: '56px',
+                    width: '52px',
+                    height: '52px',
                     borderRadius: '50%',
-                    backgroundColor: '#ecfdf5',
-                    color: '#10b981',
+                    backgroundColor: '#f1f5f9',
+                    color: '#64748b',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 1rem auto',
                   }}
                 >
-                  <ShieldCheck size={32} />
+                  <BookOpen size={28} />
                 </div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#065f46', marginBottom: '0.4rem' }}>
-                  Zero Confirmed Failures
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+                  No Students Found
                 </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '480px', margin: '0 auto' }}>
-                  All <strong>{data.total_enrolled}</strong> enrolled students evaluated for {data.course_name}
-                  {divisionParam ? ` in Division ${divisionParam}` : ''} successfully passed or are unresolved.
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '440px', margin: '0 auto 1rem auto' }}>
+                  No student records matched the current filter criteria (Status: {statusParam}
+                  {divisionParam ? `, Division: ${divisionParam}` : ''}
+                  {searchParam ? `, Search: "${searchParam}"` : ''}).
                 </p>
+                {(statusParam !== 'all' || divisionParam || searchParam) && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setSearchInput('')
+                      setSearchParams(new URLSearchParams())
+                    }}
+                  >
+                    Reset Filters
+                  </button>
+                )}
               </div>
             </div>
           ) : (
             <div className="card">
-              <div className="card-header">
-                <div className="card-title">
-                  <AlertTriangle size={18} style={{ color: '#ef4444' }} />
-                  <span>Confirmed Failing Students Roster</span>
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Showing {data.failing_students.length} of {data.confirmed_failures_count} confirmed failing students
-                </div>
-              </div>
-
               <div className="table-responsive">
-                <table className="table">
+                <table className="table" style={{ width: '100%', tableLayout: 'fixed' }}>
                   <thead>
                     <tr>
-                      <th>Roll / Seat No</th>
-                      <th>Student Name</th>
-                      <th>Division</th>
-                      <th>Component Scores</th>
-                      <th>Total Marks</th>
-                      <th>Grade</th>
-                      <th style={{ textAlign: 'right' }}>Actions</th>
+                      <th style={{ width: '15%' }}>Roll / Seat No</th>
+                      <th style={{ width: '25%' }}>Student Name</th>
+                      <th style={{ width: '10%' }}>Division</th>
+                      <th style={{ width: '22%' }}>Component Scores</th>
+                      <th style={{ width: '12%', textAlign: 'right' }}>Total Marks</th>
+                      <th style={{ width: '14%' }}>Result Status</th>
+                      <th style={{ width: '12%', textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.failing_students.map((student: FailingStudentItem) => {
+                    {data.students.map((student: SubjectStudentItem) => {
                       const componentEntries = Object.entries(student.components || {})
+
+                      let badgeClass = 'badge-neutral'
+                      if (student.status === 'Passed') badgeClass = 'badge-success'
+                      else if (student.status === 'Failed') badgeClass = 'badge-danger'
+                      else if (student.status === 'Absent') badgeClass = 'badge-warning'
 
                       return (
                         <tr key={student.student_id}>
-                          <td style={{ fontWeight: 600 }}>
+                          <td style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {student.roll_no || student.seat_no || student.student_id}
                             {student.roll_no && student.seat_no && (
                               <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
@@ -276,26 +586,23 @@ export const SubjectDetailPage: React.FC = () => {
                             )}
                           </td>
 
-                          <td>
+                          <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             <Link
                               to={`/students/${encodeURIComponent(student.student_id)}`}
                               style={{ fontWeight: 600, color: 'var(--text-main)', textDecoration: 'none' }}
                               className="hover-underline"
+                              title={student.name}
                             >
                               {student.name}
                             </Link>
-                            {student.is_absent && (
-                              <span className="badge badge-danger" style={{ fontSize: '0.65rem', marginLeft: '0.4rem' }}>
-                                ABSENT
-                              </span>
+                            {student.warning && (
+                              <div style={{ fontSize: '0.68rem', color: '#b45309', marginTop: '0.15rem' }}>
+                                {student.warning}
+                              </div>
                             )}
-                            {student.flags && student.flags.length > 0 && (
-                              <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.2rem' }}>
-                                {student.flags.map((flag, idx) => (
-                                  <span key={idx} className="badge badge-warning" style={{ fontSize: '0.65rem' }}>
-                                    {flag}
-                                  </span>
-                                ))}
+                            {student.failure_reason && student.status === 'Failed' && (
+                              <div style={{ fontSize: '0.68rem', color: '#dc2626', marginTop: '0.15rem' }}>
+                                {student.failure_reason}
                               </div>
                             )}
                           </td>
@@ -306,20 +613,25 @@ export const SubjectDetailPage: React.FC = () => {
                             {componentEntries.length === 0 ? (
                               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>
                             ) : (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
                                 {componentEntries.map(([name, score]: [string, ComponentScoreSchema]) => {
-                                  const display = score.state === 'marked'
-                                    ? score.marks !== null ? score.marks : score.raw_text
-                                    : score.state === 'flagged' ? (score.flag || 'Flagged')
-                                    : score.state === 'not_enrolled' ? 'N/E'
-                                    : (score.raw_text || score.state)
+                                  const display =
+                                    score.state === 'marked'
+                                      ? score.marks !== null
+                                        ? score.marks
+                                        : score.raw_text
+                                      : score.state === 'flagged'
+                                      ? score.flag || 'Flagged'
+                                      : score.state === 'not_enrolled'
+                                      ? 'N/E'
+                                      : score.raw_text || score.state
 
                                   return (
                                     <span
                                       key={name}
                                       style={{
-                                        fontSize: '0.75rem',
-                                        padding: '0.15rem 0.4rem',
+                                        fontSize: '0.72rem',
+                                        padding: '0.1rem 0.35rem',
                                         backgroundColor: '#f1f5f9',
                                         borderRadius: 'var(--radius-sm)',
                                         border: '1px solid #cbd5e1',
@@ -333,20 +645,23 @@ export const SubjectDetailPage: React.FC = () => {
                             )}
                           </td>
 
-                          <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                          <td style={{ textAlign: 'right', fontWeight: 600, fontFamily: 'monospace' }}>
                             {student.total_marks != null ? student.total_marks : '—'}
+                            {student.max_marks != null && (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                                {' '}/ {student.max_marks}
+                              </span>
+                            )}
                           </td>
 
                           <td>
-                            {student.letter_grade ? (
-                              <span className="badge badge-danger">{student.letter_grade}</span>
-                            ) : (
-                              <span className="badge badge-danger">F</span>
-                            )}
-                            {student.failure_reason && (
-                              <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.2rem' }}>
-                                {student.failure_reason}
-                              </div>
+                            <span className={`badge ${badgeClass}`}>
+                              {student.status}
+                            </span>
+                            {student.letter_grade && student.status !== 'Absent' && (
+                              <span className="badge badge-neutral" style={{ marginLeft: '0.35rem', fontSize: '0.7rem' }}>
+                                {student.letter_grade}
+                              </span>
                             )}
                           </td>
 
@@ -356,7 +671,7 @@ export const SubjectDetailPage: React.FC = () => {
                               className="btn btn-secondary btn-sm"
                               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
                             >
-                              <span>Full Breakdown</span>
+                              <span>Breakdown</span>
                               <ArrowUpRight size={13} />
                             </Link>
                           </td>
@@ -370,12 +685,12 @@ export const SubjectDetailPage: React.FC = () => {
               {/* Pagination */}
               <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Showing {data.failing_students.length > 0 ? (pageParam - 1) * pageSize + 1 : 0} to{' '}
-                  {Math.min(pageParam * pageSize, data.confirmed_failures_count)} of {data.confirmed_failures_count} records
+                  Showing {data.students.length > 0 ? (pageParam - 1) * pageSize + 1 : 0} to{' '}
+                  {Math.min(pageParam * pageSize, displayedTotal)} of {displayedTotal} records
                 </div>
                 <Pagination
                   currentPage={pageParam}
-                  totalItems={data.confirmed_failures_count}
+                  totalItems={displayedTotal}
                   pageSize={pageSize}
                   onPageChange={handlePageChange}
                 />

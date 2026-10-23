@@ -35,6 +35,11 @@ class AnomalyFindingItem(BaseModel):
         description="Features that contributed to the anomaly detection",
     )
     explanation: str = Field(..., description="Plain language explanation of the anomaly")
+    title: str | None = Field(default=None, description="Plain-language title")
+    what_noticed: str | None = Field(default=None, description="What was noticed in plain language")
+    evidence: str | None = Field(default=None, description="Verifiable facts and data")
+    recommended_action: str | None = Field(default=None, description="Specific recommended faculty action")
+    technical_details: str | None = Field(default=None, description="Detailed algorithm and feature statistics")
     limitations: str = Field(..., description="Explicit method limitations and disclaimers")
     source_sheet: str | None = Field(default=None, description="Originating worksheet name")
     source_row: int | None = Field(default=None, description="Originating spreadsheet row")

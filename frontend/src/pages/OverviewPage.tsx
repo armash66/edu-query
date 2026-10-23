@@ -483,10 +483,16 @@ export const OverviewPage: React.FC = () => {
                       >
                         {finding.category || finding.severity}
                       </span>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                        {finding.explanation}
+                      <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {finding.title || finding.explanation}
                       </span>
                     </div>
+
+                    {finding.what_noticed && finding.title && (
+                      <div style={{ fontSize: '0.8rem', color: '#334155', marginTop: '0.25rem' }}>
+                        {finding.what_noticed}
+                      </div>
+                    )}
 
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
                       Student ID: <code style={{ fontSize: '0.75rem' }}>{finding.student_id}</code>
@@ -553,13 +559,40 @@ export const OverviewPage: React.FC = () => {
 
             <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Finding Explanation
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Observation
                 </div>
-                <div style={{ fontSize: '0.92rem', fontWeight: 600, color: 'var(--text-main)', marginTop: '0.2rem' }}>
-                  {selectedFinding.explanation}
+                <div style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.15rem' }}>
+                  {selectedFinding.title || selectedFinding.explanation}
                 </div>
+                {selectedFinding.what_noticed && selectedFinding.title && (
+                  <div style={{ fontSize: '0.85rem', color: '#334155', marginTop: '0.35rem', lineHeight: '1.4' }}>
+                    {selectedFinding.what_noticed}
+                  </div>
+                )}
               </div>
+
+              {selectedFinding.evidence && (
+                <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#166534', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Verifiable Evidence
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: '#14532d', marginTop: '0.2rem' }}>
+                    {selectedFinding.evidence}
+                  </div>
+                </div>
+              )}
+
+              {selectedFinding.recommended_action && (
+                <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#1e40af', textTransform: 'uppercase', fontWeight: 700 }}>
+                    Recommended Action
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: '#1e3a8a', marginTop: '0.2rem' }}>
+                    {selectedFinding.recommended_action}
+                  </div>
+                </div>
+              )}
 
               <div
                 style={{
@@ -591,24 +624,35 @@ export const OverviewPage: React.FC = () => {
                 </div>
               </div>
 
-              {selectedFinding.contributing_features && Object.keys(selectedFinding.contributing_features).length > 0 && (
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
-                    Source Verification Metrics
+              {/* Source Verification Metrics / Technical Details */}
+              {(selectedFinding.technical_details || (selectedFinding.contributing_features && Object.keys(selectedFinding.contributing_features).length > 0)) && (
+                <details open style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem' }}>
+                  <summary style={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
+                    Statistical Model & Technical Details
+                  </summary>
+                  <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#64748b' }}>
+                    {selectedFinding.technical_details && (
+                      <p style={{ margin: '0 0 0.5rem 0' }}>{selectedFinding.technical_details}</p>
+                    )}
+                    {selectedFinding.contributing_features && Object.keys(selectedFinding.contributing_features).length > 0 && (
+                      <div
+                        style={{
+                          backgroundColor: '#f1f5f9',
+                          padding: '0.5rem',
+                          borderRadius: 'var(--radius-sm)',
+                          fontFamily: 'monospace',
+                          fontSize: '0.75rem',
+                          overflowX: 'auto',
+                        }}
+                      >
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                          Source Verification Metrics
+                        </div>
+                        <pre style={{ margin: 0 }}>{JSON.stringify(selectedFinding.contributing_features, null, 2)}</pre>
+                      </div>
+                    )}
                   </div>
-                  <div
-                    style={{
-                      backgroundColor: '#f1f5f9',
-                      padding: '0.75rem',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: '0.78rem',
-                      fontFamily: 'monospace',
-                      overflowX: 'auto',
-                    }}
-                  >
-                    <pre style={{ margin: 0 }}>{JSON.stringify(selectedFinding.contributing_features, null, 2)}</pre>
-                  </div>
-                </div>
+                </details>
               )}
 
               {selectedFinding.review_notes && (

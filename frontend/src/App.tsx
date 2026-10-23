@@ -10,6 +10,7 @@ import { StudentDetailPage } from './pages/StudentDetailPage'
 import { SubjectFailuresPage } from './pages/SubjectFailuresPage'
 import { SubjectDetailPage } from './pages/SubjectDetailPage'
 import { SubjectsCatalogPage } from './pages/SubjectsCatalogPage'
+import { AbsentStudentsPage } from './pages/AbsentStudentsPage'
 import { DataQualityPage } from './pages/DataQualityPage'
 import { ImportPage } from './pages/ImportPage'
 import { UploadPage } from './pages/UploadPage'
@@ -39,7 +40,9 @@ export function App() {
                 <Route path="/explore" element={<ExplorePage />} />
                 <Route path="/students" element={<StudentsPage />} />
                 <Route path="/students/:identifier" element={<StudentDetailPage />} />
+                <Route path="/absent-students" element={<AbsentStudentsPage />} />
                 <Route path="/failures" element={<SubjectFailuresPage />} />
+                <Route path="/subjects/:courseCode" element={<SubjectDetailPage />} />
                 <Route path="/subjects/:courseCode/failures" element={<SubjectDetailPage />} />
                 <Route path="/subjects" element={<SubjectsCatalogPage />} />
                 <Route path="/data-quality" element={<DataQualityPage />} />

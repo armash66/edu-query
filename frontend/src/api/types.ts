@@ -1,5 +1,5 @@
 /**
- * Strongly typed TypeScript definitions matching EduQuery V3 API contracts.
+ * Strongly typed TypeScript definitions matching EduQuery API contracts.
  */
 
 export interface DatabaseHealthInfo {
@@ -40,6 +40,37 @@ export interface StudentSummaryItem {
   overall_result: string | null;
   sgpi: number | null;
   cgpa: number | null;
+  passed_subject_count?: number;
+  failed_subject_count?: number;
+  absent_subject_count?: number;
+  unresolved_subject_count?: number;
+}
+
+export interface AbsentStudentItem {
+  student_id: string;
+  roll_no: string | null;
+  seat_no: string | null;
+  name: string;
+  division: string | null;
+  course_code: string;
+  course_name: string;
+  component: string;
+  raw_text: string | null;
+  marks: number | null;
+  total_marks: number | null;
+  overall_result: string | null;
+  passed_subject_count: number;
+  failed_subject_count: number;
+  absent_subject_count: number;
+  source_sheet?: string | null;
+  source_row?: number | null;
+}
+
+export interface AbsentStudentsParams extends PaginationParams {
+  division?: string;
+  course_code?: string;
+  component?: string;
+  query?: string;
 }
 
 export type ComponentState = 'marked' | 'not_enrolled' | 'uncalculated' | 'flagged' | 'unparsed';
@@ -124,6 +155,9 @@ export interface CourseItem {
   credits: number | null;
   components: string[];
   enrolled_students_count: number | null;
+  passed_students_count?: number | null;
+  failed_students_count?: number | null;
+  absent_students_count?: number | null;
 }
 
 export interface FailingStudentItem {
@@ -178,6 +212,48 @@ export interface SubjectFailureSummaryResponse {
   division_filter: string | null;
   total_courses_evaluated: number;
   summary: SubjectFailureSummaryItem[];
+}
+
+export interface SubjectStudentItem {
+  student_id: string;
+  name: string;
+  roll_no: string | null;
+  seat_no: string | null;
+  division: string | null;
+  course_code?: string;
+  course_name?: string;
+  total_marks: number | null;
+  max_marks?: number | null;
+  letter_grade: string | null;
+  status: 'passed' | 'failed' | 'absent' | 'unresolved' | 'Passed' | 'Failed' | 'Absent' | 'Unresolved' | string;
+  flags?: string[];
+  is_absent: boolean;
+  components: Record<string, ComponentScoreSchema>;
+  failure_reason?: string | null;
+  warning?: string | null;
+  source_sheet?: string | null;
+  source_row?: number | null;
+}
+
+export interface SubjectStudentsResponse {
+  status?: string;
+  course_code: string;
+  course_name: string;
+  division_filter?: string | null;
+  result_filter?: string | null;
+  credits: number | null;
+  kind: string | null;
+  total_enrolled: number;
+  passed_count: number;
+  failed_count: number;
+  absent_count: number;
+  unresolved_count: number;
+  pass_percentage: number;
+  denominator_explanation: string;
+  total?: number;
+  limit?: number;
+  offset?: number;
+  students: SubjectStudentItem[];
 }
 
 export interface AmbiguousCourseResponse {
@@ -510,7 +586,11 @@ export type InvestigationField =
   | 'total_marks'
   | 'sgpi'
   | 'cgpa'
-  | 'query';
+  | 'query'
+  | 'has_absent'
+  | 'absent_subject_count'
+  | 'absent_course_code'
+  | 'absent_component';
 
 export type InvestigationOperator =
   | 'eq'
@@ -609,6 +689,11 @@ export interface AnomalyFindingItem {
   score_label: string;
   contributing_features: Record<string, any>;
   explanation: string;
+  title?: string | null;
+  what_noticed?: string | null;
+  evidence?: string | null;
+  recommended_action?: string | null;
+  technical_details?: string | null;
   limitations: string;
   source_sheet?: string | null;
   source_row?: number | null;

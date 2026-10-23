@@ -1,7 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Filter, ArrowRight, TrendingDown } from 'lucide-react'
-import { getSubjects, type SubjectListParams } from '../api/client'
+import {
+  BookOpen,
+  Filter,
+  ArrowRight,
+} from 'lucide-react'
+import {
+  getSubjects,
+  type SubjectListParams,
+} from '../api/client'
 import { ApiError, type CourseItem, type PaginatedResponse } from '../api/types'
 import { Pagination } from '../components/Pagination'
 import { LoadingState } from '../components/LoadingState'
@@ -61,7 +68,7 @@ export const SubjectsCatalogPage: React.FC = () => {
                 Academic Course Catalog
               </h2>
               <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Ingested course catalog with curriculum components, credits, and verified enrollment headcounts.
+                Ingested course catalog with curriculum components, credits, and enrollment headcounts. Click <strong>View Roster & Export</strong> on any course to access its subject-wise Pass/Fail Excel export menu.
               </div>
             </div>
 
@@ -152,7 +159,9 @@ export const SubjectsCatalogPage: React.FC = () => {
                   <th>Modality</th>
                   <th>Credits</th>
                   <th>Evaluated Components</th>
-                  <th style={{ textAlign: 'right' }}>Enrolled Headcount</th>
+                  <th style={{ textAlign: 'center' }}>Enrolled</th>
+                  <th style={{ textAlign: 'center' }}>Passed</th>
+                  <th style={{ textAlign: 'center' }}>Failed</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -184,17 +193,40 @@ export const SubjectsCatalogPage: React.FC = () => {
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>
                       )}
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                      {course.enrolled_students_count != null ? course.enrolled_students_count.toLocaleString() : '—'}
+                    <td style={{ textAlign: 'center' }}>
+                      <span className="badge badge-neutral" style={{ fontSize: '0.8rem', minWidth: '28px', fontWeight: 600 }}>
+                        {course.enrolled_students_count != null ? course.enrolled_students_count.toLocaleString() : '—'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className="badge badge-success" style={{ fontSize: '0.8rem', minWidth: '28px', fontWeight: 600 }}>
+                        {course.passed_students_count != null ? course.passed_students_count.toLocaleString() : '0'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span
+                        className="badge"
+                        style={{
+                          fontSize: '0.8rem',
+                          minWidth: '28px',
+                          fontWeight: 600,
+                          backgroundColor: (course.failed_students_count ?? 0) > 0 ? '#fee2e2' : '#f1f5f9',
+                          color: (course.failed_students_count ?? 0) > 0 ? '#991b1b' : '#64748b',
+                          border: (course.failed_students_count ?? 0) > 0 ? '1px solid #fca5a5' : '1px solid #e2e8f0',
+                        }}
+                      >
+                        {course.failed_students_count != null ? course.failed_students_count.toLocaleString() : '0'}
+                      </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <Link
-                        to={`/subjects/${encodeURIComponent(course.code)}/failures`}
+                        to={`/subjects/${encodeURIComponent(course.code)}`}
                         className="btn btn-secondary btn-sm"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                        title={`View roster and download pass/fail Excel rosters for ${course.code}`}
                       >
-                        <TrendingDown size={13} style={{ color: '#ef4444' }} />
-                        <span>Failures</span>
+                        <BookOpen size={13} style={{ color: 'var(--primary)' }} />
+                        <span>View Roster & Export</span>
                         <ArrowRight size={13} />
                       </Link>
                     </td>

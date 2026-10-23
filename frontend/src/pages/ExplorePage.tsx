@@ -17,7 +17,8 @@ import {
 import {
   getInvestigationCapabilities,
   runInvestigationQuery,
-  downloadInvestigationCsv,
+  downloadInvestigationExcel,
+  saveBlobAsFile,
   getSubjects,
   ApiError,
 } from '../api/client'
@@ -137,9 +138,16 @@ export const ExplorePage: React.FC = () => {
       initialConditions.push({ field: 'total_marks', operator: 'gte', value: parseFloat(minMarksParam) })
     }
 
-    const maxMarksParam = searchParams.get('max_marks')
-    if (maxMarksParam) {
-      initialConditions.push({ field: 'total_marks', operator: 'lte', value: parseFloat(maxMarksParam) })
+    const hasAbsentParam = searchParams.get('has_absent')
+    if (hasAbsentParam === 'true') {
+      initialConditions.push({ field: 'has_absent', operator: 'eq', value: true })
+    } else if (hasAbsentParam === 'false') {
+      initialConditions.push({ field: 'has_absent', operator: 'eq', value: false })
+    }
+
+    const minAbsentParam = searchParams.get('min_absent')
+    if (minAbsentParam) {
+      initialConditions.push({ field: 'absent_subject_count', operator: 'gte', value: parseInt(minAbsentParam, 10) })
     }
 
     if (initialConditions.length > 0) {
@@ -223,6 +231,8 @@ export const ExplorePage: React.FC = () => {
       if (c.field === 'result' && c.operator === 'eq') next.set('result', String(c.value))
       if (c.field === 'course_code' && c.operator === 'eq') next.set('course', String(c.value))
       if (c.field === 'multi_fails' && c.operator === 'eq' && c.value) next.set('multi_fails', 'true')
+      if (c.field === 'has_absent' && c.operator === 'eq') next.set('has_absent', String(c.value))
+      if (c.field === 'absent_subject_count' && c.operator === 'gte') next.set('min_absent', String(c.value))
     }
 
     setSearchParams(next)
@@ -244,7 +254,7 @@ export const ExplorePage: React.FC = () => {
 
     if (fieldCap?.data_type === 'choice' && fieldCap.choices?.length) {
       setNewFilterValue(fieldCap.choices[0])
-    } else if (field === 'course_code' && courses.length > 0) {
+    } else if ((field === 'course_code' || field === 'absent_course_code') && courses.length > 0) {
       setNewFilterValue(courses[0].code)
     } else if (fieldCap?.data_type === 'number') {
       setNewFilterValue(fieldCap.min_value ?? 0)
@@ -290,7 +300,7 @@ export const ExplorePage: React.FC = () => {
         updated.operator = fieldCap.supported_operators[0] || 'eq'
         if (fieldCap.data_type === 'choice' && fieldCap.choices?.length) {
           updated.value = fieldCap.choices[0]
-        } else if (patch.field === 'course_code' && courses.length > 0) {
+        } else if ((patch.field === 'course_code' || patch.field === 'absent_course_code') && courses.length > 0) {
           updated.value = courses[0].code
         } else if (fieldCap.data_type === 'number') {
           updated.value = fieldCap.min_value ?? 0
@@ -362,11 +372,11 @@ export const ExplorePage: React.FC = () => {
     }
   }
 
-  // CSV Export action
-  const handleExportCsv = async () => {
+  // Excel Export action (.xlsx)
+  const handleExportExcel = async () => {
     setExporting(true)
     try {
-      const blob = await downloadInvestigationCsv({
+      const blob = await downloadInvestigationExcel({
         group:
           conditions.length > 0
             ? {
@@ -378,16 +388,9 @@ export const ExplorePage: React.FC = () => {
         sort_by: sortBy,
         sort_dir: sortDir,
       })
-      const downloadUrl = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = downloadUrl
-      a.download = 'academic_investigation_roster.csv'
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      window.URL.revokeObjectURL(downloadUrl)
+      saveBlobAsFile(blob, 'EduQuery_Academic_Investigation.xlsx')
     } catch {
-      alert('Failed to generate CSV export. Please try again.')
+      alert('Failed to generate Excel export. Please try again.')
     } finally {
       setExporting(false)
     }
@@ -405,6 +408,10 @@ export const ExplorePage: React.FC = () => {
     { field: 'result', label: 'Outcome', data_type: 'choice', supported_operators: ['eq', 'neq'] },
     { field: 'course_code', label: 'Subject', data_type: 'choice', supported_operators: ['eq', 'neq'] },
     { field: 'multi_fails', label: 'Failing 2+ Subjects', data_type: 'boolean', supported_operators: ['eq'] },
+    { field: 'has_absent', label: 'Has Absent Marks', data_type: 'boolean', supported_operators: ['eq'] },
+    { field: 'absent_subject_count', label: 'Absent Subject Count', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
+    { field: 'absent_course_code', label: 'Absent in Subject', data_type: 'choice', supported_operators: ['eq', 'neq', 'in'] },
+    { field: 'absent_component', label: 'Absent in Component', data_type: 'choice', supported_operators: ['eq', 'neq', 'in'] },
     { field: 'failed_subject_count', label: 'Failed Subject Count', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
     { field: 'total_marks', label: 'Total Marks', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
     { field: 'sgpi', label: 'SGPI', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
@@ -476,12 +483,12 @@ export const ExplorePage: React.FC = () => {
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            onClick={handleExportCsv}
+            onClick={handleExportExcel}
             disabled={exporting || total === 0}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
           >
             <Download size={14} />
-            <span>{exporting ? 'Exporting...' : 'Export Matching CSV'}</span>
+            <span>{exporting ? 'Exporting...' : 'Export to Excel (.xlsx)'}</span>
           </button>
         </div>
       </div>
@@ -564,7 +571,7 @@ export const ExplorePage: React.FC = () => {
                   onChange={(e) => setNewFilterValue(e.target.value)}
                   style={{ width: '100%', height: '34px', fontSize: '0.8rem' }}
                 >
-                  {newFilterField === 'course_code'
+                  {newFilterField === 'course_code' || newFilterField === 'absent_course_code'
                     ? courses.map((c) => (
                         <option key={c.code} value={c.code}>
                           {c.code} — {c.name}
@@ -662,6 +669,22 @@ export const ExplorePage: React.FC = () => {
               style={{ cursor: 'pointer', padding: '0.25rem 0.5rem' }}
             >
               All Students
+            </button>
+            <button
+              type="button"
+              onClick={() => applyQuickPreset('has_absent', 'eq', true)}
+              className={`badge ${
+                conditions.some((c) => c.field === 'has_absent' && c.value === true) ? 'badge-warning' : 'badge-neutral'
+              }`}
+              style={{
+                cursor: 'pointer',
+                padding: '0.25rem 0.5rem',
+                backgroundColor: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? '#fef3c7' : undefined,
+                color: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? '#92400e' : undefined,
+                border: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? '1px solid #fde68a' : undefined,
+              }}
+            >
+              Students with Absences
             </button>
             <button
               type="button"
@@ -838,7 +861,7 @@ export const ExplorePage: React.FC = () => {
                           onChange={(e) => handleUpdateCondition(idx, { value: e.target.value })}
                           style={{ width: '100%', height: '32px', fontSize: '0.8rem' }}
                         >
-                          {cond.field === 'course_code'
+                          {cond.field === 'course_code' || cond.field === 'absent_course_code'
                             ? courses.map((c) => (
                                 <option key={c.code} value={c.code}>
                                   {c.code} — {c.name}
@@ -982,7 +1005,7 @@ export const ExplorePage: React.FC = () => {
                 <tr>
                   <th
                     onClick={() => handleSort('seat_no')}
-                    style={{ width: '15%', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '13%', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by Seat / Roll"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -992,7 +1015,7 @@ export const ExplorePage: React.FC = () => {
                   </th>
                   <th
                     onClick={() => handleSort('name')}
-                    style={{ width: '26%', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '21%', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by Student Name"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -1002,7 +1025,7 @@ export const ExplorePage: React.FC = () => {
                   </th>
                   <th
                     onClick={() => handleSort('division')}
-                    style={{ width: '9%', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '8%', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by Division"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -1010,9 +1033,18 @@ export const ExplorePage: React.FC = () => {
                       <ArrowUpDown size={12} style={{ color: sortBy === 'division' ? 'var(--primary)' : 'var(--text-muted)' }} />
                     </div>
                   </th>
+                  <th style={{ width: '9%', textAlign: 'center' }} title="Distinct passed curriculum subjects">
+                    <span>Passed</span>
+                  </th>
+                  <th style={{ width: '9%', textAlign: 'center' }} title="Distinct failed curriculum subjects">
+                    <span>Failed</span>
+                  </th>
+                  <th style={{ width: '9%', textAlign: 'center' }} title="Distinct subjects with verified absent marks">
+                    <span>Absent</span>
+                  </th>
                   <th
                     onClick={() => handleSort('total_marks')}
-                    style={{ width: '12%', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '10%', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by Total Marks"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.3rem' }}>
@@ -1022,7 +1054,7 @@ export const ExplorePage: React.FC = () => {
                   </th>
                   <th
                     onClick={() => handleSort('sgpi')}
-                    style={{ width: '10%', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '8%', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by SGPI"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.3rem' }}>
@@ -1032,7 +1064,7 @@ export const ExplorePage: React.FC = () => {
                   </th>
                   <th
                     onClick={() => handleSort('result')}
-                    style={{ width: '14%', cursor: 'pointer', userSelect: 'none' }}
+                    style={{ width: '11%', cursor: 'pointer', userSelect: 'none' }}
                     title="Sort by Academic Outcome"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -1040,7 +1072,7 @@ export const ExplorePage: React.FC = () => {
                       <ArrowUpDown size={12} style={{ color: sortBy === 'result' ? 'var(--primary)' : 'var(--text-muted)' }} />
                     </div>
                   </th>
-                  <th style={{ width: '14%', textAlign: 'right' }}>Supporting Record</th>
+                  <th style={{ width: '7%', textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1084,6 +1116,41 @@ export const ExplorePage: React.FC = () => {
                             '—'
                           )}
                         </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            className="badge badge-success"
+                            style={{ fontSize: '0.75rem', fontWeight: 600, minWidth: '24px', display: 'inline-block' }}
+                            title={`${st.passed_subject_count ?? 0} distinct passed subjects`}
+                          >
+                            {st.passed_subject_count ?? 0}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            className={`badge ${(st.failed_subject_count ?? 0) > 0 ? 'badge-danger' : 'badge-neutral'}`}
+                            style={{ fontSize: '0.75rem', fontWeight: 600, minWidth: '24px', display: 'inline-block' }}
+                            title={`${st.failed_subject_count ?? 0} distinct failed subjects`}
+                          >
+                            {st.failed_subject_count ?? 0}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            className="badge"
+                            style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              minWidth: '24px',
+                              display: 'inline-block',
+                              backgroundColor: (st.absent_subject_count ?? 0) > 0 ? '#fef3c7' : '#f1f5f9',
+                              color: (st.absent_subject_count ?? 0) > 0 ? '#92400e' : '#64748b',
+                              border: (st.absent_subject_count ?? 0) > 0 ? '1px solid #fde68a' : '1px solid #e2e8f0',
+                            }}
+                            title={`${st.absent_subject_count ?? 0} distinct subjects with absent marks`}
+                          >
+                            {st.absent_subject_count ?? 0}
+                          </span>
+                        </td>
                         <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
                           {st.total_marks !== null ? st.total_marks.toLocaleString() : '—'}
                         </td>
@@ -1114,7 +1181,7 @@ export const ExplorePage: React.FC = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-muted)' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-muted)' }}>
                       <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                         No records match the active investigation conditions
                       </div>
