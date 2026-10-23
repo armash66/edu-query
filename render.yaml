@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: eduquery-v3
+    name: eduquery
     env: docker
     dockerfilePath: Dockerfile
     plan: starter

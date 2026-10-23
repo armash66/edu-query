@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for EduQuery V3 Production Deployment
+# Multi-stage Dockerfile for EduQuery Production Deployment
 # Stage 1: Build Frontend Assets
 FROM node:20-alpine AS frontend-builder
 WORKDIR /build
