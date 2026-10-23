@@ -30,10 +30,12 @@ services:
         value: /tmp/eduquery-sessions
       - key: EDUQUERY_CORS_ORIGINS
         sync: false
+      - key: EDUQUERY_CORS_ORIGIN_REGEX
+        value: "https://.*\\.vercel\\.app"
       - key: EDUQUERY_IMPORT_API_KEY
         generateValue: true
       - key: EDUQUERY_GATEWAY_AUTH_REQUIRED
-        sync: false
+        value: "false"
       - key: CF_ACCESS_TEAM_DOMAIN
         sync: false
       - key: CF_ACCESS_AUD

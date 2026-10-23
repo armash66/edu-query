@@ -39,8 +39,8 @@ import type {
 export { ApiError }
 export type { GroupedAnomalyRecord }
 
-// Use VITE_API_BASE_URL if configured, otherwise default to relative path (leveraging Vite dev proxy)
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+// Use VITE_API_BASE_URL or VITE_API_URL if configured, otherwise default to relative path (leveraging Vite dev proxy)
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '').replace(/\/+$/, '')
 
 const SESSION_STORAGE_TOKEN_KEY = 'eduquery_session_token'
 
