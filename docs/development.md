@@ -1,4 +1,4 @@
-# EduQuery V3 - Development Guide
+# EduQuery - Development Guide
 
 ## 1. Prerequisites
 
@@ -13,8 +13,8 @@
 
 ### Step 1: Clone Repository
 ```bash
-git clone https://github.com/armash66/edu-query-v3.git
-cd edu-query-v3
+git clone https://github.com/armash66/eduquery.git
+cd eduquery
 ```
 
 ### Step 2: Set Up Backend Environment
@@ -165,7 +165,7 @@ lsof -i :8000
 Stop the process or change the port using `--port 8001` and update `VITE_API_BASE_URL` in `frontend/.env`.
 
 ### Database Locked (`WinError 32: process cannot access the file`)
-On Windows, DuckDB database files cannot be replaced while an active process holds an open file handle. EduQuery V3 uses versioned dataset filenames (`dataset_<timestamp>_<uuid>.duckdb`) and ephemeral session directories to avoid lock contention. Ensure all background Python processes from prior runs are terminated if you need to manually delete local database files in `data/`.
+On Windows, DuckDB database files cannot be replaced while an active process holds an open file handle. EduQuery uses versioned dataset filenames (`dataset_<timestamp>_<uuid>.duckdb`) and ephemeral session directories to avoid lock contention. Ensure all background Python processes from prior runs are terminated if you need to manually delete local database files in `data/`.
 
 ### CORS Headers Missing
 Ensure `EDUQUERY_CORS_ORIGINS` in your `.env` contains your exact browser URL including scheme and port (e.g. `http://localhost:5173`).

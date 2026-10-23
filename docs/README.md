@@ -1,6 +1,6 @@
-# EduQuery V3 - Documentation Architecture
+# EduQuery - Documentation Architecture
 
-This directory contains technical specifications, architecture guides, deployment procedures, operational standards, and historical engineering reports for EduQuery V3.
+This directory contains technical specifications, architecture guides, deployment procedures, operational standards, and historical engineering reports for EduQuery.
 
 ---
 
@@ -24,7 +24,7 @@ This directory contains technical specifications, architecture guides, deploymen
 
 These documents preserve technical decisions, acceptance criteria, and audit findings from development phases:
 
-- [`product-reorientation.md`](./product-reorientation.md): Architectural transition from V1/V2 natural-language LLM planning to V3 deterministic marksheet analysis.
+- [`product-reorientation.md`](./product-reorientation.md): Architectural transition from earlier natural-language LLM planning prototypes to deterministic marksheet analysis.
 - [`implementation-roadmap.md`](./implementation-roadmap.md): Milestone delivery schedule and criteria.
 - [`phase5-acceptance-report.md`](./phase5-acceptance-report.md): Phase 5 ground-truth validation across disparate curriculum workbooks.
 - [`phase6-reliability-report.md`](./phase6-reliability-report.md): Phase 6 database lifecycle, connection pooling, and CSV export hardening.

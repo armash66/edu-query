@@ -1,14 +1,14 @@
-# EduQuery V3 — Phase 12 Product & Privacy Implementation Report
+# EduQuery — Phase 12 Product & Privacy Implementation Report
 
 **Evaluation Date**: 2026-10-18  
-**Repository**: `eduquery-v3`  
+**Repository**: `EduQuery`  
 **Final Status Verdict**: `READY FOR CONTROLLED DEMO`
 
 ---
 
 ## Executive Summary
 
-Phase 12 transformed EduQuery V3 into a minimalist, privacy-first academic marksheet analysis application tailored specifically for higher education faculty.
+Phase 12 transformed EduQuery into a minimalist, privacy-first academic marksheet analysis application tailored specifically for higher education faculty.
 
 The user journey now begins directly with an upload and privacy disclosure screen, eliminating all administrative dashboard navigation and shared API key requirements. Faculty marksheets are processed by default in ephemeral temporary sessions isolated within dedicated server-side workspaces, with complete deletion capabilities (`DELETE /api/v1/session`) and automated inactivity expiration. The overview dashboard was redesigned to adhere to genuine minimalism, presenting high information density, deduplicated findings, and on-demand evidence drawers without statistical jargon or decorative charts.
 

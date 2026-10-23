@@ -1,4 +1,4 @@
-# EduQuery V3 - System Architecture Specification
+# EduQuery - System Architecture Specification
 
 ## 1. System Goals and Non-Goals
 

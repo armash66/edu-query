@@ -1,8 +1,8 @@
-# EduQuery V3 - Security and Privacy Specification
+# EduQuery - Security and Privacy Specification
 
 ## 1. Overview and Threat Model
 
-EduQuery V3 processes higher-education academic marksheets that contain student names, seat numbers, roll numbers, component marks, and performance outcomes. The system is designed to provide verifiable academic intelligence while maintaining student privacy and defending against unauthorized access, data leakage, and container attacks.
+EduQuery processes higher-education academic marksheets that contain student names, seat numbers, roll numbers, component marks, and performance outcomes. The system is designed to provide verifiable academic intelligence while maintaining student privacy and defending against unauthorized access, data leakage, and container attacks.
 
 ### Security Boundaries
 
@@ -19,7 +19,7 @@ EduQuery V3 processes higher-education academic marksheets that contain student 
 
 ## 2. Faculty Identity Gateway (Zero Trust Authentication)
 
-To ensure that only authorized faculty and academic administrators can access the analysis engine, EduQuery V3 integrates with enterprise identity gateways (such as Cloudflare Access or university SSO proxies).
+To ensure that only authorized faculty and academic administrators can access the analysis engine, EduQuery integrates with enterprise identity gateways (such as Cloudflare Access or university SSO proxies).
 
 ### Architecture and JWT Verification
 
@@ -41,7 +41,7 @@ When `EDUQUERY_GATEWAY_AUTH_REQUIRED=true` is set:
    - If gateway authentication is required but neither `CF_ACCESS_AUD` nor a shared secret is configured, the server fails closed with `HTTP 500 Internal Server Error` (`GATEWAY_CONFIG_MISSING`).
 
 4. **Direct Origin Bypass Prevention**:
-   - Requests sent directly to the backend origin (e.g. `https://eduquery-v3.onrender.com`) without routing through the identity gateway are blocked with HTTP 401.
+   - Requests sent directly to the backend origin (e.g. `https://EduQuery.onrender.com`) without routing through the identity gateway are blocked with HTTP 401.
 
 5. **Exempt Health Probes**:
    - Infrastructure orchestration probes (`/livez`, `/readyz`, `/health`) and static assets remain accessible without gateway authentication to support container lifecycle management.
@@ -50,7 +50,7 @@ When `EDUQUERY_GATEWAY_AUTH_REQUIRED=true` is set:
 
 ## 3. Cross-Origin Resource Sharing (CORS) Security
 
-EduQuery V3 enforces strict origin validation:
+EduQuery enforces strict origin validation:
 
 - **Exact Match Evaluation**: Origins are checked against explicit entries in `EDUQUERY_CORS_ORIGINS` (e.g. `https://faculty.college.edu`, `http://localhost:5173`).
 - **Lookalike Rejection**: Domains such as `https://faculty.college.edu.attacker.com` or arbitrary `.vercel.app` domains are rejected without `Access-Control-Allow-Origin` headers.
@@ -78,7 +78,7 @@ EduQuery V3 enforces strict origin validation:
 ## 5. CSV Export and Download Ticket Security
 
 ### Token Removal from URLs
-Previous architectures passed session tokens in GET query strings (e.g. `?session_token=...`), which exposed session credentials in browser history, proxy access logs, and referrer headers. In EduQuery V3:
+Previous architectures passed session tokens in GET query strings (e.g. `?session_token=...`), which exposed session credentials in browser history, proxy access logs, and referrer headers. In EduQuery:
 - Primary export downloads use authenticated `fetch` requests with session credentials passed in HTTP headers (`X-EduQuery-Session-Token` or session cookies) and received as client-side `Blob` objects.
 
 ### Single-Use Atomic Download Tickets
@@ -107,6 +107,6 @@ To protect faculty opening exported CSVs in Microsoft Excel or Google Sheets fro
 
 ## 7. Known Security Limitations and Prerequisites
 
-1. **Infrastructure Access Logs**: While EduQuery V3 erases session files on disk, edge reverse proxies (such as Cloudflare or hosting load balancers) maintain standard network access logs (IP addresses, request paths, timestamps).
+1. **Infrastructure Access Logs**: While EduQuery erases session files on disk, edge reverse proxies (such as Cloudflare or hosting load balancers) maintain standard network access logs (IP addresses, request paths, timestamps).
 2. **Single-Node In-Memory Tickets**: Download tickets are stored in-memory per container instance. Multi-instance load-balanced deployments require sticky sessions or a shared token cache.
 3. **SSO Identity Requirement**: For production use, `EDUQUERY_GATEWAY_AUTH_REQUIRED` should always be set to `true` with an identity provider (Cloudflare Access, Okta, or Google Workspace) configured at the edge.

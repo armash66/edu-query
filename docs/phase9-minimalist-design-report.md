@@ -1,7 +1,7 @@
-# EduQuery V3 — Phase 9: Minimalist Academic Intelligence & Progressive Disclosure Report
+# EduQuery — Phase 9: Minimalist Academic Intelligence & Progressive Disclosure Report
 
 **Date:** October 18, 2026  
-**System:** EduQuery V3 Academic Analysis Workspace  
+**System:** EduQuery Academic Analysis Workspace  
 **Status:** Complete, Verified, All Tests Passing (236 Backend, 50 Frontend, 0 TypeScript Errors)  
 **Safety Status:** V1 & V2 Untouched • Zero Git Staging or Commits • No Invariant Alterations  
 
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary & Objective
 
-In Phase 8, EduQuery V3 introduced an interactive investigation query engine and explainable multi-tier academic anomaly detection (combining deterministic rules, robust MAD Z-scores, and multivariate Isolation Forest). While analytically robust, the initial Phase 8 interface suffered from cognitive overload:
+In Phase 8, EduQuery introduced an interactive investigation query engine and explainable multi-tier academic anomaly detection (combining deterministic rules, robust MAD Z-scores, and multivariate Isolation Forest). While analytically robust, the initial Phase 8 interface suffered from cognitive overload:
 - Six equally prominent KPI cards competing for visual attention.
 - 52 raw course-level anomaly findings shown simultaneously, creating the misleading impression that 52 students were in crisis when in reality only **18 unique students** were flagged across courses.
 - A multi-row advanced filter builder thrust upon faculty immediately, cluttering the table.

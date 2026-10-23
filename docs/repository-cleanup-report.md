@@ -1,8 +1,8 @@
-# EduQuery V3 - Repository Audit and Cleanup Report (Phase 14)
+# EduQuery - Repository Audit and Cleanup Report (Phase 14)
 
 ## 1. Executive Summary
 
-A comprehensive repository audit, documentation restructuring, and presentation overhaul was conducted for **EduQuery V3** (`eduquery-v3`). The goal of this phase was to elevate repository quality, professional technical presentation, developer reproducibility, security documentation, and deployment clarity for technical recruiters, institutional stakeholders, open-source contributors, and system administrators.
+A comprehensive repository audit, documentation restructuring, and presentation overhaul was conducted for **EduQuery** (`EduQuery`). The goal of this phase was to elevate repository quality, professional technical presentation, developer reproducibility, security documentation, and deployment clarity for technical recruiters, institutional stakeholders, open-source contributors, and system administrators.
 
 Key accomplishments:
 1. **Preserved Working State**: All existing code, domain invariants, and uncommitted features (such as the Faculty Identity Gateway, ticket-based CSV downloads, and session isolation) were preserved without any destructive Git operations (`git reset`, `git clean`, `git stash`).
@@ -19,8 +19,8 @@ Prior to Phase 14 cleanup:
 - **Git Branch**: `main`
 - **Recent Commits**:
   - `4f23f36`: `fix(data_quality): import Any from typing for elective_groups type annotation`
-  - `9d4544f`: `feat(v3): complete marksheet validation and deployment hardening`
-  - `372ea95`: `feat(phase1): initial commit for EduQuery V3 foundation, ingestion engine, data quality validator, and test suite`
+  - `9d4544f`: `feat: complete marksheet validation and deployment hardening`
+  - `372ea95`: `feat(phase1): initial commit for EduQuery foundation, ingestion engine, data quality validator, and test suite`
 - **Untracked Work in Progress**: Phase 13 security hardening files (`app/core/gateway_auth.py`, `tests/api/test_security_gate_audit.py`).
 - **Documentation Gaps**:
   - Root `README.md` was frozen at Phase 10 (reported outdated test counts of 243 backend / 50 frontend tests, contained emojis, and lacked Phase 11-13 capabilities like the Faculty Identity Gateway, ticket downloads, and temporary session privacy).

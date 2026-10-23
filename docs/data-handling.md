@@ -1,8 +1,8 @@
-# EduQuery V3 - Data Handling and Academic Invariants
+# EduQuery - Data Handling and Academic Invariants
 
 ## 1. Overview
 
-EduQuery V3 is engineered to ingest raw, unstandardized university marksheet workbooks without manual pre-formatting or data alterations. This document defines the ingestion lifecycle, layout induction rules, absence-versus-zero semantics, elective enrollment handling, data quality checks, and deterministic academic classification invariants.
+EduQuery is engineered to ingest raw, unstandardized university marksheet workbooks without manual pre-formatting or data alterations. This document defines the ingestion lifecycle, layout induction rules, absence-versus-zero semantics, elective enrollment handling, data quality checks, and deterministic academic classification invariants.
 
 ---
 

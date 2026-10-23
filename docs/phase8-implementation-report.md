@@ -1,6 +1,6 @@
 # Phase 8 Implementation & Verification Audit Report
 
-**Project:** EduQuery V3 — Academic Analysis Workspace  
+**Project:** EduQuery — Academic Analysis Workspace  
 **Phase:** Phase 8: Interactive Investigation Engine & Explainable Academic Anomaly Detection  
 **Evaluation Date:** October 18, 2026  
 **Status:** Complete & Fully Verified  
@@ -9,7 +9,7 @@
 
 ## 1. Executive Summary
 
-Phase 8 elevates EduQuery V3 from a marks dashboard with static filters into a comprehensive academic analysis workspace. The delivery centers on two interconnected capabilities:
+Phase 8 elevates EduQuery from a marks dashboard with static filters into a comprehensive academic analysis workspace. The delivery centers on two interconnected capabilities:
 
 1. **Interactive Investigation Engine (`/explore`)**: A multi-condition query engine allowing faculty to construct arbitrary combinations of AND/OR rules, search across student identifiers, apply score and SGPI bounds, sort columns dynamically, monitor live matching counts, and export formula-safe CSVs.
 2. **Explainable Academic Anomaly Detection Module**: A 3-tier anomaly detection architecture (Deterministic Verification, Robust Median Absolute Deviation Z-Scores, and Multivariate Numerical Isolation Forest) with source evidence links, human-readable explanations, and in-place faculty moderation reviews.
@@ -24,7 +24,7 @@ Phase 8 elevates EduQuery V3 from a marks dashboard with static filters into a c
 - Implemented `GET /api/v1/investigation/capabilities`, `POST /api/v1/investigation/query`, and `POST /api/v1/investigation/export-csv`.
 
 ### Workstream 2: Interactive Visual Analysis (Cross-Filtering)
-- Linked native SVG charts in [OverviewPage.tsx](file:///C:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/frontend/src/pages/OverviewPage.tsx) to [ExplorePage.tsx](file:///C:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/frontend/src/pages/ExplorePage.tsx):
+- Linked native SVG charts in [OverviewPage.tsx](file:///C:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/frontend/src/pages/OverviewPage.tsx) to [ExplorePage.tsx](file:///C:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/frontend/src/pages/ExplorePage.tsx):
   - Outcome Donut Slices &rarr; pre-selects `PASSES`, `FAILS`, or `UNRESOLVED`.
   - Highest Failing Subjects Ranking Bars &rarr; pre-selects course and filters failing students.
   - Division Performance Comparison &rarr; pre-selects division.
@@ -43,7 +43,7 @@ Phase 8 elevates EduQuery V3 from a marks dashboard with static filters into a c
 - Measured Precision, Recall, FPR, Runtime, and Contamination Sensitivity (0.01 to 0.10).
 
 ### Workstream 5 & 6: Frontend Investigation Interface
-- Redesigned [ExplorePage.tsx](file:///C:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/frontend/src/pages/ExplorePage.tsx) with quick presets strip, expandable condition builder, AND/OR logic toggle, active chips with 1-click removal, live matched counts, rule explanation sentence, column sorting, pagination, and unpaginated CSV export.
+- Redesigned [ExplorePage.tsx](file:///C:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/frontend/src/pages/ExplorePage.tsx) with quick presets strip, expandable condition builder, AND/OR logic toggle, active chips with 1-click removal, live matched counts, rule explanation sentence, column sorting, pagination, and unpaginated CSV export.
 - Integrated `AbortController` request cancellation preventing stale responses from overwriting active state.
 - Integrated Anomaly Investigation panel in `OverviewPage.tsx` with method tabs, feature contribution pills, plain-language explanations, limitation disclaimers, and interactive "Mark Reviewed" moderation toggles.
 
@@ -65,7 +65,7 @@ Phase 8 elevates EduQuery V3 from a marks dashboard with static filters into a c
 
 ## 4. Mandatory Safety Verification
 
-1. **Git State in EduQuery V3:**
+1. **Git State in EduQuery:**
    - Exact 0 staged files (`git diff --staged` is empty).
    - `git add`, `git commit`, `git push`, and `git reset` were NOT executed.
 2. **Isolation of Legacy Workspaces:**

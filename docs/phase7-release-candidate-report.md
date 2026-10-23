@@ -1,8 +1,8 @@
-# EduQuery V3 — Phase 7: Final Correctness Audit, Integration Verification & Release Candidate Report
+# EduQuery — Phase 7: Final Correctness Audit, Integration Verification & Release Candidate Report
 
 **Date:** 2026-10-18  
-**Repository:** `C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\eduquery-v3`  
-**GitHub:** `https://github.com/armash66/eduquery-v3`  
+**Repository:** `C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\EduQuery`  
+**GitHub:** `https://github.com/armash66/EduQuery`  
 **Evaluation Scope:** Complete system correctness audit, academic classification precedence verification, workbook layout invariance, provenance & traceability, rollback recovery, CSV sanitization & RFC 4180 escaping, and end-to-end integration lifecycle verification.  
 **Final Release Candidate Verdict:** **`PASS WITH LIMITATIONS`**
 
@@ -27,7 +27,7 @@
 
 ## 2. Existing Functionality Inspected & Audited
 
-The Phase 7 audit inspected all core components of EduQuery V3:
+The Phase 7 audit inspected all core components of EduQuery:
 1. **Academic Classification Engine (`app/reports/student_breakdown.py`, `app/reports/subject_failures.py`):**
    - Audited the exact precedence hierarchy in `classify_subject_result_with_reason`.
    - Verified the boundary between component-level flags and final course-level awards.
@@ -146,7 +146,7 @@ The CSV export engine (`app/services/export_service.py`) was audited across thre
 
 ### 7.1 Security & Injection Defenses
 - **Formula Injection Mitigation:** Any cell value starting with `=`, `@`, `\t`, or `\r` is escaped with a single leading quote (`'`) to neutralize dynamic execution in Microsoft Excel, LibreOffice Calc, and Google Sheets.
-- **Signed Numeric Preservation:** Unlike naive formula sanitizers that escape any value starting with `+` or `-`, EduQuery V3 evaluates `float(val.strip())`. Legitimate signed numbers (`-15`, `-2.5`, `+4.0`) are **preserved without quotes**, ensuring academic marks calculations are not corrupted.
+- **Signed Numeric Preservation:** Unlike naive formula sanitizers that escape any value starting with `+` or `-`, EduQuery evaluates `float(val.strip())`. Legitimate signed numbers (`-15`, `-2.5`, `+4.0`) are **preserved without quotes**, ensuring academic marks calculations are not corrupted.
 - **RFC 4180 Compliance:** Standard Python `csv.writer` formatting ensures commas, quotes, and embedded newlines are quoted and escaped appropriately.
 - **Unicode Support:** Student names containing accented or Indic Unicode characters are preserved using UTF-8 encoding.
 - **Unpaginated Extraction:** Exports stream the complete filtered query result set, not merely the 50 items displayed on the active frontend page.
@@ -172,7 +172,7 @@ The complete application lifecycle was validated via a deterministic integration
 > **Production Boundary Notice:**
 > - **Administrative Operations:** Workbook upload, preview, activation, and rollback require the `X-Admin-Key` header matching `ADMIN_SECRET_KEY`.
 > - **Academic Read Operations:** Academic query endpoints (`/api/v1/students`, `/api/v1/subjects`) are read-only and currently unauthenticated for direct faculty access in controlled local environments.
-> - **Institutional Public Deployment Requirement:** EduQuery V3 must **NOT** be exposed directly to the public Internet without an authenticating reverse proxy (e.g. Nginx with OAuth2-Proxy, Keycloak, or Cloudflare Access) enforcing faculty SSO.
+> - **Institutional Public Deployment Requirement:** EduQuery must **NOT** be exposed directly to the public Internet without an authenticating reverse proxy (e.g. Nginx with OAuth2-Proxy, Keycloak, or Cloudflare Access) enforcing faculty SSO.
 
 ---
 
@@ -230,7 +230,7 @@ Result: Built in 540ms (dist/ assets generated without errors)
 - Node.js 18+
 
 ### 12.2 Backend Startup
-In repository root (`C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\eduquery-v3`):
+In repository root (`C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\EduQuery`):
 ```powershell
 # Set administrative authorization secret
 $env:ADMIN_SECRET_KEY="faculty-demo-secret-key-2026"
@@ -241,7 +241,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000
 Backend Swagger documentation will be accessible at: `http://127.0.0.1:8000/docs`
 
 ### 12.3 Frontend Startup
-In `frontend` directory (`C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\eduquery-v3\frontend`):
+In `frontend` directory (`C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\EduQuery\frontend`):
 ```powershell
 npm run dev
 ```
@@ -287,4 +287,4 @@ During a faculty demonstration, follow this sequence:
 **`PASS WITH LIMITATIONS`**
 
 **Justification:**  
-EduQuery V3 has satisfied all functional, correctness, and integration requirements. Academic classification precedence correctly isolates conflicting and absent records from confirmed failures, layout induction safely rejects ambiguous tables without losing records, versioned datasets support atomic rollback with idempotency, and CSV exports protect against formula injection while preserving legitimate negative/positive numeric marks. The limitations regarding openpyxl formula cache dependencies and the requirement of an authenticating proxy for institutional deployment are explicitly documented. EduQuery V3 is certified as a Release Candidate suitable for controlled faculty demonstration.
+EduQuery has satisfied all functional, correctness, and integration requirements. Academic classification precedence correctly isolates conflicting and absent records from confirmed failures, layout induction safely rejects ambiguous tables without losing records, versioned datasets support atomic rollback with idempotency, and CSV exports protect against formula injection while preserving legitimate negative/positive numeric marks. The limitations regarding openpyxl formula cache dependencies and the requirement of an authenticating proxy for institutional deployment are explicitly documented. EduQuery is certified as a Release Candidate suitable for controlled faculty demonstration.

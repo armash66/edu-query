@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary & Design Principles
 
-The Explainable Academic Anomaly Detection system in EduQuery V3 introduces genuine, measurable machine learning and robust statistical capabilities to assist faculty during marksheet moderation and review.
+The Explainable Academic Anomaly Detection system in EduQuery introduces genuine, measurable machine learning and robust statistical capabilities to assist faculty during marksheet moderation and review.
 
 The system is built upon five foundational safety principles:
 1. **Never Label Deterministic Checks as ML**: Arithmetic reconciliation gaps and legal range violations are deterministic audit findings, not machine learning predictions.
@@ -61,7 +61,7 @@ The system is built upon five foundational safety principles:
   $$\text{Valid}(x) = 0.0 \le x \le 100.0 \quad (\text{or } \le 150.0 \text{ for combined lecture+lab courses})$$
 
 ### Tier B: Robust Statistical Baseline (Median Absolute Deviation)
-Standard mean and standard deviation are heavily influenced by the very outliers being detected. EduQuery V3 uses Median Absolute Deviation (MAD):
+Standard mean and standard deviation are heavily influenced by the very outliers being detected. EduQuery uses Median Absolute Deviation (MAD):
 $$\text{Median} = \text{median}(X)$$
 $$\text{MAD} = \text{median}(|X - \text{Median}|)$$
 $$\text{Scale} = \max(1.4826 \times \text{MAD}, 5.0)$$

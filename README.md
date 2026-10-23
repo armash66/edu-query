@@ -1,6 +1,6 @@
-# EduQuery V3: Academic Marksheet Analysis Engine
+# EduQuery: Academic Marksheet Analysis Engine
 
-EduQuery V3 is a deterministic academic marksheet analysis platform designed for university faculty, departmental heads, and academic administrators. It automates the parsing, validation, reconciliation, and audit of unstandardized college semester marksheets (such as Mumbai University Excel spreadsheets with multi-tier merged headers and multi-division structures).
+EduQuery is a deterministic academic marksheet analysis platform designed for university faculty, departmental heads, and academic administrators. It automates the parsing, validation, reconciliation, and audit of unstandardized college semester marksheets (such as Mumbai University Excel spreadsheets with multi-tier merged headers and multi-division structures).
 
 The platform replaces manual spreadsheet calculations with an in-process vectorized analytical engine, providing verifiable student performance breakdowns, curriculum-wide failure rates, multi-condition cohort investigations, and noise-reduced anomaly detection.
 
@@ -8,7 +8,7 @@ The platform replaces manual spreadsheet calculations with an in-process vectori
 
 ## Project Status
 
-- Version: EduQuery V3 (Phase 14)
+- Version: EduQuery (Production Ready)
 - Verification Status: Locally verified with 100% test pass rate across 279 backend Pytest tests, 61 frontend Vitest tests, strict TypeScript checks, and production bundle builds.
 - Deployment Status: Containerized and configuration-ready. Production blueprints are prepared for Render (`render.yaml`) and Vercel (`vercel.json`).
 - Remote Verification Note: Local automated test suites establish that all application components, security gates, JWT validators, and static builds function as specified. They do not establish that remote Render, Vercel, and an external institutional identity provider have been tested together until live cloud infrastructure is provisioned and bound.
@@ -20,7 +20,7 @@ The platform replaces manual spreadsheet calculations with an in-process vectori
 
 Academic institutions generate marksheet spreadsheets that feature complex merged headers, varied grading rules, and non-uniform layouts across divisions. Manually extracting departmental pass rates, tracking student backlogs, and preparing accreditation statistics (such as NBA or NAAC documentation) is slow and prone to calculation errors.
 
-EduQuery V3 provides a workflow tailored to faculty needs:
+EduQuery provides a workflow tailored to faculty needs:
 1. Upload & Ingest: Drag-and-drop raw semester marksheets (.xlsx).
 2. Layout Induction: The engine automatically determines table boundaries, student identity anchors, component structures, and elective courses.
 3. Pre-Activation Validation: Academic integrity checks identify duplicate student IDs, out-of-range marks, absence anomalies, and elective conflicts before cohort activation.
@@ -74,7 +74,7 @@ Representative screenshots and visual walkthroughs of the user interface are doc
 
 ## Architecture
 
-EduQuery V3 is built as a layered system separating network ingress, REST controllers, application services, domain classification, and vectorized analytical storage.
+EduQuery is built as a layered system separating network ingress, REST controllers, application services, domain classification, and vectorized analytical storage.
 
 ```mermaid
 graph TD
@@ -154,8 +154,8 @@ For full details on concurrency, database lifecycles, and layer boundaries, see 
 
 ```bash
 # Clone repository
-git clone https://github.com/armash66/edu-query-v3.git
-cd edu-query-v3
+git clone https://github.com/armash66/eduquery.git
+cd eduquery
 
 # Create and activate virtual environment
 # Windows (PowerShell):
@@ -231,7 +231,7 @@ Configuration is managed through environment variables (defined in `.env` or con
 The multi-stage `Dockerfile` compiles the React frontend to static assets and bundles them into a Python 3.11 slim runtime running as non-root user `eduquery:10001`.
 
 ```bash
-docker build -t eduquery-v3:latest .
+docker build -t EduQuery:latest .
 ```
 
 ### Production Hosting with Render
@@ -266,7 +266,7 @@ For detailed security boundaries and threat models, see [`docs/security.md`](./d
 
 ## Testing
 
-EduQuery V3 enforces rigorous automated test coverage across backend and frontend layers:
+EduQuery enforces rigorous automated test coverage across backend and frontend layers:
 
 ```bash
 # Run backend tests (279 passed in ~58s)
@@ -296,7 +296,7 @@ For testing guides and acceptance matrices, see [`docs/testing.md`](./docs/testi
 ## Project Structure
 
 ```text
-eduquery-v3/
+EduQuery/
 ├── app/
 │   ├── config.py              # Environment configuration and validation
 │   ├── main.py                # FastAPI application entrypoint and factory

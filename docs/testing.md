@@ -1,8 +1,8 @@
-# EduQuery V3 - Testing and Verification Guide
+# EduQuery - Testing and Verification Guide
 
 ## 1. Testing Philosophy
 
-EduQuery V3 enforces deterministic verification across all analytical, ingestion, security, and presentation layers. Because academic marks affect student transcripts and degree outcomes, the application requires 100% test pass rates across all test suites prior to deployment.
+EduQuery enforces deterministic verification across all analytical, ingestion, security, and presentation layers. Because academic marks affect student transcripts and degree outcomes, the application requires 100% test pass rates across all test suites prior to deployment.
 
 ---
 

@@ -1,4 +1,4 @@
-# EduQuery V3 — Product Reorientation: Academic Analysis Workspace Specification
+# EduQuery — Product Reorientation: Academic Analysis Workspace Specification
 
 **Date:** 2026-10-18  
 **Scope:** Architecture and Information Architecture (IA) transformation from a static administration template into an interactive, faculty-centric academic analysis workspace.
@@ -8,14 +8,14 @@
 ## 1. Executive Summary & Problem Audit
 
 ### 1.1 The Current Problem
-EduQuery V3 has established robust workbook ingestion, layout induction, DuckDB storage, atomic dataset rollback, and formula-injection-safe CSV exports. However, its user experience has drifted toward a generic administrative dashboard:
+EduQuery has established robust workbook ingestion, layout induction, DuckDB storage, atomic dataset rollback, and formula-injection-safe CSV exports. However, its user experience has drifted toward a generic administrative dashboard:
 - **Static Overview:** Oversized vertical cards showing basic counts (Students: 145, Courses: 27) with no analytical depth.
 - **Disconnected Pages:** Student roster, subject catalog, failure roster, and data quality are siloed in separate menu items without cross-navigation.
 - **Lack of Visual Analytics:** No interactive charts, no division comparisons, no grade/marks distributions, and no multi-subject failure pattern detection.
 - **Manual Inefficiency:** Faculty members seeking answers (e.g. *"Which division is struggling in Algorithms?"*, *"How many students failed both Theory and Lab?"*, *"Where are the conflicting grades?"*) must manually browse through disparate tables and cross-reference records.
 
 ### 1.2 Information Architecture Reorientation
-We redesign EduQuery V3 into an **Academic Analysis Workspace** centered around 6 primary pillars:
+We redesign EduQuery into an **Academic Analysis Workspace** centered around 6 primary pillars:
 1. **Analysis (`/`):** The default landing workspace providing high-density academic metrics, visual outcome distributions, subject failure rankings, cross-division performance charts, and an actionable "Needs Attention" findings panel.
 2. **Explore Data (`/explore`):** A unified, searchable exploration engine with contextual multi-dimensional filters (student status, division, course, score ranges) and instant drill-down.
 3. **Students (`/students` & `/students/:id`):** Student roster with rich individual academic performance, component atomization, reconciliation status, and source sheet/row provenance.
@@ -31,7 +31,7 @@ The sidebar navigation is streamlined to 6 purposeful items:
 
 ```
 ┌──────────────────────────────────────────────┐
-│  EduQuery V3                                 │
+│  EduQuery                                 │
 │  Academic Marks Analysis & Verification      │
 ├──────────────────────────────────────────────┤
 │  [BarChart3]    Analysis          (/)        │  <- Default Primary View

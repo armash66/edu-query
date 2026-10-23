@@ -205,7 +205,7 @@ export function exportStudentsRoster(
     columns,
     data: students,
     metadataRows: [
-      ['EduQuery V3 — Academic Student Roster'],
+      ['EduQuery — Academic Student Roster'],
       [`Exported: ${new Date().toLocaleDateString()} | Total Candidates: ${students.length}`],
       [],
     ],

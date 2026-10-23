@@ -1,4 +1,4 @@
-# EduQuery V3 — REST API Specification & Contract
+# EduQuery — REST API Specification & Contract
 
 ## 1. Global API Conventions
 
@@ -9,7 +9,7 @@
 
 ### Standard HTTP Status Codes
 
-| Status Code | Meaning | Usage in EduQuery V3 |
+| Status Code | Meaning | Usage in EduQuery |
 | :--- | :--- | :--- |
 | **`200 OK`** | Success | Request succeeded; response payload contains requested entity or report. |
 | **`400 Bad Request`** | Client Error | Malformed query parameter, invalid division filter, or invalid pagination limits. |

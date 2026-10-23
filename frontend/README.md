@@ -1,6 +1,6 @@
-# EduQuery V3 - Frontend Application
+# EduQuery - Frontend Application
 
-The faculty-facing web application for EduQuery V3 provides college faculty and departmental administrators with a dashboard for inspecting student marks rosters, curriculum-wide subject failure rates, data quality audits, and marksheet analysis workflows.
+The faculty-facing web application for EduQuery provides college faculty and departmental administrators with a dashboard for inspecting student marks rosters, curriculum-wide subject failure rates, data quality audits, and marksheet analysis workflows.
 
 ---
 
@@ -29,7 +29,7 @@ npm install
 
 ### 2. Start the FastAPI Backend
 
-In a separate terminal, launch the EduQuery V3 backend from the repository root:
+In a separate terminal, launch the EduQuery backend from the repository root:
 
 ```bash
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
@@ -58,7 +58,7 @@ Security Notice: Never put administrative keys or credentials into `VITE_*` envi
 
 ## Privacy Modes and Upload Workflow
 
-EduQuery V3 implements a privacy-first workflow on the `/upload` page:
+EduQuery implements a privacy-first workflow on the `/upload` page:
 
 1. **Temporary Analysis (Default, Zero Persistence)**:
    - Workbooks are uploaded and ingested into an isolated ephemeral DuckDB session in temporary server memory.

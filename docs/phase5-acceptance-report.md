@@ -1,8 +1,8 @@
-# EduQuery V3 — Phase 5 Acceptance & Release Readiness Report
+# EduQuery — Phase 5 Acceptance & Release Readiness Report
 
 **Audit Date:** October 18, 2026  
-**Audited Repository:** `C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\eduquery-v3`  
-**GitHub Repository:** `https://github.com/armash66/eduquery-v3`  
+**Audited Repository:** `C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\EduQuery`  
+**GitHub Repository:** `https://github.com/armash66/EduQuery`  
 **Auditor:** Antigravity AI Pair Programmer  
 
 ---
@@ -11,7 +11,7 @@
 
 ### Final Verdict: **PASS WITH LIMITATIONS**
 
-The EduQuery V3 codebase has been subjected to a rigorous, evidence-driven end-to-end acceptance audit across academic correctness, performance, frontend resilience, security boundaries, and operational recovery.
+The EduQuery codebase has been subjected to a rigorous, evidence-driven end-to-end acceptance audit across academic correctness, performance, frontend resilience, security boundaries, and operational recovery.
 
 All **178 Python backend tests** and **42 React/TypeScript frontend tests** pass deterministically with zero failures. Academic figures reconcile mathematically against ground-truth benchmarks with zero silent data corruption. Administrative import operations operate with atomic pointer swap and multi-process crash resilience.
 
@@ -154,7 +154,7 @@ Reconciliation verified against primary benchmark marksheet `Result_anonymized.x
 
 #### Terminal 1 — Backend (FastAPI + DuckDB)
 ```powershell
-cd "C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\eduquery-v3"
+cd "C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\EduQuery"
 # Activate environment
 .venv\Scripts\Activate.ps1
 # Set safe local admin key
@@ -166,7 +166,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 #### Terminal 2 — Frontend (React 19 + Vite)
 ```powershell
-cd "C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\eduquery-v3\frontend"
+cd "C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\EduQuery\frontend"
 # Start Vite dev server (auto-proxies /api and /health to 127.0.0.1:8000)
 npm run dev
 ```
@@ -211,4 +211,4 @@ Open browser at: `http://localhost:5173`
 
 ## 9. Final Release Recommendation
 
-EduQuery V3 meets all functional, academic, performance, and stability criteria for a controlled institutional deployment and faculty demonstration. The codebase is clean, well-tested, and adheres strictly to the repository architecture with zero neural network overhead and full provenance traceability.
+EduQuery meets all functional, academic, performance, and stability criteria for a controlled institutional deployment and faculty demonstration. The codebase is clean, well-tested, and adheres strictly to the repository architecture with zero neural network overhead and full provenance traceability.

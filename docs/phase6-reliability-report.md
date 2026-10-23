@@ -1,9 +1,9 @@
-# EduQuery V3 — Phase 6: Academic Trustworthiness, Workbook Generalization, Traceability, Recovery & Faculty Reporting
+# EduQuery — Phase 6: Academic Trustworthiness, Workbook Generalization, Traceability, Recovery & Faculty Reporting
 
 **Document Status:** Final Acceptance Report  
 **Date:** October 18, 2026  
 **Final Verdict:** `PASS WITH LIMITATIONS`  
-**Repository:** `C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\eduquery-v3`  
+**Repository:** `C:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\EduQuery`  
 **Baseline Git Commit:** `372ea95` (`main` branch)  
 
 ---
@@ -62,7 +62,7 @@ The application strictly preserves the following academic invariants and precede
 
 ## 4. Workbook Layout Support Matrix
 
-EduQuery V3 implements adaptive layout induction rather than hardcoded column coordinate mapping:
+EduQuery implements adaptive layout induction rather than hardcoded column coordinate mapping:
 
 | Layout Topology | Representative Fixture | Detection Strategy | Validation Status | Known Limitations |
 | :--- | :--- | :--- | :--- | :--- |
@@ -97,7 +97,7 @@ Reconciliation was audited against the authoritative 145-student benchmark (`dat
 ## 6. Source Traceability Capabilities and Limitations
 
 ### 6.1 Retained Provenance Fields
-For every student record, course score, and failure classification, EduQuery V3 maintains:
+For every student record, course score, and failure classification, EduQuery maintains:
 1. `source_sheet`: The exact Excel worksheet name where the record originated.
 2. `source_row`: The 1-indexed row number in the source workbook.
 3. `classification_reason`: Concise deterministic code explaining the result (e.g., `CONFLICTING_RESULT_INDICATORS`, `FAILING_LETTER_GRADE`, `EXPLICIT_FAIL_FLAG`, `PASSING_LETTER_GRADE`, `ABSENT_IN_ASSESSMENT`, `UNRECOGNIZED_GRADE`).
@@ -222,4 +222,4 @@ All automated test suites were executed cleanly and produced 100% pass rates:
 ### **Verdict: `PASS WITH LIMITATIONS`**
 
 **Justification:**  
-EduQuery V3 meets all functional, academic, and safety criteria for Phase 6. Academic outcomes are classified explicitly with verifiable source reasons; conflicting indicators and ambiguous layouts are detected and flagged rather than silently misinterpreted; dataset versioning and rollback operations are cross-process locked and atomic; and faculty reporting provides complete CSV exports sanitized against formula injection. The deployment limitation (requiring an authenticating reverse proxy for institutional multi-user environments) is fully documented.
+EduQuery meets all functional, academic, and safety criteria for Phase 6. Academic outcomes are classified explicitly with verifiable source reasons; conflicting indicators and ambiguous layouts are detected and flagged rather than silently misinterpreted; dataset versioning and rollback operations are cross-process locked and atomic; and faculty reporting provides complete CSV exports sanitized against formula injection. The deployment limitation (requiring an authenticating reverse proxy for institutional multi-user environments) is fully documented.

@@ -1,8 +1,8 @@
-# EduQuery V3 - Production Deployment Guide
+# EduQuery - Production Deployment Guide
 
 ## 1. Overview
 
-EduQuery V3 is an academic marksheet analysis platform for higher education faculty. This document outlines the containerization, environment configuration, storage topology, and operational requirements for hosting EduQuery V3 in production.
+EduQuery is an academic marksheet analysis platform for higher education faculty. This document outlines the containerization, environment configuration, storage topology, and operational requirements for hosting EduQuery in production.
 
 ---
 
@@ -55,7 +55,7 @@ In this topology:
 
 ## 3. Storage Topology and Privacy Segregation
 
-EduQuery V3 implements two segregated storage modes:
+EduQuery implements two segregated storage modes:
 
 ### Mode A: Ephemeral Analysis Sessions (Default, Privacy-First)
 - Path: `EDUQUERY_TEMPORARY_SESSIONS_DIR` (`/tmp/eduquery-sessions`).
@@ -117,7 +117,7 @@ CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --wor
 
 ### Local Container Build Command
 ```bash
-docker build -t eduquery-v3:latest .
+docker build -t EduQuery:latest .
 ```
 
 ### Local Container Run Command
@@ -128,7 +128,7 @@ docker run -d \
   -e EDUQUERY_ENV=production \
   -e EDUQUERY_CORS_ORIGINS="http://localhost:8000" \
   -v eduquery_data:/app/data \
-  eduquery-v3:latest
+  EduQuery:latest
 ```
 
 ---
@@ -138,7 +138,7 @@ docker run -d \
 ```yaml
 services:
   - type: web
-    name: eduquery-v3
+    name: EduQuery
     env: docker
     dockerfilePath: Dockerfile
     plan: starter
@@ -233,13 +233,13 @@ After deployment, verify the service endpoints:
 
 ```bash
 # Liveness check (verifies process is responsive)
-curl -f https://eduquery-v3.onrender.com/livez
+curl -f https://EduQuery.onrender.com/livez
 
 # Readiness check (verifies database queryability)
-curl -f https://eduquery-v3.onrender.com/readyz
+curl -f https://EduQuery.onrender.com/readyz
 
 # Health status
-curl -s https://eduquery-v3.onrender.com/health
+curl -s https://EduQuery.onrender.com/health
 ```
 
 Expected output of `/livez`:

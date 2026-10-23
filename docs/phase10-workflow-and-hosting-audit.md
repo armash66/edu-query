@@ -1,8 +1,8 @@
-# EduQuery V3 — Phase 10: Document-to-Insight Workflow, MDM Electives, Statistical Removal & Hosting Audit
+# EduQuery — Phase 10: Document-to-Insight Workflow, MDM Electives, Statistical Removal & Hosting Audit
 
 ## Executive Summary
 
-Phase 10 prepares **EduQuery V3** for live faculty demonstration and multi-environment hosting. This milestone delivers:
+Phase 10 prepares **EduQuery** for live faculty demonstration and multi-environment hosting. This milestone delivers:
 1. **End-to-End Workflow Audit & Verification (Stages A through I):** Tracing the complete lifecycle from workbook drag-and-drop to executive reporting and crash recovery.
 2. **First-Class MDM Elective Selection Semantics:** Strict mutual exclusivity verification, elimination of phantom unenrolled course records, and accurate enrollment denominators across all analytics.
 3. **Statistical Outlier Decoupling (MAD Removal):** Removing noisy, non-actionable Robust Z-score flags from default faculty views, preserving deterministic marksheet integrity checks and Multivariate Isolation Forest ML outliers.

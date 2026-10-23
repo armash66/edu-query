@@ -2,7 +2,7 @@
 
 ## 1. Overview & Purpose
 
-The **Interactive Academic Investigation Engine** in EduQuery V3 replaces rigid, disconnected administrative filters with a flexible, validated multi-condition query builder. It enables faculty members to explore cohort performance, discover co-failing patterns, isolate students by marks or SGPI bands, and drill down into supporting academic evidence.
+The **Interactive Academic Investigation Engine** in EduQuery replaces rigid, disconnected administrative filters with a flexible, validated multi-condition query builder. It enables faculty members to explore cohort performance, discover co-failing patterns, isolate students by marks or SGPI bands, and drill down into supporting academic evidence.
 
 ---
 

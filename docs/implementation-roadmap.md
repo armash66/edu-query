@@ -1,6 +1,6 @@
-# EduQuery V3 — Implementation Roadmap & Milestones
+# EduQuery — Implementation Roadmap & Milestones
 
-This document specifies the gated implementation sequence for transitioning EduQuery V3 from analytical report services into an enterprise-ready marksheet analysis platform.
+This document specifies the gated implementation sequence for transitioning EduQuery from analytical report services into an enterprise-ready marksheet analysis platform.
 
 Every milestone defines strict completion criteria, test requirements, and non-goals. Progression to subsequent milestones requires passing all quality gates.
 

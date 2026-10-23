@@ -1,7 +1,7 @@
-# EduQuery V3 — Phase 13 Deployment Gate Report: Excel Upload Workflow Resolution, Security Audit & Hosting Verification
+# EduQuery — Phase 13 Deployment Gate Report: Excel Upload Workflow Resolution, Security Audit & Hosting Verification
 
 **Evaluation Date**: 2026-10-18  
-**Repository**: `eduquery-v3`  
+**Repository**: `EduQuery`  
 **Overall Deployment Verdict**: `READY FOR CONTROLLED DEMO`  
 *(Not Ready for Public Deployment until Cloudflare Access / Institutional SSO is configured)*
 
@@ -9,7 +9,7 @@
 
 ## Executive Summary & Gate Status Matrix
 
-This report provides the complete release candidate audit, defect diagnosis, route authorization verification, storage lifecycle analysis, and deployment readiness assessment for EduQuery V3.
+This report provides the complete release candidate audit, defect diagnosis, route authorization verification, storage lifecycle analysis, and deployment readiness assessment for EduQuery.
 
 | Verification Boundary | Gate Status | Detail |
 | :--- | :--- | :--- |
@@ -24,13 +24,13 @@ This report provides the complete release candidate audit, defect diagnosis, rou
 The defect where selecting or uploading an Excel workbook appeared to do nothing has been diagnosed and permanently resolved across 8 interconnected failure points:
 
 1. **Process Routing**: Eliminated orphaned background Uvicorn daemon serving stale router table; re-launched with active reload.
-2. **React Component Lifecycle**: Removed global `loading` unmounting guard in [App.tsx](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/frontend/src/App.tsx) and [SessionContext.tsx](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/frontend/src/context/SessionContext.tsx) that caused `<UploadPage />` to vanish in-flight and remount blank on error.
-3. **File Input Reset**: Added `e.target.value = ''` in [UploadPage.tsx](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/frontend/src/pages/UploadPage.tsx) so re-selecting the exact same workbook reliably fires `onChange`.
-4. **CORS Credential Alignment**: Changed fallback `cors_origins` in [app/config.py](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/app/config.py) from `["*"]` to explicit local ports (`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:8000`, `http://127.0.0.1:8000`), resolving browser credential rejection.
-5. **Multipart Boundary Preservation**: Explicitly stripped default `Content-Type: application/json` in [client.ts](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/frontend/src/api/client.ts) when `body instanceof FormData`, enabling standard multipart boundary calculation.
-6. **Session Inactive Classification**: Fixed `check_session_status` in [app/api/routes/session.py](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/app/api/routes/session.py) to check `active_dataset.json` rather than raw database existence, ensuring fresh visitors receive `active: false, mode: null`.
-7. **Preview Layout Compatibility**: Added `sheets` and `format_notes` aliases in [session_manager.py](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/app/services/session_manager.py) and safe property fallbacks in [UploadPage.tsx](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/frontend/src/pages/UploadPage.tsx), preventing `Cannot read properties of undefined (reading 'join')` exceptions.
-8. **Actionable Validation Display**: Surfaced blocking data quality errors in a dedicated warning banner in [UploadPage.tsx](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/frontend/src/pages/UploadPage.tsx) and disabled the confirm button with descriptive tooltips when `can_confirm === false`.
+2. **React Component Lifecycle**: Removed global `loading` unmounting guard in [App.tsx](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/frontend/src/App.tsx) and [SessionContext.tsx](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/frontend/src/context/SessionContext.tsx) that caused `<UploadPage />` to vanish in-flight and remount blank on error.
+3. **File Input Reset**: Added `e.target.value = ''` in [UploadPage.tsx](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/frontend/src/pages/UploadPage.tsx) so re-selecting the exact same workbook reliably fires `onChange`.
+4. **CORS Credential Alignment**: Changed fallback `cors_origins` in [app/config.py](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/app/config.py) from `["*"]` to explicit local ports (`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:8000`, `http://127.0.0.1:8000`), resolving browser credential rejection.
+5. **Multipart Boundary Preservation**: Explicitly stripped default `Content-Type: application/json` in [client.ts](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/frontend/src/api/client.ts) when `body instanceof FormData`, enabling standard multipart boundary calculation.
+6. **Session Inactive Classification**: Fixed `check_session_status` in [app/api/routes/session.py](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/app/api/routes/session.py) to check `active_dataset.json` rather than raw database existence, ensuring fresh visitors receive `active: false, mode: null`.
+7. **Preview Layout Compatibility**: Added `sheets` and `format_notes` aliases in [session_manager.py](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/app/services/session_manager.py) and safe property fallbacks in [UploadPage.tsx](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/frontend/src/pages/UploadPage.tsx), preventing `Cannot read properties of undefined (reading 'join')` exceptions.
+8. **Actionable Validation Display**: Surfaced blocking data quality errors in a dedicated warning banner in [UploadPage.tsx](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/frontend/src/pages/UploadPage.tsx) and disabled the confirm button with descriptive tooltips when `can_confirm === false`.
 
 ---
 
@@ -110,7 +110,7 @@ All application endpoints under `/api/v1` were audited for access control, param
 
 ## 5. Containerization Audit
 
-The multi-stage [Dockerfile](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/Dockerfile) was audited:
+The multi-stage [Dockerfile](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/Dockerfile) was audited:
 - **Build Stage**: Uses `node:20-alpine` to compile TypeScript and build the React 19 SPA via `npm ci && npm run build`.
 - **Runtime Stage**: Uses `python:3.11-slim`, installs requirements, creates dedicated directories (`/app/data/datasets`, `/app/data/reviews`, `/app/data/sessions`), and creates non-root user `eduquery:eduquery` (UID 10001).
 - **Dynamic Port Binding**: CMD and healthcheck configured with `sh -c` to bind to `${PORT:-8000}`, ensuring compatibility with Render and custom container orchestrators.
@@ -125,11 +125,11 @@ The multi-stage [Dockerfile](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/P
 ## 6. Render Configuration & Cloudflare Access Integration
 
 ### Render Blueprint Configuration
-The infrastructure configuration [render.yaml](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/eduquery-v3/render.yaml) was created:
+The infrastructure configuration [render.yaml](file:///c:/Users/Armash%20Ansari/OneDrive/Desktop/Projects/AI%20&%20ML/EduQuery/render.yaml) was created:
 ```yaml
 services:
   - type: web
-    name: eduquery-v3
+    name: EduQuery
     env: docker
     dockerfilePath: Dockerfile
     plan: starter

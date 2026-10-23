@@ -1,10 +1,10 @@
-# EduQuery V3 — Phase 11: Release Candidate Audit and Deployment Rehearsal Report
+# EduQuery — Phase 11: Release Candidate Audit and Deployment Rehearsal Report
 
 **Audit Date**: October 18, 2026  
 **Auditor**: Antigravity Autonomous Pair Programmer  
-**Target Repository**: `c:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\eduquery-v3`  
+**Target Repository**: `c:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\EduQuery`  
 **Current Git Branch**: `main`  
-**Base Commit**: `372ea95 feat(phase1): initial commit for EduQuery V3 foundation, ingestion engine, data quality validator, and test suite`  
+**Base Commit**: `372ea95 feat(phase1): initial commit for EduQuery foundation, ingestion engine, data quality validator, and test suite`  
 
 ---
 
@@ -13,7 +13,7 @@
 ### Final Verdict: `READY WITH LIMITATIONS`
 (Qualified as `READY FOR CONTROLLED DEMO` when deployed behind an institutional gateway/VPN with persistent volume storage).
 
-EduQuery V3 has achieved deterministic mathematical precision, full single-choice MDM elective semantics, high-precision noise-reduced anomaly detection, and production-ready SPA static asset serving.
+EduQuery has achieved deterministic mathematical precision, full single-choice MDM elective semantics, high-precision noise-reduced anomaly detection, and production-ready SPA static asset serving.
 
 | Evaluation Area | Status | Verified Finding / Limitation |
 | :--- | :---: | :--- |
@@ -31,9 +31,9 @@ EduQuery V3 has achieved deterministic mathematical precision, full single-choic
 
 ### Initial vs. Final Git State
 - **Branch**: `main` (up to date with `origin/main`).
-- **HEAD Commit**: `372ea95 feat(phase1): initial commit for EduQuery V3 foundation...`.
+- **HEAD Commit**: `372ea95 feat(phase1): initial commit for EduQuery foundation...`.
 - **Staged Files**: **0 files staged** across the entire lifecycle.
-- **Untracked / Modified Files**: All working tree changes remain strictly in uncommitted local files in `eduquery-v3`.
+- **Untracked / Modified Files**: All working tree changes remain strictly in uncommitted local files in `EduQuery`.
 - **Workspace Isolation**:
   - `c:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\edu-query` (V1): **Clean working tree, untouched**.
   - `c:\Users\Armash Ansari\OneDrive\Desktop\Projects\AI & ML\eduquery-v2` (V2): **Clean working tree, untouched**.
@@ -79,7 +79,7 @@ Executed command: `npm run build` in `frontend/`:
 ## 4. Hosting Compatibility & Storage Architecture
 
 ### A. Persistent Storage Requirements
-EduQuery V3 requires persistent writable storage mounted to `/app/data` (or directory configured via `EDUQUERY_DATA_DIR`):
+EduQuery requires persistent writable storage mounted to `/app/data` (or directory configured via `EDUQUERY_DATA_DIR`):
 
 | File / Subdirectory | Purpose | Persistence Requirement |
 | :--- | :--- | :--- |
@@ -125,7 +125,7 @@ Inspection of all routes in `app/api/routes/`:
 | `/api/v1/investigation/*` | `POST` | Investigation Engine Read | **None** | **Must be protected by institutional gateway/VPN** |
 
 > [!WARNING]
-> **Production Deployment Requirement**: Academic read endpoints and anomaly review actions are unauthenticated in the core application. EduQuery V3 is designed to be hosted behind an **institutional reverse-proxy** (e.g. Nginx with Basic Auth, AWS ALB with OIDC/Cognito, Cloudflare Access, or a campus VPN). It must **never** be exposed directly to the public internet without an authentication gateway.
+> **Production Deployment Requirement**: Academic read endpoints and anomaly review actions are unauthenticated in the core application. EduQuery is designed to be hosted behind an **institutional reverse-proxy** (e.g. Nginx with Basic Auth, AWS ALB with OIDC/Cognito, Cloudflare Access, or a campus VPN). It must **never** be exposed directly to the public internet without an authentication gateway.
 
 ---
 
