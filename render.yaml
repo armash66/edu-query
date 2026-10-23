@@ -3,14 +3,10 @@ services:
     name: eduquery
     env: docker
     dockerfilePath: Dockerfile
-    plan: starter
+    plan: free
     region: oregon
     numInstances: 1
     healthCheckPath: /livez
-    disk:
-      name: eduquery-data
-      mountPath: /app/data
-      sizeGB: 10
     envVars:
       - key: EDUQUERY_ENV
         value: production
