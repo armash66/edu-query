@@ -132,16 +132,28 @@ def get_course_students_route(
         str | None,
         Query(description="Filter roster by status: 'passed', 'failed', 'absent', 'unresolved'"),
     ] = None,
+    status: Annotated[
+        str | None,
+        Query(description="Filter roster by status alias: 'passed', 'failed', 'absent', 'unresolved'"),
+    ] = None,
+    search: Annotated[
+        str | None,
+        Query(description="Search by student name, roll no, or seat no"),
+    ] = None,
     limit: Annotated[int, Query(ge=1, le=200, description="Page limit (1-200)")] = 50,
     offset: Annotated[int, Query(ge=0, description="Page offset")] = 0,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> SubjectStudentsResponse | JSONResponse:
     """Retrieve unified course student roster showing passed, failed, and absent students together."""
+    effective_result = (status or result or None)
+    if effective_result and effective_result.strip().lower() == "all":
+        effective_result = None
     status_code, payload = get_course_students_service(
         con=con,
         course_code=course_code,
         division=division,
-        result_filter=result,
+        result_filter=effective_result,
+        search=search,
         limit=limit,
         offset=offset,
     )

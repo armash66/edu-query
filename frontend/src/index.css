@@ -725,3 +725,109 @@ html, body {
     position: relative;
   }
 }
+
+/* =========================================================================
+   Global Print Media Styles
+   Prevents blank screens, overflow clipping, and prints clean academic documents
+   ========================================================================= */
+
+@media print {
+  @page {
+    size: auto;
+    margin: 12mm 15mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    font-size: 10pt !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #root,
+  .app-container,
+  .main-content,
+  .page-body {
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    position: static !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Hide navigation, chrome, dialogs, buttons, search inputs, pagination */
+  .sidebar,
+  .top-bar,
+  .modal-backdrop,
+  .pagination,
+  nav,
+  button,
+  .btn,
+  input,
+  select,
+  .brand-badge {
+    display: none !important;
+  }
+
+  .card {
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .table-responsive,
+  .table-container {
+    overflow: visible !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 5px 8px !important;
+    color: #0f172a !important;
+    background: transparent !important;
+    font-size: 8.5pt !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    font-weight: 700 !important;
+  }
+
+  /* Badges in print */
+  .badge {
+    border: 1px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    background: transparent !important;
+    font-weight: 600 !important;
+  }
+}
+

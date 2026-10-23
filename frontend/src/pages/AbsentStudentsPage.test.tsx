@@ -222,4 +222,49 @@ describe('AbsentStudentsPage', () => {
       expect(screen.getByText(/Database query failed/i)).toBeInTheDocument()
     })
   })
+
+  it('triggers window.print when Print Roster button is clicked', async () => {
+    window.print = vi.fn()
+    vi.spyOn(client, 'getAbsentStudents').mockResolvedValue({
+      total: 1,
+      limit: 25,
+      offset: 0,
+      items: [
+        {
+          student_id: 'STU001',
+          roll_no: '101',
+          seat_no: 'SEAT_A1',
+          name: 'Charlie Brown',
+          division: 'A',
+          course_code: 'CS101',
+          course_name: 'Computer Networks',
+          component: 'ESE',
+          raw_text: 'AB',
+          marks: null,
+          total_marks: 380,
+          overall_result: 'FAIL',
+          passed_subject_count: 4,
+          failed_subject_count: 1,
+          absent_subject_count: 1,
+        },
+      ],
+    })
+
+    render(
+      <MemoryRouter>
+        <AbsentStudentsPage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Charlie Brown')).toBeInTheDocument()
+    })
+
+    const printBtn = screen.getByRole('button', { name: /print roster/i })
+    fireEvent.click(printBtn)
+
+    await waitFor(() => {
+      expect(window.print).toHaveBeenCalled()
+    })
+  })
 })

@@ -188,33 +188,53 @@ export const AbsentStudentsPage: React.FC = () => {
   const handlePrintRoster = async () => {
     setPrinting(true)
     try {
-      if (records.length >= total) {
+      if (records.length >= total && records.length > 0) {
         setPrintRecords(records)
-      } else {
+      } else if (total <= 100) {
         const fullList = await getAbsentStudents({
           query: searchQuery.trim() || undefined,
           division: divisionFilter.trim() || undefined,
           course_code: courseFilter.trim() || undefined,
           component: componentFilter.trim() || undefined,
-          limit: 2000,
+          limit: Math.min(Math.max(total, 1), 100),
           offset: 0,
         })
-        setPrintRecords(fullList.items || [])
+        setPrintRecords(fullList?.items && fullList.items.length > 0 ? fullList.items : records)
+      } else {
+        const batchSize = 100
+        const pagesNeeded = Math.ceil(Math.min(total, 1000) / batchSize)
+        const fetchPromises = []
+        for (let i = 0; i < pagesNeeded; i++) {
+          fetchPromises.push(
+            getAbsentStudents({
+              query: searchQuery.trim() || undefined,
+              division: divisionFilter.trim() || undefined,
+              course_code: courseFilter.trim() || undefined,
+              component: componentFilter.trim() || undefined,
+              limit: batchSize,
+              offset: i * batchSize,
+            })
+          )
+        }
+        const pages = await Promise.all(fetchPromises)
+        const allItems = pages.flatMap((p) => p?.items || [])
+        setPrintRecords(allItems.length > 0 ? allItems : records)
       }
-
+    } catch {
+      setPrintRecords(records)
+    } finally {
       setTimeout(() => {
         window.print()
         setPrinting(false)
-      }, 250)
-    } catch {
-      setPrinting(false)
-      window.print()
+      }, 150)
     }
   }
 
   const hasActiveFilters = Boolean(
     searchQuery.trim() || divisionFilter.trim() || courseFilter.trim() || componentFilter.trim()
   )
+
+  const recordsToPrint = printRecords && printRecords.length > 0 ? printRecords : records
 
   // Compute summary stats from current visible page records
   const uniqueStudentCount = new Set(records.map((r) => r.student_id)).size
@@ -223,34 +243,42 @@ export const AbsentStudentsPage: React.FC = () => {
   return (
     <div>
       <style>{`
+        @media screen {
+          .print-absent-view {
+            display: none !important;
+          }
+        }
         @page {
           size: landscape;
-          margin: 10mm;
+          margin: 10mm 12mm;
         }
         @media print {
           body {
             background: #ffffff !important;
-            color: #000000 !important;
+            color: #0f172a !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           body * {
             visibility: hidden;
           }
-          .sidebar, .top-header, .header, .card-header, nav, button, select, input, .stats-row {
+          .sidebar, .top-bar, .top-header, .header, .card, nav, button, select, input, .pagination, .stats-row {
             display: none !important;
           }
           .print-absent-view, .print-absent-view * {
             visibility: visible;
           }
           .print-absent-view {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
             display: block !important;
             background: #ffffff !important;
-            color: #000000 !important;
+            color: #0f172a !important;
+            box-sizing: border-box !important;
           }
           .print-absent-view table {
             display: table !important;
@@ -640,8 +668,8 @@ export const AbsentStudentsPage: React.FC = () => {
       )}
 
       {/* Print-Only Roster Section */}
-      {printing && printRecords && (
-        <div className="print-absent-view" style={{ display: 'none' }}>
+      {printing && recordsToPrint && recordsToPrint.length > 0 && (
+        <div className="print-absent-view">
           <div style={{ marginBottom: '1.25rem', borderBottom: '2px solid #0f172a', paddingBottom: '0.5rem' }}>
             <h1 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0 0 0.25rem 0', color: '#0f172a' }}>
               EduQuery — Absent Students Audit Roster
@@ -677,7 +705,7 @@ export const AbsentStudentsPage: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {printRecords.map((r, i) => (
+              {recordsToPrint.map((r, i) => (
                 <tr key={`print-${r.student_id}-${r.course_code}-${r.component}-${i}`}>
                   <td style={{ padding: '4px 6px', fontWeight: 600, whiteSpace: 'nowrap' }}>{r.roll_no || '—'}</td>
                   <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{r.seat_no || '—'}</td>

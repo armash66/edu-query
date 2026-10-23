@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
   UserX,
   Search,
   BookOpen,
+  Printer,
 } from 'lucide-react'
 import {
   getSubjectStudents,
@@ -33,7 +34,8 @@ export const SubjectDetailPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const divisionParam = searchParams.get('division') || ''
-  const statusParam = (searchParams.get('status') as 'all' | 'passed' | 'failed' | 'absent') || 'all'
+  const rawStatus = (searchParams.get('status') || searchParams.get('result') || 'all').toLowerCase()
+  const statusParam = (rawStatus as 'all' | 'passed' | 'failed' | 'absent')
   const searchParam = searchParams.get('search') || ''
   const pageParam = parseInt(searchParams.get('page') || '1', 10)
 
@@ -44,6 +46,8 @@ export const SubjectDetailPage: React.FC = () => {
   const [exportingType, setExportingType] = useState<string | null>(null)
   const [exportMenuOpen, setExportMenuOpen] = useState<boolean>(false)
   const [searchInput, setSearchInput] = useState<string>(searchParam)
+  const [printing, setPrinting] = useState<boolean>(false)
+  const [printStudents, setPrintStudents] = useState<SubjectStudentItem[] | null>(null)
 
   const pageSize = 25
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -63,6 +67,7 @@ export const SubjectDetailPage: React.FC = () => {
       const res = await getSubjectStudents(courseCode, {
         division: divisionParam.trim() || undefined,
         status: statusParam,
+        result: statusParam !== 'all' ? statusParam : undefined,
         search: searchParam.trim() || undefined,
         limit: pageSize,
         offset: (pageParam - 1) * pageSize,
@@ -125,6 +130,89 @@ export const SubjectDetailPage: React.FC = () => {
     const nextParams = new URLSearchParams(searchParams)
     nextParams.set('page', String(newPage))
     setSearchParams(nextParams)
+  }
+
+  // Filter matching count
+  let displayedTotal = data?.total_enrolled ?? 0
+  if (statusParam === 'passed') displayedTotal = data?.passed_count ?? 0
+  else if (statusParam === 'failed') displayedTotal = data?.failed_count ?? 0
+  else if (statusParam === 'absent') displayedTotal = data?.absent_count ?? 0
+
+  const visibleStudents = useMemo(() => {
+    if (!data?.students) return []
+    if (statusParam === 'all') return data.students
+    return data.students.filter((s) => {
+      const st = (s.status || '').toLowerCase()
+      if (statusParam === 'passed') return st === 'passed'
+      if (statusParam === 'failed') return st === 'failed'
+      if (statusParam === 'absent') return s.is_absent || st === 'absent'
+      return true
+    })
+  }, [data?.students, statusParam])
+
+  const studentsToPrint = printStudents && printStudents.length > 0 ? printStudents : visibleStudents
+
+  const handlePrintRoster = async () => {
+    if (!courseCode) return
+    setPrinting(true)
+    try {
+      const currentList = visibleStudents
+      const targetTotal = displayedTotal
+      if (currentList.length >= targetTotal && currentList.length > 0) {
+        setPrintStudents(currentList)
+      } else if (targetTotal <= 100) {
+        const fullRes = await getSubjectStudents(courseCode, {
+          division: divisionParam.trim() || undefined,
+          status: statusParam !== 'all' ? statusParam : undefined,
+          result: statusParam !== 'all' ? statusParam : undefined,
+          search: searchParam.trim() || undefined,
+          limit: Math.min(Math.max(targetTotal, 1), 100),
+          offset: 0,
+        })
+        const items = fullRes?.students || []
+        const filtered = statusParam === 'all' ? items : items.filter((s) => {
+          const st = (s.status || '').toLowerCase()
+          if (statusParam === 'passed') return st === 'passed'
+          if (statusParam === 'failed') return st === 'failed'
+          if (statusParam === 'absent') return s.is_absent || st === 'absent'
+          return true
+        })
+        setPrintStudents(filtered.length > 0 ? filtered : currentList)
+      } else {
+        const batchSize = 100
+        const pagesNeeded = Math.ceil(Math.min(targetTotal, 1000) / batchSize)
+        const fetchPromises = []
+        for (let i = 0; i < pagesNeeded; i++) {
+          fetchPromises.push(
+            getSubjectStudents(courseCode, {
+              division: divisionParam.trim() || undefined,
+              status: statusParam !== 'all' ? statusParam : undefined,
+              result: statusParam !== 'all' ? statusParam : undefined,
+              search: searchParam.trim() || undefined,
+              limit: batchSize,
+              offset: i * batchSize,
+            })
+          )
+        }
+        const pages = await Promise.all(fetchPromises)
+        const allItems = pages.flatMap((p) => p?.students || [])
+        const filtered = statusParam === 'all' ? allItems : allItems.filter((s) => {
+          const st = (s.status || '').toLowerCase()
+          if (statusParam === 'passed') return st === 'passed'
+          if (statusParam === 'failed') return st === 'failed'
+          if (statusParam === 'absent') return s.is_absent || st === 'absent'
+          return true
+        })
+        setPrintStudents(filtered.length > 0 ? filtered : currentList)
+      }
+    } catch {
+      setPrintStudents(visibleStudents)
+    } finally {
+      setTimeout(() => {
+        window.print()
+        setPrinting(false)
+      }, 150)
+    }
   }
 
   const handleExportExcel = async (type: 'all' | 'passed' | 'failed' | 'absent') => {
@@ -197,14 +285,81 @@ export const SubjectDetailPage: React.FC = () => {
     return <LoadingState message={`Retrieving student roster for subject "${courseCode}"...`} />
   }
 
-  // Filter matching count
-  let displayedTotal = data?.total_enrolled ?? 0
-  if (statusParam === 'passed') displayedTotal = data?.passed_count ?? 0
-  else if (statusParam === 'failed') displayedTotal = data?.failed_count ?? 0
-  else if (statusParam === 'absent') displayedTotal = data?.absent_count ?? 0
+
 
   return (
     <div>
+      <style>{`
+        @media screen {
+          .print-subject-view {
+            display: none !important;
+          }
+        }
+        @page {
+          size: landscape;
+          margin: 10mm 12mm;
+        }
+        @media print {
+          body {
+            background: #ffffff !important;
+            color: #0f172a !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          body * {
+            visibility: hidden;
+          }
+          .sidebar, .top-bar, .top-header, .header, .card, nav, button, select, input, .pagination {
+            display: none !important;
+          }
+          .print-subject-view, .print-subject-view * {
+            visibility: visible;
+          }
+          .print-subject-view {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            display: block !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            box-sizing: border-box !important;
+          }
+          .print-subject-view table {
+            display: table !important;
+            width: 100% !important;
+            border-collapse: collapse !important;
+            table-layout: fixed !important;
+          }
+          .print-subject-view thead {
+            display: table-header-group !important;
+          }
+          .print-subject-view tbody {
+            display: table-row-group !important;
+          }
+          .print-subject-view tr {
+            display: table-row !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .print-subject-view th, .print-subject-view td {
+            display: table-cell !important;
+            border: 1px solid #cbd5e1 !important;
+            padding: 5px 7px !important;
+            font-size: 8.5pt !important;
+            line-height: 1.3 !important;
+          }
+          .print-subject-view th {
+            background-color: #f1f5f9 !important;
+            font-weight: 700 !important;
+            color: #0f172a !important;
+            text-align: left;
+          }
+        }
+      `}</style>
+
       {/* Top Navigation */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
         <Link
@@ -252,22 +407,35 @@ export const SubjectDetailPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* One Export Button near Top of Subject Detail Page */}
-                <div style={{ position: 'relative' }}>
+                {/* Action Buttons: Print Roster & Export Menu */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                   <button
                     type="button"
-                    onClick={() => setExportMenuOpen((prev) => !prev)}
-                    disabled={exportingType !== null}
+                    onClick={handlePrintRoster}
+                    disabled={printing || displayedTotal === 0}
                     className="btn btn-secondary btn-sm"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
-                    title="Export subject roster to Excel (.xlsx)"
-                    aria-expanded={exportMenuOpen}
-                    aria-label="Export Course Roster Menu"
+                    title="Print complete filtered subject roster"
                   >
-                    <Download size={14} />
-                    <span>{exportingType ? 'Exporting...' : 'Export (.xlsx)'}</span>
-                    <ChevronDown size={13} style={{ transform: exportMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+                    <Printer size={14} />
+                    <span>{printing ? 'Preparing Print...' : 'Print Roster'}</span>
                   </button>
+
+                  <div style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      onClick={() => setExportMenuOpen((prev) => !prev)}
+                      disabled={exportingType !== null}
+                      className="btn btn-secondary btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
+                      title="Export subject roster to Excel (.xlsx)"
+                      aria-expanded={exportMenuOpen}
+                      aria-label="Export Course Roster Menu"
+                    >
+                      <Download size={14} />
+                      <span>{exportingType ? 'Exporting...' : 'Export (.xlsx)'}</span>
+                      <ChevronDown size={13} style={{ transform: exportMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+                    </button>
 
                   {exportMenuOpen && (
                     <>
@@ -389,6 +557,7 @@ export const SubjectDetailPage: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
 
             {/* Course Metrics Ribbon */}
             <div style={{ padding: '0.85rem 1.25rem', backgroundColor: '#fafbfc', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '1.75rem', flexWrap: 'wrap', fontSize: '0.85rem' }}>
@@ -511,7 +680,7 @@ export const SubjectDetailPage: React.FC = () => {
           </div>
 
           {/* Unified Student Table */}
-          {data.students.length === 0 ? (
+          {visibleStudents.length === 0 ? (
             <div className="card">
               <div className="card-body" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
                 <div
@@ -567,13 +736,14 @@ export const SubjectDetailPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.students.map((student: SubjectStudentItem) => {
+                    {visibleStudents.map((student: SubjectStudentItem) => {
                       const componentEntries = Object.entries(student.components || {})
 
                       let badgeClass = 'badge-neutral'
-                      if (student.status === 'Passed') badgeClass = 'badge-success'
-                      else if (student.status === 'Failed') badgeClass = 'badge-danger'
-                      else if (student.status === 'Absent') badgeClass = 'badge-warning'
+                      const sStatus = (student.status || '').toLowerCase()
+                      if (sStatus === 'passed') badgeClass = 'badge-success'
+                      else if (sStatus === 'failed') badgeClass = 'badge-danger'
+                      else if (sStatus === 'absent' || student.is_absent) badgeClass = 'badge-warning'
 
                       return (
                         <tr key={student.student_id}>
@@ -685,7 +855,7 @@ export const SubjectDetailPage: React.FC = () => {
               {/* Pagination */}
               <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Showing {data.students.length > 0 ? (pageParam - 1) * pageSize + 1 : 0} to{' '}
+                  Showing {visibleStudents.length > 0 ? (pageParam - 1) * pageSize + 1 : 0} to{' '}
                   {Math.min(pageParam * pageSize, displayedTotal)} of {displayedTotal} records
                 </div>
                 <Pagination
@@ -698,6 +868,71 @@ export const SubjectDetailPage: React.FC = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Dedicated Print-Only Subject Roster Section */}
+      {printing && studentsToPrint && studentsToPrint.length > 0 && (
+        <div className="print-subject-view">
+          <div style={{ marginBottom: '1.25rem', borderBottom: '2px solid #0f172a', paddingBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <h1 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0 0 0.25rem 0', color: '#0f172a' }}>
+                  EduQuery — Subject Evaluation Roster
+                </h1>
+                <div style={{ fontSize: '11pt', fontWeight: 600, color: '#334155' }}>
+                  {data?.course_code} — {data?.course_name}
+                </div>
+              </div>
+              <div style={{ textAlign: 'right', fontSize: '8.5pt', color: '#64748b' }}>
+                <div>Printed: {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                <div>Filter: {statusParam.toUpperCase()} {divisionParam ? `| Div: ${divisionParam}` : ''}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem', fontSize: '8.5pt', color: '#475569' }}>
+              <span>Total Enrolled: <strong>{data?.total_enrolled}</strong></span>
+              <span>Passed: <strong>{data?.passed_count}</strong></span>
+              <span>Failed: <strong>{data?.failed_count}</strong></span>
+              <span>Absent: <strong>{data?.absent_count}</strong></span>
+              <span>Pass Rate: <strong>{data?.pass_percentage.toFixed(1)}%</strong></span>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: '6%' }}>#</th>
+                <th style={{ width: '12%' }}>Roll No</th>
+                <th style={{ width: '12%' }}>Seat No</th>
+                <th style={{ width: '26%' }}>Student Name</th>
+                <th style={{ width: '6%', textAlign: 'center' }}>Div</th>
+                <th style={{ width: '18%' }}>Component Marks</th>
+                <th style={{ width: '10%', textAlign: 'right' }}>Total</th>
+                <th style={{ width: '10%', textAlign: 'center' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {studentsToPrint.map((st, idx) => {
+                const compStr = Object.entries(st.components || {})
+                  .map(([name, score]) => `${name}: ${score.raw_text || (score.marks != null ? score.marks : '—')}`)
+                  .join(', ')
+                return (
+                  <tr key={`print-subject-${st.student_id}-${idx}`}>
+                    <td>{idx + 1}</td>
+                    <td style={{ fontWeight: 600 }}>{st.roll_no || '—'}</td>
+                    <td>{st.seat_no || '—'}</td>
+                    <td>{st.name}</td>
+                    <td style={{ textAlign: 'center' }}>{st.division || '—'}</td>
+                    <td>{compStr || '—'}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{st.total_marks != null ? st.total_marks : '—'}</td>
+                    <td style={{ textAlign: 'center', fontWeight: 600, color: (st.status || '').toLowerCase() === 'passed' ? '#065f46' : (st.status || '').toLowerCase() === 'failed' ? '#991b1b' : '#92400e' }}>
+                      {st.status}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   )

@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Award,
   Download,
+  Printer,
 } from 'lucide-react'
 import {
   getStudentBreakdown,
@@ -191,6 +192,15 @@ export const StudentDetailPage: React.FC = () => {
           <ArrowLeft size={14} /> Back to Student Roster
         </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Print student performance marksheet"
+          >
+            <Printer size={14} /> Print Marksheet
+          </button>
           <button
             type="button"
             onClick={handleExportExcel}

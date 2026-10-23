@@ -542,8 +542,12 @@ export async function getSubjectStudents(
   const clean = encodeURIComponent(courseCode.trim())
   const q = new URLSearchParams()
   if (params.division?.trim()) q.set('division', params.division.trim())
-  if (params.result?.trim()) q.set('result', params.result.trim())
-  if (params.status?.trim()) q.set('status', params.status.trim())
+  const rawStatus = (params.status || params.result || '').trim()
+  const effectiveFilter = rawStatus && rawStatus.toLowerCase() !== 'all' ? rawStatus.toLowerCase() : undefined
+  if (effectiveFilter) {
+    q.set('result', effectiveFilter)
+    q.set('status', effectiveFilter)
+  }
   if (params.search?.trim()) q.set('search', params.search.trim())
   if (params.limit !== undefined) q.set('limit', String(params.limit))
   if (params.offset !== undefined) q.set('offset', String(params.offset))

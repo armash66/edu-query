@@ -136,4 +136,145 @@ describe('SubjectDetailPage', () => {
       expect(exportMock).toHaveBeenCalledWith('CSC501', 'Software Engineering', 'all', [], null)
     })
   })
+
+  it('filters students list when clicking Passed and Failed filter buttons', async () => {
+    vi.spyOn(client, 'getSubjectStudents').mockResolvedValue({
+      course_code: 'CSC501',
+      course_name: 'Software Engineering',
+      kind: 'theory',
+      credits: 3,
+      total_enrolled: 2,
+      passed_count: 1,
+      failed_count: 1,
+      absent_count: 0,
+      unresolved_count: 0,
+      pass_percentage: 50.0,
+      denominator_explanation: 'Pass rate calculated as Passed / (Passed + Failed).',
+      students: [
+        {
+          student_id: 'STU001',
+          roll_no: '01',
+          seat_no: 'SEAT_01',
+          name: 'Alice Johnson',
+          division: 'A',
+          components: {},
+          total_marks: 83,
+          max_marks: 100,
+          status: 'Passed',
+          letter_grade: 'O',
+          is_absent: false,
+          warning: null,
+          failure_reason: null,
+        },
+        {
+          student_id: 'STU050',
+          roll_no: '50',
+          seat_no: 'SEAT_50',
+          name: 'Edward Norton',
+          division: 'A',
+          components: {},
+          total_marks: 28,
+          max_marks: 100,
+          status: 'Failed',
+          letter_grade: 'F',
+          is_absent: false,
+          warning: null,
+          failure_reason: 'Below passing threshold',
+        },
+      ],
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/subjects/CSC501']}>
+        <Routes>
+          <Route path="/subjects/:courseCode" element={<SubjectDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Alice Johnson')).toBeInTheDocument()
+      expect(screen.getByText('Edward Norton')).toBeInTheDocument()
+    })
+
+    // Click Passed button
+    const passedBtn = screen.getByRole('button', { name: /passed \(1\)/i })
+    fireEvent.click(passedBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('Alice Johnson')).toBeInTheDocument()
+      expect(screen.queryByText('Edward Norton')).not.toBeInTheDocument()
+    })
+
+    // Click Failed button
+    const failedBtn = screen.getByRole('button', { name: /failed \(1\)/i })
+    fireEvent.click(failedBtn)
+
+    await waitFor(() => {
+      expect(screen.queryByText('Alice Johnson')).not.toBeInTheDocument()
+      expect(screen.getByText('Edward Norton')).toBeInTheDocument()
+    })
+
+    // Click All button
+    const allBtn = screen.getByRole('button', { name: /all \(2\)/i })
+    fireEvent.click(allBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('Alice Johnson')).toBeInTheDocument()
+      expect(screen.getByText('Edward Norton')).toBeInTheDocument()
+    })
+  })
+
+  it('triggers window.print when Print Roster button is clicked', async () => {
+    window.print = vi.fn()
+    vi.spyOn(client, 'getSubjectStudents').mockResolvedValue({
+      course_code: 'CSC501',
+      course_name: 'Software Engineering',
+      kind: 'theory',
+      credits: 3,
+      total_enrolled: 1,
+      passed_count: 1,
+      failed_count: 0,
+      absent_count: 0,
+      unresolved_count: 0,
+      pass_percentage: 100.0,
+      denominator_explanation: 'Pass rate explanation',
+      students: [
+        {
+          student_id: 'STU001',
+          roll_no: '01',
+          seat_no: 'SEAT_01',
+          name: 'Alice Johnson',
+          division: 'A',
+          components: {},
+          total_marks: 83,
+          max_marks: 100,
+          status: 'Passed',
+          letter_grade: 'O',
+          is_absent: false,
+          warning: null,
+          failure_reason: null,
+        },
+      ],
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/subjects/CSC501']}>
+        <Routes>
+          <Route path="/subjects/:courseCode" element={<SubjectDetailPage />} />
+        </Routes>
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Software Engineering')).toBeInTheDocument()
+    })
+
+    const printBtn = screen.getByRole('button', { name: /print roster/i })
+    fireEvent.click(printBtn)
+
+    await waitFor(() => {
+      expect(window.print).toHaveBeenCalled()
+    })
+  })
 })

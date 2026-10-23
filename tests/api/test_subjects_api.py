@@ -234,3 +234,41 @@ def test_real_workbook_ground_truth_reconciliation_via_api():
         assert data_a["total_enrolled"] + data_b["total_enrolled"] == data_all["total_enrolled"]
 
     app.dependency_overrides.clear()
+
+
+def test_subject_students_status_and_result_filtering(subject_api_db: duckdb.DuckDBPyConnection) -> None:
+    """Verify /{course_code}/students supports both 'status' and 'result' queries and filters correctly."""
+    app.dependency_overrides[get_db] = lambda: subject_api_db
+
+    with TestClient(app) as test_client:
+        # All students in CS101
+        resp_all = test_client.get("/api/v1/subjects/CS101/students")
+        assert resp_all.status_code == 200
+        data_all = resp_all.json()
+        assert data_all["total_enrolled"] == 4
+        assert data_all["passed_count"] == 2
+        assert data_all["failed_count"] == 2
+
+        # Filter by status=passed
+        resp_passed = test_client.get("/api/v1/subjects/CS101/students?status=passed")
+        assert resp_passed.status_code == 200
+        data_passed = resp_passed.json()
+        assert data_passed["total"] == 2
+        assert all(s["status"].lower() == "passed" for s in data_passed["students"])
+
+        # Filter by result=failed
+        resp_failed = test_client.get("/api/v1/subjects/CS101/students?result=failed")
+        assert resp_failed.status_code == 200
+        data_failed = resp_failed.json()
+        assert data_failed["total"] == 2
+        assert all(s["status"].lower() == "failed" for s in data_failed["students"])
+
+        # Filter by search
+        resp_search = test_client.get("/api/v1/subjects/CS101/students?search=Student A1")
+        assert resp_search.status_code == 200
+        data_search = resp_search.json()
+        assert data_search["total"] == 1
+        assert data_search["students"][0]["name"] == "Student A1"
+
+    app.dependency_overrides.clear()
+

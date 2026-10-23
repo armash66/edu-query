@@ -249,6 +249,7 @@ def get_course_students_service(
     course_code: str,
     division: str | None = None,
     result_filter: str | None = None,
+    search: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> tuple[int, SubjectStudentsResponse | NotFoundErrorResponse | AmbiguousCourseResponse]:
@@ -277,17 +278,28 @@ def get_course_students_service(
     if result_filter and result_filter.strip():
         rf = result_filter.strip().lower()
         if rf == "passed":
-            filtered = [s for s in all_students if s.status == "passed"]
+            filtered = [s for s in all_students if (s.status or "").lower() == "passed"]
         elif rf == "failed":
-            filtered = [s for s in all_students if s.status == "failed"]
+            filtered = [s for s in all_students if (s.status or "").lower() == "failed"]
         elif rf == "absent":
-            filtered = [s for s in all_students if s.is_absent or s.status == "absent"]
+            filtered = [s for s in all_students if s.is_absent or (s.status or "").lower() == "absent"]
         elif rf in ("unresolved", "excluded"):
-            filtered = [s for s in all_students if s.status in ("unresolved", "absent")]
+            filtered = [s for s in all_students if (s.status or "").lower() in ("unresolved", "absent")]
         else:
             filtered = all_students
     else:
         filtered = all_students
+
+    if search and search.strip():
+        sq = search.strip().lower()
+        filtered = [
+            s
+            for s in filtered
+            if (s.name and sq in s.name.lower())
+            or (s.roll_no and sq in str(s.roll_no).lower())
+            or (s.seat_no and sq in str(s.seat_no).lower())
+            or (s.student_id and sq in str(s.student_id).lower())
+        ]
 
     total_matching = len(filtered)
     paged = filtered[offset : offset + limit]
