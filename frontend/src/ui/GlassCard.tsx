@@ -2,6 +2,7 @@ import React from 'react'
 
 export interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: 'glass-1' | 'glass-2' | 'glass-3' | 'data-surface'
+  elevation?: 1 | 2 | 3
   padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl'
   headerSlot?: React.ReactNode
   footerSlot?: React.ReactNode
@@ -9,7 +10,8 @@ export interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 export const GlassCard: React.FC<GlassCardProps> = ({
-  variant = 'glass-2',
+  variant,
+  elevation,
   padding = 'md',
   headerSlot,
   footerSlot,
@@ -18,6 +20,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
   style,
   ...props
 }) => {
+  const resolvedVariant = variant || (elevation === 1 ? 'glass-1' : elevation === 3 ? 'glass-3' : 'glass-2')
   const paddingMap = {
     none: '0',
     sm: 'var(--space-3)',
@@ -28,7 +31,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 
   return (
     <div
-      className={`${variant} ${className}`.trim()}
+      className={`${resolvedVariant} ${className}`.trim()}
       style={{
         borderRadius: 'var(--radius-card)',
         overflow: 'hidden',

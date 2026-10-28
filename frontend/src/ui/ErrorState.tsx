@@ -3,7 +3,8 @@ import { Button } from './Button'
 
 export interface ErrorStateProps {
   title?: string
-  message: string
+  message?: string
+  error?: string
   details?: string
   onRetry?: () => void
   retryLabel?: string
@@ -15,6 +16,7 @@ export interface ErrorStateProps {
 export const ErrorState: React.FC<ErrorStateProps> = ({
   title = 'Something went wrong',
   message,
+  error,
   details,
   onRetry,
   retryLabel = 'Try again',
@@ -22,6 +24,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   className = '',
   style,
 }) => {
+  const displayMessage = message || error || 'An unexpected error occurred'
   return (
     <div
       role="alert"
@@ -88,7 +91,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
           marginBottom: onRetry || action || details ? 'var(--space-4)' : 0,
         }}
       >
-        {message}
+        {displayMessage}
       </p>
 
       {details && (

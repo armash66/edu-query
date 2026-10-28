@@ -4,7 +4,8 @@ export type StatusTone = 'pass' | 'fail' | 'warn' | 'info'
 
 export interface StatusBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   tone: StatusTone
-  label: string
+  label?: string
+  children?: React.ReactNode
   size?: 'sm' | 'md'
   showIcon?: boolean
 }
@@ -12,12 +13,14 @@ export interface StatusBadgeProps extends React.HTMLAttributes<HTMLSpanElement> 
 export const StatusBadge: React.FC<StatusBadgeProps> = ({
   tone,
   label,
+  children,
   size = 'md',
   showIcon = true,
   className = '',
   style,
   ...props
 }) => {
+  const content = label ?? children
   const toneStyles: Record<
     StatusTone,
     { text: string; bg: string; border: string; defaultIcon: React.ReactNode }
@@ -160,7 +163,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
           {defaultIcon}
         </span>
       )}
-      <span>{label}</span>
+      <span>{content}</span>
     </span>
   )
 }

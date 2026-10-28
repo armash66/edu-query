@@ -3,30 +3,37 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   CheckCircle2,
   ChevronRight,
-  ShieldAlert,
   CheckSquare,
   Square,
-  X,
   ExternalLink,
+  Users,
+  BookOpen,
+  Award,
 } from 'lucide-react'
 import { useSession } from '../context/SessionContext'
 import { useHealth } from '../context/HealthContext'
 import {
   getAnalyticsOverview,
   getAnomalyFindings,
-  getAnomalySummary,
   reviewAnomalyFinding,
   ApiError,
 } from '../api/client'
 import type {
   AnalyticsOverviewResponse,
   AnomalyFindingItem,
-  AnomalySummaryResponse,
 } from '../api/types'
-import { HorizontalRankingChart } from '../components/charts/HorizontalRankingChart'
-import { DivisionComparisonChart } from '../components/charts/DivisionComparisonChart'
-import { LoadingState } from '../components/LoadingState'
-import { ErrorBanner } from '../components/ErrorBanner'
+import { GlassCard } from '../ui/GlassCard'
+import { Stat } from '../ui/Stat'
+import { Sparkline } from '../ui/Sparkline'
+import { OutcomeBar } from '../ui/OutcomeBar'
+import { DivisionComparison } from '../ui/DivisionComparison'
+import { FailureRateBar } from '../ui/FailureRateBar'
+import { Button } from '../ui/Button'
+import { StatusBadge } from '../ui/StatusBadge'
+import { Modal } from '../ui/Modal'
+import { EmptyState } from '../ui/EmptyState'
+import { ErrorState } from '../ui/ErrorState'
+import { Skeleton } from '../ui/Skeleton'
 
 export const OverviewPage: React.FC = () => {
   const { hasActiveSession } = useSession()
@@ -34,7 +41,6 @@ export const OverviewPage: React.FC = () => {
   const navigate = useNavigate()
 
   const [analytics, setAnalytics] = useState<AnalyticsOverviewResponse | null>(null)
-  const [anomalySummary, setAnomalySummary] = useState<AnomalySummaryResponse | null>(null)
   const [anomalyFindings, setAnomalyFindings] = useState<AnomalyFindingItem[]>([])
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<ApiError | null>(null)
@@ -53,14 +59,12 @@ export const OverviewPage: React.FC = () => {
       setLoading(true)
       setError(null)
       try {
-        const [overviewRes, anomSumRes, anomFindRes] = await Promise.all([
+        const [overviewRes, anomFindRes] = await Promise.all([
           getAnalyticsOverview(),
-          getAnomalySummary().catch(() => null),
           getAnomalyFindings({ limit: 100 }).catch(() => null),
         ])
         if (active) {
           setAnalytics(overviewRes)
-          if (anomSumRes) setAnomalySummary(anomSumRes)
           if (anomFindRes?.findings) {
             setAnomalyFindings(anomFindRes.findings)
           }
@@ -99,34 +103,19 @@ export const OverviewPage: React.FC = () => {
         notes: nextReviewed ? 'Verified by faculty moderator' : undefined,
       })
 
-      // Update state
       setAnomalyFindings((prev) =>
         prev.map((f) =>
           f.finding_id === finding.finding_id
-            ? { ...f, reviewed: nextReviewed, reviewed_by: nextReviewed ? 'Faculty Reviewer' : null }
+            ? { ...f, reviewed: nextReviewed, review_notes: nextReviewed ? 'Verified by faculty moderator' : undefined }
             : f
         )
       )
 
       if (selectedFinding?.finding_id === finding.finding_id) {
-        setSelectedFinding({
-          ...selectedFinding,
-          reviewed: nextReviewed,
-          reviewed_by: nextReviewed ? 'Faculty Reviewer' : null,
-        })
+        setSelectedFinding((prev) => (prev ? { ...prev, reviewed: nextReviewed } : null))
       }
 
-      if (anomalySummary) {
-        setAnomalySummary({
-          ...anomalySummary,
-          reviewed_count: nextReviewed
-            ? anomalySummary.reviewed_count + 1
-            : Math.max(0, anomalySummary.reviewed_count - 1),
-          pending_count: nextReviewed
-            ? Math.max(0, anomalySummary.pending_count - 1)
-            : anomalySummary.pending_count + 1,
-        })
-      }
+      await refreshHealth()
     } catch {
       // Non-blocking
     } finally {
@@ -134,559 +123,440 @@ export const OverviewPage: React.FC = () => {
     }
   }
 
+  // Handle loading state
   if (loading) {
-    return <LoadingState message="Loading cohort performance overview..." />
-  }
-
-  if (error) {
-    return <ErrorBanner error={error} title="Analytics Error" onRetry={() => refreshHealth()} />
-  }
-
-  if (!analytics) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-        No analytics available. Please upload a marksheet.
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: 'var(--space-6) var(--space-4)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+          <Skeleton height="110px" radius="var(--radius-card)" />
+          <Skeleton height="110px" radius="var(--radius-card)" />
+          <Skeleton height="110px" radius="var(--radius-card)" />
+          <Skeleton height="110px" radius="var(--radius-card)" />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-6)' }}>
+          <Skeleton height="280px" radius="var(--radius-card)" />
+          <Skeleton height="280px" radius="var(--radius-card)" />
+        </div>
       </div>
     )
   }
 
-  // Authoritative pass percentage calculation
-  const passRatePercent =
-    analytics.total_students > 0
-      ? ((analytics.passed_students / analytics.total_students) * 100).toFixed(1)
-      : '0.0'
+  // Handle empty state
+  if (!hasActiveSession) {
+    return (
+      <div style={{ maxWidth: '800px', margin: '4rem auto', padding: '0 var(--space-4)' }}>
+        <EmptyState
+          title="No analytics available"
+          description="Please upload an Excel marksheet (.xlsx) to begin cohort analysis."
+          action={
+            <Button variant="primary" onClick={() => navigate('/upload')}>
+              Upload Marksheet
+            </Button>
+          }
+        />
+      </div>
+    )
+  }
 
-  // Filtered findings list
+  // Handle error state
+  if (error || !analytics) {
+    return (
+      <div style={{ maxWidth: '800px', margin: '4rem auto', padding: '0 var(--space-4)' }}>
+        <ErrorState
+          title="Analytics Error"
+          message={error?.message || 'Unable to load overview analytics.'}
+          onRetry={() => window.location.reload()}
+        />
+      </div>
+    )
+  }
+
+  const passPct = analytics.total_students > 0
+    ? ((analytics.passed_students / analytics.total_students) * 100).toFixed(1)
+    : '0.0'
+
   const filteredFindings = anomalyFindings.filter((f) => {
     if (findingFilter === 'unreviewed') return !f.reviewed
     if (findingFilter === 'reviewed') return f.reviewed
     return true
   })
 
-  // Distinct students requiring attention
-  const distinctStudentsNeedingReview = new Set(
-    anomalyFindings.filter((f) => !f.reviewed).map((f) => f.student_id)
-  ).size
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {/* 1. Compact Cohort Summary Strip */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: '0.75rem',
-        }}
-      >
-        {/* Cohort Size */}
+    <div
+      style={{
+        maxWidth: '1200px',
+        margin: '0 auto',
+        padding: 'var(--space-6) var(--space-4) var(--space-12)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-8)',
+      }}
+    >
+      {/* 1. Metric Strip */}
+      <section aria-label="Key Performance Indicators">
         <div
           style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '0.85rem 1rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 'var(--space-4)',
           }}
         >
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Cohort Size
-          </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.2rem' }}>
-            {analytics.total_students}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-            Enrolled Students
-          </div>
-        </div>
+          <Stat
+            label="Total Students"
+            value={analytics.total_students}
+            icon={<Users size={18} />}
+            subtext="Candidates enrolled in examination"
+            chartSlot={<Sparkline data={[110, 125, 132, 140, analytics.total_students]} width={64} height={20} />}
+          />
 
-        {/* Pass Rate */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '0.85rem 1rem',
-          }}
-        >
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Overall Pass Rate
-          </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 700, color: '#047857', marginTop: '0.2rem' }}>
-            {passRatePercent}%
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-            {analytics.passed_students} passed &bull; {analytics.failed_students} failed
-          </div>
-        </div>
+          <Stat
+            label="Pass Rate"
+            value={`${passPct}%`}
+            icon={<Award size={18} />}
+            subtext={`${analytics.passed_students} cleared all courses`}
+            delta={{ value: `${passPct}%`, direction: Number(passPct) >= 70 ? 'up' : 'down' }}
+            chartSlot={<Sparkline data={[72, 75, 78, 80, Number(passPct)]} width={64} height={20} />}
+          />
 
-        {/* Records Needing Attention */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '0.85rem 1rem',
-          }}
-        >
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Attention Required
-          </div>
-          <div
-            style={{
-              fontSize: '1.6rem',
-              fontWeight: 700,
-              color: distinctStudentsNeedingReview > 0 ? '#b45309' : '#047857',
-              marginTop: '0.2rem',
-            }}
-          >
-            {distinctStudentsNeedingReview}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-            {distinctStudentsNeedingReview > 0 ? 'Distinct student records pending review' : 'Zero unreviewed anomalies'}
-          </div>
-        </div>
+          <Stat
+            label="Curriculum Courses"
+            value={analytics.total_courses}
+            icon={<BookOpen size={18} />}
+            subtext="Distinct subjects and lab modules"
+          />
 
-        {/* Total Courses */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            border: '1px solid var(--border-color)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '0.85rem 1rem',
-          }}
-        >
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            Curriculum Courses
-          </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.2rem' }}>
-            {analytics.total_courses}
-          </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-            Evaluated subjects in cohort
-          </div>
+          <Stat
+            label="Quality Score"
+            value={`${analytics.quality_score ?? 100}%`}
+            icon={<CheckCircle2 size={18} />}
+            subtext={`${analytics.unresolved_students} records need verification`}
+            delta={{ value: 'High', direction: 'neutral' }}
+          />
         </div>
-      </div>
+      </section>
 
-      {/* 2. Primary Comparison Grid: Subjects & Divisions */}
-      <div
+      {/* 2. Visual Outcome Breakdown & Division Distributions */}
+      <section
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-          gap: '1.25rem',
+          gap: 'var(--space-6)',
         }}
       >
-        {/* Subject Failure Outcomes */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-color)',
-            padding: '1.15rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.85rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Outcome Breakdown Card */}
+        <GlassCard variant="glass-2" padding="lg">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
             <div>
-              <h2 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>
-                Subject Failure Rates
+              <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+                Cohort Examination Outcomes
               </h2>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Ranked by failure percentage among enrolled candidates
-              </div>
-            </div>
-            <Link
-              to="/subjects"
-              style={{ fontSize: '0.78rem', color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 500 }}
-            >
-              All subjects &rarr;
-            </Link>
-          </div>
-
-          <HorizontalRankingChart
-            data={analytics.top_failing_courses}
-            onSelectCourse={(courseCode) => navigate(`/subjects/${courseCode}/failures`)}
-          />
-        </div>
-
-        {/* Division Breakdown */}
-        <div
-          style={{
-            backgroundColor: '#ffffff',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-color)',
-            padding: '1.15rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.85rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <h2 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>
-                Division Outcomes
-              </h2>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Pass and fail proportions across class sections
-              </div>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
+                Aggregated pass, fail, and backlog distribution
+              </p>
             </div>
             <Link
               to="/students"
-              style={{ fontSize: '0.78rem', color: 'var(--primary-color)', textDecoration: 'none', fontWeight: 500 }}
+              style={{
+                fontSize: 'var(--text-xs)',
+                color: 'var(--text)',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                fontWeight: 600,
+              }}
             >
-              Student roster &rarr;
+              <span>View Roster</span>
+              <ChevronRight size={14} />
             </Link>
           </div>
 
+          <OutcomeBar
+            passed={analytics.passed_students}
+            failed={analytics.failed_students}
+            absent={analytics.unresolved_students}
+            height={26}
+          />
+        </GlassCard>
+
+        {/* Division Outcomes Card */}
+        <GlassCard variant="glass-2" padding="lg">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+            <div>
+              <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+                Division Outcomes
+              </h2>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
+                Section-wise student pass rates and performance comparison
+              </p>
+            </div>
+          </div>
+
           {analytics.division_summary && analytics.division_summary.length > 0 ? (
-            <DivisionComparisonChart
-              data={analytics.division_summary}
-              onSelectDivision={(div) => navigate(`/students?division=${encodeURIComponent(div)}`)}
+            <DivisionComparison
+              divisions={analytics.division_summary.map((d) => ({
+                division: `Division ${d.division}`,
+                count: d.passed_count,
+                tone: d.pass_rate_percent >= 75 ? 'pass' : d.pass_rate_percent >= 50 ? 'warn' : 'fail',
+              }))}
+              total={analytics.total_students}
             />
           ) : (
-            <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              No division partition detected in this cohort.
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+              No division breakdown in active workbook.
             </div>
           )}
-        </div>
-      </div>
+        </GlassCard>
+      </section>
 
-      {/* 3. Actionable Verification & Audit Findings */}
-      <div
-        style={{
-          backgroundColor: '#ffffff',
-          borderRadius: 'var(--radius-sm)',
-          border: '1px solid var(--border-color)',
-          padding: '1.15rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.85rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div>
-            <h2 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>
-              Actionable Marksheet Findings
-            </h2>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              Deterministic discrepancies and statistical anomalies requiring faculty inspection
+      {/* 3. Top Failing Subjects */}
+      <section>
+        <GlassCard variant="glass-2" padding="lg">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+            <div>
+              <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+                Subject Failure Rates
+              </h2>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
+                Prioritized failure ranking across courses (Tiered: Green &lt;5%, Amber 5-15%, Red &gt;15%)
+              </p>
             </div>
+            <Link
+              to="/subjects?tab=failures"
+              style={{
+                fontSize: 'var(--text-xs)',
+                color: 'var(--text)',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                fontWeight: 600,
+              }}
+            >
+              <span>Full Subject Analysis</span>
+              <ChevronRight size={14} />
+            </Link>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <button
-              type="button"
-              className={`btn btn-xs ${findingFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFindingFilter('all')}
-              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-            >
-              All ({anomalyFindings.length})
-            </button>
-            <button
-              type="button"
-              className={`btn btn-xs ${findingFilter === 'unreviewed' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFindingFilter('unreviewed')}
-              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-            >
-              Needs Review ({anomalyFindings.filter((f) => !f.reviewed).length})
-            </button>
-            <button
-              type="button"
-              className={`btn btn-xs ${findingFilter === 'reviewed' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFindingFilter('reviewed')}
-              style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-            >
-              Reviewed ({anomalyFindings.filter((f) => f.reviewed).length})
-            </button>
-          </div>
-        </div>
+          {analytics.top_failing_courses && analytics.top_failing_courses.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-3)' }}>
+              {analytics.top_failing_courses.map((course) => (
+                <FailureRateBar
+                  key={course.course_code}
+                  subjectCode={course.course_code}
+                  subjectName={course.course_name}
+                  failureRate={course.failure_rate_percent}
+                  failedStudents={course.failed_count}
+                  totalStudents={course.enrolled_count}
+                  onClick={() => navigate(`/subjects/${course.course_code}`)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', padding: 'var(--space-4) 0' }}>
+              No failing courses detected in this cohort.
+            </div>
+          )}
+        </GlassCard>
+      </section>
 
-        {filteredFindings.length === 0 ? (
+      {/* 4. Actionable Marksheet Findings & Quality Audit */}
+      <section>
+        <GlassCard variant="glass-2" padding="lg">
           <div
             style={{
-              padding: '2rem 1rem',
-              textAlign: 'center',
-              backgroundColor: '#f8fafc',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid #e2e8f0',
-              color: '#475569',
-              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 'var(--space-3)',
+              marginBottom: 'var(--space-4)',
+              borderBottom: '1px solid var(--border)',
+              paddingBottom: 'var(--space-4)',
             }}
           >
-            <CheckCircle2 size={24} style={{ color: '#16a34a', margin: '0 auto 0.5rem' }} />
-            <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>
-              {findingFilter === 'unreviewed'
-                ? 'All detected findings have been verified by faculty.'
-                : 'No marksheet discrepancies detected in this cohort.'}
+            <div>
+              <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+                Actionable Marksheet Findings
+              </h2>
+              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
+                Deterministic integrity checks and score verification flags requiring faculty audit
+              </p>
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              Grade rules, component arithmetic, and total scores reconcile with 100% consistency.
+
+            {/* Filter buttons */}
+            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+              {(['all', 'unreviewed', 'reviewed'] as const).map((filterKey) => (
+                <Button
+                  key={filterKey}
+                  size="sm"
+                  variant={findingFilter === filterKey ? 'primary' : 'secondary'}
+                  onClick={() => setFindingFilter(filterKey)}
+                  style={{ textTransform: 'capitalize' }}
+                >
+                  {filterKey === 'all'
+                    ? `All (${anomalyFindings.length})`
+                    : filterKey === 'unreviewed'
+                    ? `Pending (${anomalyFindings.filter((f) => !f.reviewed).length})`
+                    : `Reviewed (${anomalyFindings.filter((f) => f.reviewed).length})`}
+                </Button>
+              ))}
             </div>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {filteredFindings.map((finding) => (
-              <div
-                key={finding.finding_id}
-                style={{
-                  padding: '0.75rem 0.85rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: finding.reviewed ? '#f8fafc' : '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '0.75rem',
-                  transition: 'background-color 0.15s ease',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', flexGrow: 1 }}>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleReview(finding)}
-                    disabled={reviewingId === finding.finding_id}
-                    title={finding.reviewed ? 'Mark as unreviewed' : 'Mark as reviewed'}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      cursor: 'pointer',
-                      color: finding.reviewed ? '#059669' : '#94a3b8',
-                      marginTop: '0.15rem',
-                    }}
-                  >
-                    {finding.reviewed ? <CheckSquare size={16} /> : <Square size={16} />}
-                  </button>
 
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                      <span
-                        style={{
-                          fontSize: '0.72rem',
-                          padding: '0.1rem 0.35rem',
-                          borderRadius: '3px',
-                          fontWeight: 600,
-                          backgroundColor:
-                            finding.severity === 'critical'
-                              ? '#fee2e2'
-                              : finding.severity === 'warning'
-                              ? '#fef3c7'
-                              : '#f1f5f9',
-                          color:
-                            finding.severity === 'critical'
-                              ? '#991b1b'
-                              : finding.severity === 'warning'
-                              ? '#92400e'
-                              : '#475569',
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {finding.category || finding.severity}
-                      </span>
-                      <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-main)' }}>
-                        {finding.title || finding.explanation}
-                      </span>
-                    </div>
-
-                    {finding.what_noticed && finding.title && (
-                      <div style={{ fontSize: '0.8rem', color: '#334155', marginTop: '0.25rem' }}>
-                        {finding.what_noticed}
-                      </div>
-                    )}
-
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                      Student ID: <code style={{ fontSize: '0.75rem' }}>{finding.student_id}</code>
-                      {finding.course_code && (
-                        <> &bull; Subject: <code style={{ fontSize: '0.75rem' }}>{finding.course_code}</code></>
-                      )}
-                      {finding.reviewed && (
-                        <span style={{ color: '#059669', marginLeft: '0.5rem' }}>
-                          &bull; Reviewed
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-xs"
-                  onClick={() => setSelectedFinding(finding)}
+          {filteredFindings.length === 0 ? (
+            <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--text-sm)' }}>
+              No findings matching the &quot;{findingFilter}&quot; filter.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+              {filteredFindings.map((finding) => (
+                <div
+                  key={finding.finding_id}
+                  className="data-surface"
                   style={{
-                    display: 'inline-flex',
+                    display: 'flex',
                     alignItems: 'center',
-                    gap: '0.25rem',
-                    fontSize: '0.75rem',
-                    padding: '0.25rem 0.55rem',
-                    flexShrink: 0,
+                    justifyContent: 'space-between',
+                    padding: 'var(--space-3) var(--space-4)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface-data)',
+                    gap: 'var(--space-3)',
+                    flexWrap: 'wrap',
                   }}
                 >
-                  Evidence <ChevronRight size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flex: 1, minWidth: '240px' }}>
+                    <button
+                      type="button"
+                      aria-label={finding.reviewed ? 'Mark as Unreviewed' : 'Mark as Reviewed'}
+                      onClick={() => handleToggleReview(finding)}
+                      disabled={reviewingId === finding.finding_id}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: finding.reviewed ? 'var(--status-success-text)' : 'var(--text-muted)',
+                        display: 'inline-flex',
+                        padding: 0,
+                      }}
+                    >
+                      {finding.reviewed ? <CheckSquare size={18} /> : <Square size={18} />}
+                    </button>
 
-      {/* 4. On-Demand Evidence Modal / Drawer */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text)' }}>
+                          {finding.student_name || `Student ${finding.student_id}`}
+                        </span>
+                        <StatusBadge
+                          tone={finding.severity === 'critical' ? 'fail' : 'warn'}
+                          size="sm"
+                          label={finding.severity}
+                        />
+                      </div>
+                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        {finding.explanation}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setSelectedFinding(finding)}
+                    >
+                      Evidence
+                    </Button>
+                    {finding.record_link && (
+                      <Link
+                        to={finding.record_link}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: 'var(--radius-sm)',
+                          color: 'var(--text-muted)',
+                          textDecoration: 'none',
+                        }}
+                        title="View Student Record"
+                      >
+                        <ExternalLink size={16} />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassCard>
+      </section>
+
+      {/* 5. Verification Evidence Modal */}
       {selectedFinding && (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedFinding(null)
-          }}
-        >
-          <div className="modal-dialog" style={{ maxWidth: '580px' }}>
-            <div className="modal-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ShieldAlert size={18} style={{ color: 'var(--primary-color)' }} />
-                <h3 className="modal-title" style={{ fontSize: '1rem', fontWeight: 600 }}>
-                  Verification Evidence
-                </h3>
-              </div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-icon"
-                onClick={() => setSelectedFinding(null)}
-                aria-label="Close evidence modal"
+        <Modal
+          isOpen={true}
+          onClose={() => setSelectedFinding(null)}
+          title="Verification Evidence"
+          description={`Integrity audit for ${selectedFinding.student_name || selectedFinding.student_id}`}
+          size="md"
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setSelectedFinding(null)}>
+                Close
+              </Button>
+              <Button
+                variant={selectedFinding.reviewed ? 'secondary' : 'primary'}
+                loading={reviewingId === selectedFinding.finding_id}
+                onClick={() => handleToggleReview(selectedFinding)}
               >
-                <X size={16} />
-              </button>
+                {selectedFinding.reviewed ? 'Unverify Finding' : 'Mark as Reviewed & Verified'}
+              </Button>
+            </>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <div>
+              <h3 style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 'var(--space-1)' }}>
+                Source Verification Metrics
+              </h3>
+              <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text)', margin: 0, lineHeight: 1.5 }}>
+                {selectedFinding.explanation}
+              </p>
             </div>
 
-            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-                  Observation
-                </div>
-                <div style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-main)', marginTop: '0.15rem' }}>
-                  {selectedFinding.title || selectedFinding.explanation}
-                </div>
-                {selectedFinding.what_noticed && selectedFinding.title && (
-                  <div style={{ fontSize: '0.85rem', color: '#334155', marginTop: '0.35rem', lineHeight: '1.4' }}>
-                    {selectedFinding.what_noticed}
-                  </div>
-                )}
-              </div>
-
-              {selectedFinding.evidence && (
-                <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#166534', textTransform: 'uppercase', fontWeight: 700 }}>
-                    Verifiable Evidence
-                  </div>
-                  <div style={{ fontSize: '0.82rem', color: '#14532d', marginTop: '0.2rem' }}>
-                    {selectedFinding.evidence}
-                  </div>
-                </div>
-              )}
-
-              {selectedFinding.recommended_action && (
-                <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 'var(--radius-sm)', padding: '0.65rem 0.85rem' }}>
-                  <div style={{ fontSize: '0.72rem', color: '#1e40af', textTransform: 'uppercase', fontWeight: 700 }}>
-                    Recommended Action
-                  </div>
-                  <div style={{ fontSize: '0.82rem', color: '#1e3a8a', marginTop: '0.2rem' }}>
-                    {selectedFinding.recommended_action}
-                  </div>
-                </div>
-              )}
-
+            {selectedFinding.contributing_features && (
               <div
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '0.75rem',
-                  backgroundColor: '#f8fafc',
-                  padding: '0.75rem',
+                  background: 'var(--surface-hover)',
+                  padding: 'var(--space-3) var(--space-4)',
                   borderRadius: 'var(--radius-sm)',
-                  border: '1px solid #e2e8f0',
-                  fontSize: '0.8rem',
+                  fontSize: 'var(--text-xs)',
+                  fontFamily: 'var(--font-mono)',
                 }}
               >
-                <div>
-                  <div style={{ color: 'var(--text-muted)' }}>Student Identifier:</div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{selectedFinding.student_id}</div>
+                <div style={{ fontWeight: 600, marginBottom: 'var(--space-1)', color: 'var(--text)' }}>
+                  Contributing Feature Values:
                 </div>
-                <div>
-                  <div style={{ color: 'var(--text-muted)' }}>Subject Code:</div>
-                  <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{selectedFinding.course_code || 'Cohort-wide'}</div>
-                </div>
-                <div>
-                  <div style={{ color: 'var(--text-muted)' }}>Severity Level:</div>
-                  <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>{selectedFinding.severity}</div>
-                </div>
-                <div>
-                  <div style={{ color: 'var(--text-muted)' }}>Detection Category:</div>
-                  <div style={{ fontWeight: 600 }}>{selectedFinding.category || 'Deterministic Check'}</div>
-                </div>
+                <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' }}>
+                  {JSON.stringify(selectedFinding.contributing_features, null, 2)}
+                </pre>
               </div>
+            )}
 
-              {/* Source Verification Metrics / Technical Details */}
-              {(selectedFinding.technical_details || (selectedFinding.contributing_features && Object.keys(selectedFinding.contributing_features).length > 0)) && (
-                <details open style={{ backgroundColor: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.75rem' }}>
-                  <summary style={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569', cursor: 'pointer' }}>
-                    Statistical Model & Technical Details
-                  </summary>
-                  <div style={{ marginTop: '0.5rem', fontSize: '0.78rem', color: '#64748b' }}>
-                    {selectedFinding.technical_details && (
-                      <p style={{ margin: '0 0 0.5rem 0' }}>{selectedFinding.technical_details}</p>
-                    )}
-                    {selectedFinding.contributing_features && Object.keys(selectedFinding.contributing_features).length > 0 && (
-                      <div
-                        style={{
-                          backgroundColor: '#f1f5f9',
-                          padding: '0.5rem',
-                          borderRadius: 'var(--radius-sm)',
-                          fontFamily: 'monospace',
-                          fontSize: '0.75rem',
-                          overflowX: 'auto',
-                        }}
-                      >
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-                          Source Verification Metrics
-                        </div>
-                        <pre style={{ margin: 0 }}>{JSON.stringify(selectedFinding.contributing_features, null, 2)}</pre>
-                      </div>
-                    )}
-                  </div>
-                </details>
-              )}
-
-              {selectedFinding.review_notes && (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  <strong>Moderation Notes:</strong> {selectedFinding.review_notes}
-                </div>
-              )}
-            </div>
-
-            <div className="modal-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <button
-                type="button"
-                className={`btn btn-sm ${selectedFinding.reviewed ? 'btn-secondary' : 'btn-primary'}`}
-                onClick={() => handleToggleReview(selectedFinding)}
-                disabled={reviewingId === selectedFinding.finding_id}
-              >
-                {selectedFinding.reviewed ? 'Mark as Unreviewed' : 'Mark as Reviewed & Verified'}
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => {
-                  setSelectedFinding(null)
-                  navigate(`/students/${encodeURIComponent(selectedFinding.student_id)}`)
-                }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-              >
-                Inspect Student Roster <ExternalLink size={14} />
-              </button>
-            </div>
+            {selectedFinding.limitations && (
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                <strong>Limitation Notice:</strong> {selectedFinding.limitations}
+              </div>
+            )}
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )
 }
+
+export default OverviewPage

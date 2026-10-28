@@ -119,8 +119,8 @@ export const OutcomeBar: React.FC<OutcomeBarProps> = ({
               }}
               aria-hidden="true"
             />
-            <span>
-              Pass: <strong className="tabular-nums font-mono">{passPct.toFixed(1)}%</strong> ({passed})
+            <span className="tabular-nums">
+              Pass: {passPct.toFixed(1)}% ({passed})
             </span>
           </div>
 
@@ -135,8 +135,8 @@ export const OutcomeBar: React.FC<OutcomeBarProps> = ({
               }}
               aria-hidden="true"
             />
-            <span>
-              Fail: <strong className="tabular-nums font-mono">{failPct.toFixed(1)}%</strong> ({failed})
+            <span className="tabular-nums">
+              Fail: {failPct.toFixed(1)}% ({failed})
             </span>
           </div>
 
@@ -153,8 +153,8 @@ export const OutcomeBar: React.FC<OutcomeBarProps> = ({
                 }}
                 aria-hidden="true"
               />
-              <span>
-                Absent: <strong className="tabular-nums font-mono">{absentPct.toFixed(1)}%</strong> ({absent})
+              <span className="tabular-nums">
+                Absent: {absentPct.toFixed(1)}% ({absent})
               </span>
             </div>
           )}
