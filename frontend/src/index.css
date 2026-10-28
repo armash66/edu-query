@@ -387,14 +387,7 @@ body::after {
   --scrollbar-track: transparent;
 }
 
-html,
-body,
-*,
-.glass-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-}
-
+/* WebKit / Chromium custom scrollbars (Chrome, Edge, Safari, Opera) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -416,14 +409,39 @@ body,
   background-clip: padding-box;
 }
 
-::-webkit-scrollbar-button {
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-button:single-button,
+::-webkit-scrollbar-button:start,
+::-webkit-scrollbar-button:end,
+::-webkit-scrollbar-button:vertical:decrement,
+::-webkit-scrollbar-button:vertical:increment,
+::-webkit-scrollbar-button:horizontal:decrement,
+::-webkit-scrollbar-button:horizontal:increment {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
+  background: transparent !important;
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Slim scrollbars for dedicated glass scroll areas */
+.glass-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Standard CSS scrollbar for non-WebKit browsers (Firefox) */
+@supports not selector(::-webkit-scrollbar) {
+  html,
+  body,
+  *,
+  .glass-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
 }
 
 /* Command palette input resets to prevent browser focus-ring box-shadow rectangle */

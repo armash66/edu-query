@@ -153,7 +153,7 @@ export function DataTable<T>({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: 'var(--space-3) var(--space-4)',
+            padding: '14px 24px',
             borderBottom: '1px solid var(--border)',
             background: 'var(--surface-hover)',
           }}
@@ -233,6 +233,8 @@ export function DataTable<T>({
                       zIndex: isSticky ? 4 : 2,
                       left: isSticky ? 0 : undefined,
                       padding: cellPadding,
+                      paddingLeft: cIdx === 0 ? '24px' : undefined,
+                      paddingRight: cIdx === columns.length - 1 ? '24px' : undefined,
                       fontWeight: 600,
                       color: 'var(--text-secondary)',
                       textTransform: 'uppercase',
@@ -328,6 +330,8 @@ export function DataTable<T>({
                           className={isSticky ? 'table-sticky-col' : undefined}
                           style={{
                             padding: cellPadding,
+                            paddingLeft: cIdx === 0 ? '24px' : undefined,
+                            paddingRight: cIdx === columns.length - 1 ? '24px' : undefined,
                             color: 'var(--text)',
                             width: col.width,
                             minWidth: col.width,
@@ -363,7 +367,7 @@ export function DataTable<T>({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: 'var(--space-3) var(--space-4)',
+            padding: '14px 24px',
             borderTop: '1px solid var(--border)',
             background: 'var(--surface-hover)',
             flexWrap: 'wrap',

@@ -16,6 +16,7 @@ import {
   Laptop,
   Palette,
   Search,
+  Compass,
   UserX,
   AlertOctagon,
   ArrowRight,
@@ -114,7 +115,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       icon: <UserX size={16} />,
       category: 'Pages',
       action: () => {
-        navigate('/students?preset=absent')
+        navigate('/absent')
         onClose()
       },
     },
@@ -122,7 +123,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       id: 'nav-explore',
       title: 'Explore Academic Data',
       subtitle: 'Interactive multi-condition filter builder',
-      icon: <Search size={16} />,
+      icon: <Compass size={16} />,
       category: 'Pages',
       action: () => {
         navigate('/explore')
@@ -459,9 +460,9 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
           role="listbox"
           className="glass-scrollbar"
           style={{
-            maxHeight: '400px',
+            maxHeight: 'min(420px, 60vh)',
             overflowY: 'auto',
-            padding: '10px 8px',
+            padding: '10px 12px 18px 12px',
           }}
         >
           {allFilteredItems.length === 0 ? (
