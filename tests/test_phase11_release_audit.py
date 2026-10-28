@@ -137,31 +137,18 @@ def test_security_boundary_classification():
         assert client.get("/api/v1/anomalies/summary").status_code == 200
         assert client.get("/api/v1/analytics/overview").status_code == 200
 
-        # Group 3: Administrative import and dataset management (Strictly authorized)
-        # Without key -> 401
-        assert client.post("/api/v1/imports/preview").status_code == 401
-        assert client.post("/api/v1/imports/confirm", json={"import_id": "test"}).status_code == 401
-        assert client.get("/api/v1/imports/versions").status_code == 401
-        assert client.post("/api/v1/imports/rollback", json={"dataset_id": "d1"}).status_code == 401
-        assert client.get("/api/v1/imports/sess_12345678").status_code == 401
-
-        # With invalid key -> 401
-        bad_headers = {"X-EduQuery-Import-Key": "wrong-key"}
-        assert client.get("/api/v1/imports/versions", headers=bad_headers).status_code == 401
-
-        # With valid key -> Authorized (200)
-        good_headers = {"X-EduQuery-Import-Key": admin_key}
-        resp_versions = client.get("/api/v1/imports/versions", headers=good_headers)
+        # Group 3: Import and dataset management (Accessible without admin key)
+        resp_versions = client.get("/api/v1/imports/versions")
         assert resp_versions.status_code == 200
 
-        # With Bearer Authorization header -> Authorized (200)
-        bearer_headers = {"Authorization": f"Bearer {admin_key}"}
-        resp_bearer = client.get("/api/v1/imports/versions", headers=bearer_headers)
-        assert resp_bearer.status_code == 200
+        # Endpoints validate requests structurally (422/404), not 401
+        assert client.post("/api/v1/imports/preview").status_code == 422
+        assert client.post("/api/v1/imports/confirm", json={"import_id": "nonexistent_session"}).status_code == 404
+        assert client.get("/api/v1/imports/sess_12345678").status_code == 404
 
 
 def test_import_endpoints_disabled_when_key_unconfigured():
-    """Verify that import endpoints return 503 SERVICE UNAVAILABLE when no admin key is configured."""
+    """Verify that import endpoints remain fully operational when no admin key is configured."""
     settings = Settings(
         app_env="production",
         database_path=":memory:",
@@ -171,8 +158,8 @@ def test_import_endpoints_disabled_when_key_unconfigured():
 
     with TestClient(test_app) as client:
         resp = client.get("/api/v1/imports/versions")
-        assert resp.status_code == 503
-        assert resp.json()["error_code"] == "IMPORT_DISABLED"
+        assert resp.status_code == 200
+        assert "versions" in resp.json()
 
 
 # ==============================================================================

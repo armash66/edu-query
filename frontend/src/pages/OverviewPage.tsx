@@ -6,7 +6,6 @@ import {
   ExternalLink,
   Printer,
   ShieldAlert,
-  Users,
 } from 'lucide-react'
 import { useSession } from '../context/SessionContext'
 import { useHealth } from '../context/HealthContext'

@@ -1,5 +1,4 @@
 import { Listbox } from '../ui/Listbox'
-import { toTitleCase } from '../utils/text'
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -8,7 +7,6 @@ import {
   TrendingDown,
   BookOpen,
   ArrowUpDown,
-  CheckCircle,
 } from 'lucide-react'
 import { getSubjectFailureSummary } from '../api/client'
 import { ApiError, type SubjectFailureSummaryItem, type SubjectFailureSummaryResponse } from '../api/types'

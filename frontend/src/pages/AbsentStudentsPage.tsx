@@ -1,5 +1,4 @@
 import { Listbox } from '../ui/Listbox'
-import { toTitleCase } from '../utils/text'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { UserX, Filter, Download, Printer, AlertTriangle, BookOpen, Users } from 'lucide-react'

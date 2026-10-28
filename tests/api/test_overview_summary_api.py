@@ -109,3 +109,4 @@ def test_overview_summary_endpoint_success(client: TestClient) -> None:
     assert any("highest failure rate: 8.3% (12 students)" in t for t in texts)
     assert any("Division B's pass rate is 6.8 points higher than Division A's" in t for t in texts)
     assert any("9 students failed two or more subjects" in t for t in texts)
+

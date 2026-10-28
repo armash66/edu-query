@@ -1,5 +1,4 @@
 import { Listbox } from '../ui/Listbox'
-import { toTitleCase } from '../utils/text'
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {

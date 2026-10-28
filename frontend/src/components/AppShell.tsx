@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   BarChart3,
   Users,
@@ -21,10 +21,9 @@ import { GlobalSearchTrigger } from './GlobalSearchTrigger'
 const CommandPalette = lazy(() => import('./CommandPalette').then((m) => ({ default: m.CommandPalette })))
 
 export const AppShell: React.FC = () => {
-  const { health, error: healthError } = useHealth()
+  const { health, error: healthError, refreshHealth } = useHealth()
   const { session, hasActiveSession } = useSession()
   const location = useLocation()
-  const navigate = useNavigate()
 
   // Sidebar Rail State (persisted in localStorage)
   const [isRail, setIsRail] = useState<boolean>(() => {
@@ -419,7 +418,7 @@ export const AppShell: React.FC = () => {
         {/* Page Content Body Region */}
         <main id="main-content-region" tabIndex={-1} className="page-body">
           {isColdStart ? (
-            <BootScreen onDismiss={() => {}} />
+            <BootScreen onRetry={refreshHealth} errorMessage={healthError?.message} />
           ) : (
             <Outlet />
           )}

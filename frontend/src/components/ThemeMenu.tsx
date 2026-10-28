@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Sun, Moon, Laptop, Check } from 'lucide-react'
-import { useTheme, type ThemeMode } from '../context/ThemeContext'
+import { useTheme, type ThemePreference } from '../context/ThemeContext'
 
 interface ThemeMenuProps {
   align?: 'left' | 'right' | 'top'
@@ -33,7 +33,7 @@ export const ThemeMenu: React.FC<ThemeMenuProps> = ({ align = 'right', direction
     }
   }, [isOpen])
 
-  const options: { mode: ThemeMode; label: string; icon: React.ReactNode }[] = [
+  const options: { mode: ThemePreference; label: string; icon: React.ReactNode }[] = [
     { mode: 'system', label: 'System', icon: <Laptop size={14} /> },
     { mode: 'light', label: 'Light', icon: <Sun size={14} /> },
     { mode: 'dark', label: 'Dark', icon: <Moon size={14} /> },
@@ -129,3 +129,4 @@ export const ThemeMenu: React.FC<ThemeMenuProps> = ({ align = 'right', direction
     </div>
   )
 }
+

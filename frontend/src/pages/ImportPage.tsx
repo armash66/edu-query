@@ -5,8 +5,6 @@ import {
   FileSpreadsheet,
   AlertTriangle,
   CheckCircle2,
-  KeyRound,
-  ShieldAlert,
   ArrowRight,
   Database,
   FileCheck,
@@ -27,9 +25,7 @@ import {
   type ImportConfirmResponse,
   type DatasetVersionItem,
 } from '../api/types'
-import { useAdminKey } from '../context/AdminKeyContext'
 import { useHealth } from '../context/HealthContext'
-import { AdminKeyModal } from '../components/AdminKeyModal'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import {
   GlassCard,
@@ -42,10 +38,8 @@ import {
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024 // 25 MiB
 
 export const ImportPage: React.FC = () => {
-  const { adminKey, hasAdminKey } = useAdminKey()
   const { health, refreshHealth } = useHealth()
 
-  const [isAdminKeyModalOpen, setIsAdminKeyModalOpen] = useState<boolean>(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [dragActive, setDragActive] = useState<boolean>(false)
   const [clientValidationError, setClientValidationError] = useState<string | null>(null)
@@ -71,33 +65,28 @@ export const ImportPage: React.FC = () => {
   const [rollbackError, setRollbackError] = useState<ApiError | null>(null)
 
   const loadVersions = React.useCallback(async () => {
-    if (!adminKey) return
     setLoadingVersions(true)
     try {
-      const res = await getDatasetVersions(adminKey)
+      const res = await getDatasetVersions()
       setVersions(res.versions)
     } catch {
       // Non-blocking if no versions
     } finally {
       setLoadingVersions(false)
     }
-  }, [adminKey])
+  }, [])
 
   React.useEffect(() => {
-    if (hasAdminKey && adminKey) {
-      loadVersions()
-    } else {
-      setVersions([])
-    }
-  }, [hasAdminKey, adminKey, loadVersions])
+    loadVersions()
+  }, [loadVersions])
 
   const handleRollbackConfirm = async () => {
-    if (!rollbackTarget || !adminKey) return
+    if (!rollbackTarget) return
     setRollbackLoading(true)
     setRollbackError(null)
     setRollbackSuccessMsg(null)
     try {
-      const res = await rollbackDataset(rollbackTarget.dataset_id, adminKey)
+      const res = await rollbackDataset(rollbackTarget.dataset_id)
       setRollbackSuccessMsg(res.message)
       setIsRollbackConfirmOpen(false)
       setRollbackTarget(null)
@@ -169,17 +158,14 @@ export const ImportPage: React.FC = () => {
   const handlePreviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedFile) return
-    if (!hasAdminKey || !adminKey) {
-      setIsAdminKeyModalOpen(true)
-      return
-    }
+
 
     setPreviewLoading(true)
     setPreviewError(null)
     setPreviewData(null)
 
     try {
-      const res = await previewImport(selectedFile, adminKey)
+      const res = await previewImport(selectedFile)
       setPreviewData(res)
     } catch (err) {
       if (err instanceof ApiError) {
@@ -193,20 +179,20 @@ export const ImportPage: React.FC = () => {
   }
 
   const handleConfirmActivation = async () => {
-    if (!previewData?.import_id || !adminKey) return
+    if (!previewData?.import_id) return
 
     setConfirmLoading(true)
     setConfirmError(null)
 
     try {
-      const res = await confirmImport(previewData.import_id, adminKey)
+      const res = await confirmImport(previewData.import_id)
       setConfirmSuccess(res)
       setIsConfirmOpen(false)
       await refreshHealth()
       await loadVersions()
     } catch (err: unknown) {
       try {
-        const status = await getImportStatus(previewData.import_id, adminKey)
+        const status = await getImportStatus(previewData.import_id)
         if (status.state === 'activated') {
           setConfirmSuccess({
             import_id: status.import_id,
@@ -267,62 +253,12 @@ export const ImportPage: React.FC = () => {
           </div>
 
           <div>
-            {hasAdminKey ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={<CheckCircle2 size={14} style={{ color: 'var(--status-pass)' }} />}
-                onClick={() => setIsAdminKeyModalOpen(true)}
-              >
-                Admin Key Configured
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<KeyRound size={14} />}
-                onClick={() => setIsAdminKeyModalOpen(true)}
-              >
-                Configure Admin Key
-              </Button>
-            )}
+
           </div>
         </div>
       </GlassCard>
 
-      {/* Admin Key Missing Warning Banner */}
-      {!hasAdminKey && (
-        <div
-          style={{
-            padding: '0.875rem 1.25rem',
-            borderRadius: 'var(--radius-lg)',
-            background: 'var(--status-warn-subtle)',
-            border: '1px solid var(--glass-border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-            fontSize: '0.8125rem',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <ShieldAlert size={18} style={{ color: 'var(--status-warn)', flexShrink: 0 }} />
-            <div>
-              <strong style={{ color: 'var(--text-primary)' }}>Administrative Authorization Required:</strong> Marksheet upload and dataset activation
-              require the administrative key. Please configure your session key before previewing.
-            </div>
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setIsAdminKeyModalOpen(true)}
-          >
-            Enter Key
-          </Button>
-        </div>
-      )}
+
 
       {/* Activation Success Screen */}
       {confirmSuccess && (
@@ -752,17 +688,15 @@ export const ImportPage: React.FC = () => {
               Review stored dataset versions, active dataset identification, and restore prior verified states.
             </div>
           </div>
-          {hasAdminKey && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={loadVersions}
-              disabled={loadingVersions}
-              icon={<RotateCcw size={14} className={loadingVersions ? 'spin' : ''} />}
-            >
-              Refresh Versions
-            </Button>
-          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={loadVersions}
+            disabled={loadingVersions}
+            icon={<RotateCcw size={14} className={loadingVersions ? 'spin' : ''} />}
+          >
+            Refresh Versions
+          </Button>
         </div>
 
         {/* Current Active Dataset Summary */}
@@ -827,21 +761,7 @@ export const ImportPage: React.FC = () => {
           <ErrorState error={rollbackError.message || 'Rollback failed'} />
         )}
 
-        {!hasAdminKey ? (
-          <div style={{ padding: '1.5rem', textAlign: 'center', background: 'var(--glass-base)', borderRadius: 'var(--radius-md)', border: '1px solid var(--glass-border)' }}>
-            <p style={{ margin: '0 0 0.75rem 0', color: 'var(--text-secondary)', fontSize: '0.8125rem' }}>
-              Administrative authentication is required to inspect version history and initiate dataset rollback.
-            </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setIsAdminKeyModalOpen(true)}
-              icon={<KeyRound size={14} />}
-            >
-              Enter Administrative Key
-            </Button>
-          </div>
-        ) : loadingVersions && versions.length === 0 ? (
+        {loadingVersions && versions.length === 0 ? (
           <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.8125rem' }}>
             Loading dataset versions...
           </div>
@@ -934,11 +854,7 @@ export const ImportPage: React.FC = () => {
         />
       )}
 
-      {/* Admin Key Modal */}
-      <AdminKeyModal
-        isOpen={isAdminKeyModalOpen}
-        onClose={() => setIsAdminKeyModalOpen(false)}
-      />
+
     </div>
   )
 }

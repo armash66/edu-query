@@ -92,11 +92,11 @@ def sample_xlsx_bytes():
 
 
 # =========================================================================
-# Part 1: Authentication & Authorization Safeguards
+# Part 1: Authentication Removal & Open Access
 # =========================================================================
 
-def test_import_endpoints_disabled_when_no_key_configured(temp_workspace, sample_xlsx_bytes):
-    """When EDUQUERY_IMPORT_API_KEY is unset, endpoints must return 503 IMPORT_DISABLED."""
+def test_import_endpoints_accessible_without_credentials(temp_workspace, sample_xlsx_bytes):
+    """Import endpoints do not require administrative keys and accept requests openly."""
     disabled_settings = Settings(
         database_path=str(temp_workspace["initial_db"]),
         import_api_key=None,
@@ -104,59 +104,18 @@ def test_import_endpoints_disabled_when_no_key_configured(temp_workspace, sample
     )
     disabled_app = create_app(disabled_settings)
     with TestClient(disabled_app) as client:
-        # Preview endpoint
+        # Preview endpoint succeeds without any auth headers
         resp_p = client.post(
             "/api/v1/imports/preview",
             files={"file": ("wb.xlsx", sample_xlsx_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
-            headers={"X-EduQuery-Import-Key": "any-key"},
         )
-        assert resp_p.status_code == 503
+        assert resp_p.status_code == 200
         data_p = resp_p.json()
-        assert data_p["status"] == "error"
-        assert data_p["error_code"] == "IMPORT_DISABLED"
+        assert data_p["state"] == "preview_ready"
 
-        # Confirm endpoint
-        resp_c = client.post(
-            "/api/v1/imports/confirm",
-            json={"import_id": "dummy-id"},
-            headers={"X-EduQuery-Import-Key": "any-key"},
-        )
-        assert resp_c.status_code == 503
-        assert resp_c.json()["error_code"] == "IMPORT_DISABLED"
-
-        # Status inspection endpoint
-        resp_s = client.get("/api/v1/imports/dummy-id", headers={"X-EduQuery-Import-Key": "any-key"})
-        assert resp_s.status_code == 503
-        assert resp_s.json()["error_code"] == "IMPORT_DISABLED"
-
-
-def test_import_endpoints_reject_missing_credentials(temp_workspace, sample_xlsx_bytes):
-    """Missing import key header must return 401 UNAUTHORIZED."""
-    client = temp_workspace["client"]
-    resp = client.post(
-        "/api/v1/imports/preview",
-        files={"file": ("wb.xlsx", sample_xlsx_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
-    )
-    assert resp.status_code == 401
-    data = resp.json()
-    assert data["status"] == "error"
-    assert data["error_code"] == "UNAUTHORIZED"
-    assert "Missing" in data["message"]
-
-
-def test_import_endpoints_reject_invalid_credentials(temp_workspace, sample_xlsx_bytes):
-    """Incorrect import key must return 401 UNAUTHORIZED."""
-    client = temp_workspace["client"]
-    resp = client.post(
-        "/api/v1/imports/preview",
-        files={"file": ("wb.xlsx", sample_xlsx_bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
-        headers={"X-EduQuery-Import-Key": "wrong-secret-key"},
-    )
-    assert resp.status_code == 401
-    data = resp.json()
-    assert data["status"] == "error"
-    assert data["error_code"] == "UNAUTHORIZED"
-    assert "Invalid" in data["message"]
+        # Versions list endpoint succeeds without auth
+        resp_v = client.get("/api/v1/imports/versions")
+        assert resp_v.status_code == 200
 
 
 def test_import_endpoints_accept_valid_credentials(temp_workspace, sample_xlsx_bytes):

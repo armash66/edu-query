@@ -324,6 +324,7 @@ export const StudentDetailPage: React.FC = () => {
               <button
                 role="menuitem"
                 type="button"
+                disabled={exportingExcel}
                 onClick={() => {
                   setIsExportMenuOpen(false)
                   handleExportExcel()
@@ -350,6 +351,7 @@ export const StudentDetailPage: React.FC = () => {
               <button
                 role="menuitem"
                 type="button"
+                disabled={exporting}
                 onClick={() => {
                   setIsExportMenuOpen(false)
                   handleExport()

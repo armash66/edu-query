@@ -3,7 +3,6 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import { ToastProvider } from './ui/Toast'
 import { HealthProvider } from './context/HealthContext'
-import { AdminKeyProvider } from './context/AdminKeyContext'
 import { SessionProvider, useSession } from './context/SessionContext'
 import { AppShell } from './components/AppShell'
 import { LoadingState } from './components/LoadingState'
@@ -36,9 +35,8 @@ export function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <AdminKeyProvider>
-          <HealthProvider>
-            <SessionProvider>
+        <HealthProvider>
+          <SessionProvider>
               <BrowserRouter>
                 <Suspense fallback={<LoadingState message="Loading workspace view..." />}>
                   <Routes>
@@ -65,7 +63,6 @@ export function App() {
               </BrowserRouter>
             </SessionProvider>
           </HealthProvider>
-        </AdminKeyProvider>
       </ToastProvider>
     </ThemeProvider>
   )

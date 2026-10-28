@@ -123,3 +123,4 @@ class OverviewSummaryResponse(BaseModel):
     sgpi_distribution: OverviewSgpiDistribution
     hardest_subjects: list[OverviewHardestSubject] = Field(default_factory=list)
     highlights: list[OverviewHighlight] = Field(default_factory=list)
+
