@@ -141,8 +141,10 @@ describe('AbsentStudentsPage', () => {
     })
 
     // Change division filter
-    const divSelect = screen.getByLabelText(/filter by division/i)
-    fireEvent.change(divSelect, { target: { value: 'A' } })
+    const divTrigger = screen.getByLabelText(/filter by division/i)
+    fireEvent.click(divTrigger)
+    const option = screen.getByRole('option', { name: /Division A/i })
+    fireEvent.click(option)
 
     await waitFor(() => {
       expect(getAbsentStudentsSpy).toHaveBeenCalledWith(

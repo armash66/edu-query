@@ -1,3 +1,5 @@
+import { Listbox } from '../ui/Listbox'
+import { toTitleCase } from '../utils/text'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { UserX, Filter, Download, Printer, AlertTriangle, BookOpen, Users } from 'lucide-react'
@@ -451,57 +453,49 @@ export const AbsentStudentsPage: React.FC = () => {
               </div>
 
               {/* Division Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '150px' }}>
                 <Filter size={15} style={{ color: 'var(--text-muted)' }} />
-                <select
-                  className="form-control"
-                  style={{ width: '130px', padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
+                <Listbox
+                  options={[
+                    { value: '', label: 'All Divisions' },
+                    { value: 'A', label: 'Division A' },
+                    { value: 'B', label: 'Division B' },
+                    { value: 'C', label: 'Division C' },
+                    { value: 'D', label: 'Division D' },
+                  ]}
                   value={divisionFilter}
-                  onChange={handleDivisionChange}
-                  aria-label="Filter by Division"
-                >
-                  <option value="">All Divisions</option>
-                  <option value="A">Division A</option>
-                  <option value="B">Division B</option>
-                  <option value="C">Division C</option>
-                  <option value="D">Division D</option>
-                </select>
+                  onChange={(val) => handleDivisionChange({ target: { value: val } } as any)}
+                  size="sm"
+                  ariaLabel="Filter by Division"
+                />
               </div>
 
               {/* Course Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <select
-                  className="form-control"
-                  style={{ width: '180px', padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '180px' }}>
+                <Listbox
+                  options={[
+                    { value: '', label: 'All Subjects' },
+                    ...availableCourses.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))
+                  ]}
                   value={courseFilter}
-                  onChange={handleCourseChange}
-                  aria-label="Filter by Subject"
-                >
-                  <option value="">All Subjects</option>
-                  {availableCourses.map((c) => (
-                    <option key={c.code} value={c.code}>
-                      {c.code} — {c.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => handleCourseChange({ target: { value: val } } as any)}
+                  size="sm"
+                  ariaLabel="Filter by Subject"
+                />
               </div>
 
               {/* Component Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <select
-                  className="form-control"
-                  style={{ width: '140px', padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '160px' }}>
+                <Listbox
+                  options={[
+                    { value: '', label: 'All Components' },
+                    ...availableComponents.map((comp) => ({ value: comp, label: comp }))
+                  ]}
                   value={componentFilter}
-                  onChange={handleComponentChange}
-                  aria-label="Filter by Component"
-                >
-                  <option value="">All Components</option>
-                  {availableComponents.map((comp) => (
-                    <option key={comp} value={comp}>
-                      {comp}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => handleComponentChange({ target: { value: val } } as any)}
+                  size="sm"
+                  ariaLabel="Filter by Component"
+                />
               </div>
 
               {hasActiveFilters && (

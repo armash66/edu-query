@@ -1,0 +1,253 @@
+{
+  "g1_horizontal_scroll": {
+    "light_1440": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "passes": true
+    },
+    "light_768": {
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "passes": true
+    },
+    "light_390": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "passes": true
+    },
+    "dark_1440": {
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "passes": true
+    },
+    "dark_768": {
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "passes": true
+    },
+    "dark_390": {
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "passes": true
+    }
+  },
+  "g1_text_clipping": {
+    "light_1440": [],
+    "light_768": [],
+    "light_390": [],
+    "dark_1440": [],
+    "dark_768": [],
+    "dark_390": []
+  },
+  "g1_header_no_overlap": {
+    "320px": {
+      "found": true,
+      "overlaps": false,
+      "leftRight": 194,
+      "rightLeft": 194
+    },
+    "390px": {
+      "found": true,
+      "overlaps": false,
+      "leftRight": 264,
+      "rightLeft": 264
+    },
+    "600px": {
+      "found": true,
+      "overlaps": false,
+      "leftRight": 474,
+      "rightLeft": 474
+    },
+    "768px": {
+      "found": true,
+      "overlaps": false,
+      "leftRight": 642,
+      "rightLeft": 642
+    },
+    "1024px": {
+      "found": true,
+      "overlaps": false,
+      "leftRight": 624,
+      "rightLeft": 624
+    },
+    "1280px": {
+      "found": true,
+      "overlaps": false,
+      "leftRight": 880,
+      "rightLeft": 880
+    },
+    "1440px": {
+      "found": true,
+      "overlaps": false,
+      "leftRight": 1040,
+      "rightLeft": 1040
+    }
+  },
+  "g1_topbar_scrolled": false,
+  "g2_screenshots": [
+    "C:\\Users\\Armash Ansari\\OneDrive\\Desktop\\Projects\\AI & ML\\eduquery-v3\\audit_after\\overview_redesign\\overview_light_1440.png",
+    "C:\\Users\\Armash Ansari\\OneDrive\\Desktop\\Projects\\AI & ML\\eduquery-v3\\audit_after\\overview_redesign\\overview_light_768.png",
+    "C:\\Users\\Armash Ansari\\OneDrive\\Desktop\\Projects\\AI & ML\\eduquery-v3\\audit_after\\overview_redesign\\overview_light_390.png",
+    "C:\\Users\\Armash Ansari\\OneDrive\\Desktop\\Projects\\AI & ML\\eduquery-v3\\audit_after\\overview_redesign\\overview_dark_1440.png",
+    "C:\\Users\\Armash Ansari\\OneDrive\\Desktop\\Projects\\AI & ML\\eduquery-v3\\audit_after\\overview_redesign\\overview_dark_768.png",
+    "C:\\Users\\Armash Ansari\\OneDrive\\Desktop\\Projects\\AI & ML\\eduquery-v3\\audit_after\\overview_redesign\\overview_dark_390.png",
+    "C:\\Users\\Armash Ansari\\OneDrive\\Desktop\\Projects\\AI & ML\\eduquery-v3\\audit_after\\overview_redesign\\header_scrolled_state.png",
+    "C:\\Users\\Armash Ansari\\OneDrive\\Desktop\\Projects\\AI & ML\\eduquery-v3\\audit_after\\overview_redesign\\needs_attention_drawer_open.png"
+  ],
+  "g3_axe": [
+    {
+      "theme": "light",
+      "route": "/",
+      "h1": "Academic Analysis Overview",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "light",
+      "route": "/students",
+      "h1": "Student Directory",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "light",
+      "route": "/students/SEAT_001",
+      "h1": "Student Breakdown",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "light",
+      "route": "/subjects",
+      "h1": "Curriculum & Subjects",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "light",
+      "route": "/subjects/PCEC12T",
+      "h1": "Subject Roster",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "light",
+      "route": "/failures",
+      "h1": "Curriculum Failure Summary",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "light",
+      "route": "/absent",
+      "h1": "Absentee Roster",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "light",
+      "route": "/explore",
+      "h1": "Explore Academic Data",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "light",
+      "route": "/quality",
+      "h1": "Data Quality & Anomalies",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "light",
+      "route": "/upload",
+      "h1": "Upload Marksheet",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "light",
+      "route": "/imports",
+      "h1": "Dataset Management",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/",
+      "h1": "Academic Analysis Overview",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/students",
+      "h1": "Student Directory",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/students/SEAT_001",
+      "h1": "Student Breakdown",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/subjects",
+      "h1": "Curriculum & Subjects",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/subjects/PCEC12T",
+      "h1": "Subject Roster",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/failures",
+      "h1": "Curriculum Failure Summary",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/absent",
+      "h1": "Absentee Roster",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/explore",
+      "h1": "Explore Academic Data",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/quality",
+      "h1": "Data Quality & Anomalies",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/upload",
+      "h1": "Upload Marksheet",
+      "violations": [],
+      "passes": true
+    },
+    {
+      "theme": "dark",
+      "route": "/imports",
+      "h1": "Dataset Management",
+      "violations": [],
+      "passes": true
+    }
+  ]
+}

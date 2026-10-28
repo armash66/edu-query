@@ -49,11 +49,13 @@ export function App() {
                       <Route path="/students" element={<StudentsPage />} />
                       <Route path="/students/:identifier" element={<StudentDetailPage />} />
                       <Route path="/absent-students" element={<AbsentStudentsPage />} />
+                      <Route path="/absent" element={<AbsentStudentsPage />} />
                       <Route path="/subjects" element={<SubjectsCatalogPage />} />
                       <Route path="/subjects/:courseCode" element={<SubjectDetailPage />} />
                       <Route path="/subjects/:courseCode/failures" element={<SubjectDetailPage />} />
                       <Route path="/failures" element={<SubjectFailuresPage />} />
                       <Route path="/data-quality" element={<DataQualityPage />} />
+                      <Route path="/quality" element={<DataQualityPage />} />
                       <Route path="/imports" element={<ImportPage />} />
                       <Route path="/styleguide" element={<StyleguidePage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />

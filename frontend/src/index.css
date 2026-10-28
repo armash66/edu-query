@@ -21,11 +21,11 @@
   --neutral-1000: #000000;
 
   /* Semantic Layout Surfaces */
-  --bg-base: #ffffff;
-  --bg-gradient: linear-gradient(180deg, #ffffff 0%, #f2f2f3 100%);
-  --surface-glass-1: rgba(255, 255, 255, 0.55);
-  --surface-glass-2: rgba(255, 255, 255, 0.72);
-  --surface-glass-3: rgba(255, 255, 255, 0.88);
+  --bg-base: #f8f9fa;
+  --bg-gradient: radial-gradient(circle at 12% 15%, rgba(0, 0, 0, 0.035) 0%, transparent 40%), radial-gradient(circle at 88% 85%, rgba(0, 0, 0, 0.025) 0%, transparent 40%), #f8f9fa;
+  --surface-glass-1: rgba(255, 255, 255, 0.65);
+  --surface-glass-2: rgba(255, 255, 255, 0.82);
+  --surface-glass-3: rgba(255, 255, 255, 0.94);
   --surface-data: rgba(255, 255, 255, 0.86);
   --surface-card: #ffffff;
   --surface-hover: rgba(0, 0, 0, 0.04);
@@ -86,13 +86,13 @@
    Tokens: Dark Theme
    ------------------------------------------------------------------------- */
 [data-theme="dark"] {
-  --bg-base: #000000;
-  --bg-gradient: linear-gradient(180deg, #000000 0%, #0b0b0c 100%);
+  --bg-base: #0b0b0c;
+  --bg-gradient: radial-gradient(circle at 14% 16%, rgba(255, 255, 255, 0.05) 0%, transparent 45%), radial-gradient(circle at 86% 84%, rgba(255, 255, 255, 0.04) 0%, transparent 45%), #0b0b0c;
   --surface-glass-1: rgba(255, 255, 255, 0.05);
-  --surface-glass-2: rgba(255, 255, 255, 0.08);
-  --surface-glass-3: rgba(20, 20, 22, 0.85);
-  --surface-data: rgba(14, 14, 16, 0.82);
-  --surface-card: #141416;
+  --surface-glass-2: rgba(26, 26, 30, 0.72);
+  --surface-glass-3: rgba(16, 16, 19, 0.94);
+  --surface-data: rgba(20, 20, 24, 0.85);
+  --surface-card: #161619;
   --surface-hover: rgba(255, 255, 255, 0.06);
   --surface-active: rgba(255, 255, 255, 0.10);
 
@@ -439,24 +439,30 @@ button:disabled {
 }
 
 .sidebar {
-  width: 248px;
-  min-width: 248px;
-  height: 100vh;
+  width: 256px;
+  min-width: 256px;
+  height: calc(100vh - 32px);
   position: sticky;
-  top: 0;
+  top: 16px;
+  margin: 16px 0 16px 16px;
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   justifyContent: space-between;
-  border-right: 1px solid var(--border);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  background: var(--surface-glass-2);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
   transition: width var(--transition-normal), min-width var(--transition-normal);
   z-index: 40;
-  overflow-x: hidden;
+  overflow: hidden;
   user-select: none;
 }
 
 .sidebar.rail {
-  width: 72px;
-  min-width: 72px;
+  width: 76px;
+  min-width: 76px;
 }
 
 .main-content {
@@ -470,16 +476,53 @@ button:disabled {
 .top-bar {
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: 50;
   height: 64px;
   padding: 0 var(--space-6);
   display: flex;
   align-items: center;
   justifyContent: space-between;
   border-bottom: 1px solid var(--border);
-  background: var(--surface-glass-1);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--surface-glass-3);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+}
+
+.page-container {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.global-search-desktop {
+  display: none !important;
+}
+
+.global-search-mobile {
+  display: inline-flex !important;
+}
+
+@media (min-width: 1024px) {
+  .global-search-desktop {
+    display: flex !important;
+  }
+  .global-search-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px;
+    gap: 24px;
+  }
+  .desktop-subtitle {
+    display: none !important;
+  }
 }
 
 .page-body {
@@ -605,3 +648,89 @@ button:disabled {
     display: table-header-group !important;
   }
 }
+
+/* Overview Page Responsive Grid & Ordering */
+@media (max-width: 768px) {
+  .overview-col-7,
+  .overview-col-5 {
+    grid-column: span 12 !important;
+  }
+  .overview-row-3 {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .overview-order-hardest {
+    order: 1 !important;
+  }
+  .overview-order-sgpi {
+    order: 2 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .overview-item-desktop-only {
+    display: none !important;
+  }
+}
+
+/* -------------------------------------------------------------------------
+   DataTable Responsive: Card List (<768px) and Tablet Sticky Column (768-1024px)
+   ------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .responsive-data-table {
+    display: block !important;
+    width: 100% !important;
+  }
+  .responsive-data-table thead {
+    display: none !important;
+  }
+  .responsive-data-table tbody {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: var(--space-3) !important;
+    padding: var(--space-2) 0 !important;
+    width: 100% !important;
+  }
+  .responsive-data-table tr {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: var(--space-2) !important;
+    padding: var(--space-4) !important;
+    background: var(--surface-card) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-card) !important;
+    height: auto !important;
+    box-shadow: var(--shadow-sm) !important;
+  }
+  .responsive-data-table td {
+    display: flex !important;
+    justifyContent: space-between !important;
+    align-items: center !important;
+    padding: var(--space-1) 0 !important;
+    border: none !important;
+    white-space: normal !important;
+    position: static !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+  .responsive-data-table td::before {
+    content: attr(data-label);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: var(--space-4);
+    flex-shrink: 0;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  .table-sticky-col {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 2 !important;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.12) !important;
+  }
+}
+

@@ -24,6 +24,7 @@ import { DataTable, type Column } from '../ui/DataTable'
 import { FailureRateBar } from '../ui/FailureRateBar'
 import { EmptyState } from '../ui/EmptyState'
 import { ErrorState } from '../ui/ErrorState'
+import { Listbox } from '../ui/Listbox'
 import { Skeleton } from '../ui/Skeleton'
 
 export const SubjectsCatalogPage: React.FC = () => {
@@ -270,71 +271,41 @@ export const SubjectsCatalogPage: React.FC = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
             {activeTab === 'catalog' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                <label
-                  htmlFor="subjects-modality-select"
-                  style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}
-                >
-                  Modality:
-                </label>
-                <select
-                  id="subjects-modality-select"
-                  aria-label="Filter by Modality"
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: '150px' }}>
+                <Listbox
+                  options={[
+                    { value: '', label: 'All Modalities' },
+                    { value: 'theory', label: 'Theory' },
+                    { value: 'practical', label: 'Practical' },
+                  ]}
                   value={kindFilter}
-                  onChange={(e) => {
-                    setKindFilter(e.target.value)
+                  onChange={(val) => {
+                    setKindFilter(val)
                     setPage(1)
                   }}
-                  className="data-surface"
-                  style={{
-                    height: '36px',
-                    padding: '0 var(--space-3)',
-                    fontSize: 'var(--text-xs)',
-                    borderRadius: 'var(--radius-input)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text)',
-                    background: 'var(--surface-data)',
-                  }}
-                >
-                  <option value="">All Modalities</option>
-                  <option value="theory">Theory</option>
-                  <option value="practical">Practical</option>
-                </select>
+                  size="sm"
+                  ariaLabel="Filter by Modality"
+                />
               </div>
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <label
-                htmlFor="subjects-division-select"
-                style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}
-              >
-                Division:
-              </label>
-              <select
-                id="subjects-division-select"
-                aria-label="Filter by Division"
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: '150px' }}>
+              <Listbox
+                options={[
+                  { value: '', label: 'All Divisions' },
+                  { value: 'A', label: 'Division A' },
+                  { value: 'B', label: 'Division B' },
+                  { value: 'C', label: 'Division C' },
+                  { value: 'D', label: 'Division D' },
+                ]}
                 value={divisionFilter}
-                onChange={(e) => {
-                  setDivisionFilter(e.target.value)
+                onChange={(val) => {
+                  setDivisionFilter(val)
                   setPage(1)
                 }}
-                className="data-surface"
-                style={{
-                  height: '36px',
-                  padding: '0 var(--space-3)',
-                  fontSize: 'var(--text-xs)',
-                  borderRadius: 'var(--radius-input)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text)',
-                  background: 'var(--surface-data)',
-                }}
-              >
-                <option value="">All Divisions</option>
-                <option value="A">Division A</option>
-                <option value="B">Division B</option>
-                <option value="C">Division C</option>
-                <option value="D">Division D</option>
-              </select>
+                size="sm"
+                ariaLabel="Filter by Division"
+              />
             </div>
           </div>
 

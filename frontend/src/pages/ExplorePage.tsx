@@ -1,3 +1,5 @@
+import { Listbox } from '../ui/Listbox'
+import { toTitleCase } from '../utils/text'
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
@@ -526,18 +528,13 @@ export const ExplorePage: React.FC = () => {
               <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
                 Field
               </label>
-              <select
-                className="input"
+              <Listbox
+                options={availableFields.map((f) => ({ value: f.field, label: f.label }))}
                 value={newFilterField}
-                onChange={(e) => handleFieldChangeForNewFilter(e.target.value as InvestigationField)}
-                style={{ width: '100%', height: '34px', fontSize: '0.8rem' }}
-              >
-                {availableFields.map((f) => (
-                  <option key={f.field} value={f.field}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleFieldChangeForNewFilter(val as InvestigationField)}
+                size="sm"
+                ariaLabel="Filter field selector"
+              />
             </div>
 
             {/* Operator */}
@@ -545,18 +542,16 @@ export const ExplorePage: React.FC = () => {
               <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
                 Operator
               </label>
-              <select
-                className="input"
+              <Listbox
+                options={(selectedFieldCap?.supported_operators ?? ['eq', 'neq']).map((op) => ({
+                  value: op,
+                  label: OPERATOR_LABELS[op] || op,
+                }))}
                 value={newFilterOperator}
-                onChange={(e) => setNewFilterOperator(e.target.value as InvestigationOperator)}
-                style={{ width: '100%', height: '34px', fontSize: '0.8rem' }}
-              >
-                {(selectedFieldCap?.supported_operators ?? ['eq', 'neq']).map((op) => (
-                  <option key={op} value={op}>
-                    {OPERATOR_LABELS[op] || op}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setNewFilterOperator(val as InvestigationOperator)}
+                size="sm"
+                ariaLabel="Filter operator selector"
+              />
             </div>
 
             {/* Value */}
@@ -565,34 +560,28 @@ export const ExplorePage: React.FC = () => {
                 Target Value
               </label>
               {selectedFieldCap?.data_type === 'choice' ? (
-                <select
-                  className="input"
+                <Listbox
+                  options={
+                    newFilterField === 'course_code' || newFilterField === 'absent_course_code'
+                      ? courses.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))
+                      : (selectedFieldCap?.choices ?? []).map((ch) => ({ value: ch, label: ch }))
+                  }
                   value={newFilterValue}
-                  onChange={(e) => setNewFilterValue(e.target.value)}
-                  style={{ width: '100%', height: '34px', fontSize: '0.8rem' }}
-                >
-                  {newFilterField === 'course_code' || newFilterField === 'absent_course_code'
-                    ? courses.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {c.code} — {c.name}
-                        </option>
-                      ))
-                    : (selectedFieldCap?.choices ?? []).map((ch) => (
-                        <option key={ch} value={ch}>
-                          {ch}
-                        </option>
-                      ))}
-                </select>
+                  onChange={(val) => setNewFilterValue(val)}
+                  size="sm"
+                  ariaLabel="Filter target value"
+                />
               ) : selectedFieldCap?.data_type === 'boolean' ? (
-                <select
-                  className="input"
+                <Listbox
+                  options={[
+                    { value: 'true', label: 'True (Yes)' },
+                    { value: 'false', label: 'False (No)' },
+                  ]}
                   value={String(newFilterValue)}
-                  onChange={(e) => setNewFilterValue(e.target.value === 'true')}
-                  style={{ width: '100%', height: '34px', fontSize: '0.8rem' }}
-                >
-                  <option value="true">True (Yes)</option>
-                  <option value="false">False (No)</option>
-                </select>
+                  onChange={(val) => setNewFilterValue(val === 'true')}
+                  size="sm"
+                  ariaLabel="Filter boolean value"
+                />
               ) : selectedFieldCap?.data_type === 'number' ? (
                 <input
                   type="number"
@@ -822,64 +811,55 @@ export const ExplorePage: React.FC = () => {
                     </span>
 
                     {/* Field Select */}
-                    <select
-                      className="input"
-                      value={cond.field}
-                      onChange={(e) => handleUpdateCondition(idx, { field: e.target.value as InvestigationField })}
-                      style={{ flex: '1.2 1 150px', height: '32px', fontSize: '0.8rem' }}
-                    >
-                      {availableFields.map((f) => (
-                        <option key={f.field} value={f.field}>
-                          {f.label}
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ flex: '1.2 1 150px' }}>
+                      <Listbox
+                        options={availableFields.map((f) => ({ value: f.field, label: f.label }))}
+                        value={cond.field}
+                        onChange={(val) => handleUpdateCondition(idx, { field: val as InvestigationField })}
+                        size="sm"
+                        ariaLabel="Condition field selector"
+                      />
+                    </div>
 
                     {/* Operator Select */}
-                    <select
-                      className="input"
-                      value={cond.operator}
-                      onChange={(e) => handleUpdateCondition(idx, { operator: e.target.value as InvestigationOperator })}
-                      style={{ flex: '1 1 120px', height: '32px', fontSize: '0.8rem' }}
-                    >
-                      {(fieldCap?.supported_operators ?? ['eq', 'neq']).map((op) => (
-                        <option key={op} value={op}>
-                          {OPERATOR_LABELS[op] || op}
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ flex: '1 1 120px' }}>
+                      <Listbox
+                        options={(fieldCap?.supported_operators ?? ['eq', 'neq']).map((op) => ({
+                          value: op,
+                          label: OPERATOR_LABELS[op] || op,
+                        }))}
+                        value={cond.operator}
+                        onChange={(val) => handleUpdateCondition(idx, { operator: val as InvestigationOperator })}
+                        size="sm"
+                        ariaLabel="Condition operator selector"
+                      />
+                    </div>
 
                     {/* Value Input */}
                     <div style={{ flex: '2 1 180px' }}>
                       {isChoice ? (
-                        <select
-                          className="input"
+                        <Listbox
+                          options={
+                            cond.field === 'course_code' || cond.field === 'absent_course_code'
+                              ? courses.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))
+                              : (fieldCap?.choices ?? []).map((ch) => ({ value: ch, label: ch }))
+                          }
                           value={cond.value}
-                          onChange={(e) => handleUpdateCondition(idx, { value: e.target.value })}
-                          style={{ width: '100%', height: '32px', fontSize: '0.8rem' }}
-                        >
-                          {cond.field === 'course_code' || cond.field === 'absent_course_code'
-                            ? courses.map((c) => (
-                                <option key={c.code} value={c.code}>
-                                  {c.code} — {c.name}
-                                </option>
-                              ))
-                            : (fieldCap?.choices ?? []).map((ch) => (
-                                <option key={ch} value={ch}>
-                                  {ch}
-                                </option>
-                              ))}
-                        </select>
+                          onChange={(val) => handleUpdateCondition(idx, { value: val })}
+                          size="sm"
+                          ariaLabel="Condition target value"
+                        />
                       ) : isBoolean ? (
-                        <select
-                          className="input"
+                        <Listbox
+                          options={[
+                            { value: 'true', label: 'True (Yes)' },
+                            { value: 'false', label: 'False (No)' },
+                          ]}
                           value={String(cond.value)}
-                          onChange={(e) => handleUpdateCondition(idx, { value: e.target.value === 'true' })}
-                          style={{ width: '100%', height: '32px', fontSize: '0.8rem' }}
-                        >
-                          <option value="true">True (Yes)</option>
-                          <option value="false">False (No)</option>
-                        </select>
+                          onChange={(val) => handleUpdateCondition(idx, { value: val === 'true' })}
+                          size="sm"
+                          ariaLabel="Condition boolean value"
+                        />
                       ) : isNumber ? (
                         <input
                           type="number"

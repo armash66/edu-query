@@ -108,19 +108,19 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               width: '100%',
               borderRadius: 'var(--radius-input)',
               border: `1px solid ${error ? 'var(--status-danger-border)' : 'var(--border)'}`,
-              paddingLeft: prefixIcon ? 'var(--space-8)' : sizeStyles[size].padding.split(' ')[1],
-              paddingRight:
-                clearable && hasValue
-                  ? 'var(--space-12)'
-                  : suffixIcon
-                  ? 'var(--space-8)'
-                  : sizeStyles[size].padding.split(' ')[1],
               color: 'var(--text)',
               fontFamily: 'var(--font-sans)',
               background: 'var(--surface-data)',
               transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
               outline: 'none',
               ...sizeStyles[size],
+              paddingLeft: prefixIcon ? '38px' : sizeStyles[size].padding.split(' ')[1],
+              paddingRight:
+                clearable && hasValue
+                  ? 'var(--space-12)'
+                  : suffixIcon
+                  ? 'var(--space-8)'
+                  : sizeStyles[size].padding.split(' ')[1],
               ...style,
             }}
             {...props}

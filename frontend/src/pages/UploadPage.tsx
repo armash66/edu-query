@@ -1031,7 +1031,7 @@ export const UploadPage: React.FC = () => {
         </GlassCard>
       ) : (
         /* Upload Area */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {/* Drag & Drop Zone */}
           <div
             onDragOver={handleDragOver}
@@ -1137,7 +1137,7 @@ export const UploadPage: React.FC = () => {
               <Button
                 variant="primary"
                 size="sm"
-                style={{ marginTop: 'var(--space-5)', pointerEvents: 'none' }}
+                style={{ marginTop: '24px', pointerEvents: 'none' }}
               >
                 Browse file
               </Button>

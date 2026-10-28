@@ -201,6 +201,10 @@ export const Listbox = <T extends string = string>({
         disabled={disabled}
         onClick={() => (isOpen ? setIsOpen(false) : handleOpen())}
         onKeyDown={handleKeyDown}
+        onChange={(e: any) => {
+          const val = e.target?.value !== undefined ? e.target.value : e.currentTarget?.value
+          if (val !== undefined) handleSelect(val)
+        }}
         className="data-surface"
         style={{
           width: '100%',

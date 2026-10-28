@@ -77,8 +77,10 @@ describe('SubjectsCatalogPage', () => {
       expect(screen.getByText('Cryptography and System Security')).toBeInTheDocument()
     })
 
-    const modalitySelect = screen.getByLabelText(/filter by modality/i)
-    fireEvent.change(modalitySelect, { target: { value: 'theory' } })
+    const modalityTrigger = screen.getByLabelText(/filter by modality/i)
+    fireEvent.click(modalityTrigger)
+    const option = screen.getByRole('option', { name: /^theory$/i })
+    fireEvent.click(option)
 
     await waitFor(() => {
       expect(getSubjectsSpy).toHaveBeenCalledWith(

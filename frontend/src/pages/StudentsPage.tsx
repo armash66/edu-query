@@ -16,6 +16,8 @@ import { SearchField } from '../ui/SearchField'
 import { DataTable, type Column } from '../ui/DataTable'
 import { EmptyState } from '../ui/EmptyState'
 import { ErrorState } from '../ui/ErrorState'
+import { Listbox } from '../ui/Listbox'
+import { toTitleCase } from '../utils/text'
 
 export const StudentsPage: React.FC = () => {
   const navigate = useNavigate()
@@ -85,7 +87,7 @@ export const StudentsPage: React.FC = () => {
 
   useEffect(() => {
     fetchStudentList()
-    return () => {
+  return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
@@ -186,8 +188,8 @@ export const StudentsPage: React.FC = () => {
       header: 'Student Name',
       sortable: true,
       render: (row) => (
-        <div style={{ fontWeight: 600, color: 'var(--text)' }}>
-          {row.name}
+        <div style={{ fontWeight: 600, color: 'var(--text)' }} title={row.name}>
+          {toTitleCase(row.name)}
         </div>
       ),
     },
@@ -273,6 +275,21 @@ export const StudentsPage: React.FC = () => {
         </Link>
       ),
     },
+  ]
+
+  const divisionOptions = [
+    { value: '', label: 'All Divisions' },
+    { value: 'A', label: 'Division A' },
+    { value: 'B', label: 'Division B' },
+    { value: 'C', label: 'Division C' },
+    { value: 'D', label: 'Division D' },
+  ]
+
+  const resultOptions = [
+    { value: '', label: 'All Results' },
+    { value: 'PASS', label: 'Pass Only' },
+    { value: 'FAIL', label: 'Fail / Backlog' },
+    { value: 'ABSENT', label: 'Absenteeism' },
   ]
 
   return (
@@ -377,72 +394,31 @@ export const StudentsPage: React.FC = () => {
           {/* Quick Filters */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
             {/* Division Selector */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <label
-                htmlFor="students-division-select"
-                style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}
-              >
-                Division:
-              </label>
-              <select
-                id="students-division-select"
-                aria-label="Filter by division"
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: '150px' }}>
+              <Listbox
+                options={divisionOptions}
                 value={divisionFilter}
-                onChange={(e) => {
-                  setDivisionFilter(e.target.value)
+                onChange={(val) => {
+                  setDivisionFilter(val)
                   setPage(1)
                 }}
-                className="data-surface"
-                style={{
-                  height: '36px',
-                  padding: '0 var(--space-3)',
-                  fontSize: 'var(--text-xs)',
-                  borderRadius: 'var(--radius-input)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text)',
-                  background: 'var(--surface-data)',
-                }}
-              >
-                <option value="">All Divisions</option>
-                <option value="A">Division A</option>
-                <option value="B">Division B</option>
-                <option value="C">Division C</option>
-                <option value="D">Division D</option>
-              </select>
+                size="sm"
+                ariaLabel="Filter by division"
+              />
             </div>
 
             {/* Result Selector */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-              <label
-                htmlFor="students-result-select"
-                style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)' }}
-              >
-                Result:
-              </label>
-              <select
-                id="students-result-select"
-                aria-label="Filter by result status"
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: '150px' }}>
+              <Listbox
+                options={resultOptions}
                 value={resultFilter}
-                onChange={(e) => {
-                  setResultFilter(e.target.value)
+                onChange={(val) => {
+                  setResultFilter(val)
                   setPage(1)
                 }}
-                className="data-surface"
-                style={{
-                  height: '36px',
-                  padding: '0 var(--space-3)',
-                  fontSize: 'var(--text-xs)',
-                  borderRadius: 'var(--radius-input)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text)',
-                  background: 'var(--surface-data)',
-                }}
-              >
-                <option value="">All Results</option>
-                <option value="PASS">Pass Only</option>
-                <option value="FAIL">Fail / Backlog</option>
-                <option value="ABSENT">Absenteeism</option>
-              </select>
+                size="sm"
+                ariaLabel="Filter by result status"
+              />
             </div>
           </div>
         </div>

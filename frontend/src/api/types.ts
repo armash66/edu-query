@@ -843,3 +843,102 @@ export interface SessionSaveResponse {
 }
 
 
+
+// =========================================================================
+// Overview Summary API Types
+// =========================================================================
+
+export interface OverviewDatasetMeta {
+  id: string;
+  name: string;
+  status_label: string;
+  is_temporary: boolean;
+  expires_in_minutes: number | null;
+}
+
+export interface OverviewKpis {
+  total_students: number;
+  total_courses: number;
+  passed_students: number;
+  failed_students: number;
+  absent_students: number;
+  pass_rate_percent: number;
+  divisions_count: number;
+  needs_attention_count: number;
+  sgpi_average: number | null;
+  sgpi_median: number | null;
+  students_with_sgpi: number;
+  students_without_sgpi: number;
+}
+
+export interface OverviewFlaggedStudent {
+  student_id: string;
+  student_name: string;
+  severity: 'info' | 'warning' | 'critical';
+  reason: string;
+  finding_id: string;
+  record_link: string;
+  evidence?: string | null;
+  recommended_action?: string | null;
+}
+
+export interface OutcomeCountPercent {
+  count: number;
+  percentage: number;
+}
+
+export interface DivisionResultRow {
+  division: string;
+  division_code: string;
+  passed: number;
+  enrolled: number;
+  pass_rate_percent: number;
+}
+
+export interface OverviewResults {
+  passed: OutcomeCountPercent;
+  failed: OutcomeCountPercent;
+  absent: OutcomeCountPercent;
+  divisions: DivisionResultRow[];
+}
+
+export interface SgpiHistogramBin {
+  bin_label: string;
+  min_val: number;
+  max_val: number;
+  count: number;
+  percentage: number;
+}
+
+export interface OverviewSgpiDistribution {
+  average: number | null;
+  median: number | null;
+  students_with_sgpi: number;
+  students_without_sgpi: number;
+  bins: SgpiHistogramBin[];
+}
+
+export interface OverviewHardestSubject {
+  course_code: string;
+  course_title: string;
+  failed_count: number;
+  enrolled_count: number;
+  failure_rate_percent: number;
+  tier: 'neutral' | 'amber' | 'red';
+}
+
+export interface OverviewHighlight {
+  id: string;
+  text: string;
+  url: string;
+}
+
+export interface OverviewSummaryResponse {
+  dataset: OverviewDatasetMeta;
+  kpis: OverviewKpis;
+  needs_attention: OverviewFlaggedStudent[];
+  results: OverviewResults;
+  sgpi_distribution: OverviewSgpiDistribution;
+  hardest_subjects: OverviewHardestSubject[];
+  highlights: OverviewHighlight[];
+}

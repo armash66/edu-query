@@ -34,6 +34,7 @@ import type {
   SessionStatusResponse,
   SessionDeleteResponse,
   SessionSaveResponse,
+  OverviewSummaryResponse,
 } from './types'
 
 export { ApiError }
@@ -899,3 +900,11 @@ export async function saveSession(datasetName?: string): Promise<SessionSaveResp
 
 
 
+
+// =========================================================================
+// Additive Overview Summary API
+// =========================================================================
+
+export async function getOverviewSummary(signal?: AbortSignal): Promise<OverviewSummaryResponse> {
+  return request<OverviewSummaryResponse>('/api/v1/overview/summary', { signal })
+}

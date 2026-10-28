@@ -1,3 +1,5 @@
+import { Listbox } from '../ui/Listbox'
+import { toTitleCase } from '../utils/text'
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
@@ -101,21 +103,21 @@ export const SubjectFailuresPage: React.FC = () => {
             </div>
 
             {/* Division Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '160px' }}>
               <Filter size={15} style={{ color: 'var(--text-muted)' }} />
-              <select
-                className="form-control"
-                style={{ width: '150px', padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
+              <Listbox
+                options={[
+                  { value: '', label: 'All Divisions' },
+                  { value: 'A', label: 'Division A' },
+                  { value: 'B', label: 'Division B' },
+                  { value: 'C', label: 'Division C' },
+                  { value: 'D', label: 'Division D' },
+                ]}
                 value={divisionFilter}
-                onChange={(e) => setDivisionFilter(e.target.value)}
-                aria-label="Filter courses by division"
-              >
-                <option value="">All Divisions</option>
-                <option value="A">Division A</option>
-                <option value="B">Division B</option>
-                <option value="C">Division C</option>
-                <option value="D">Division D</option>
-              </select>
+                onChange={(val) => setDivisionFilter(val)}
+                size="sm"
+                ariaLabel="Filter courses by division"
+              />
             </div>
           </div>
         </div>
@@ -256,22 +258,32 @@ export const SubjectFailuresPage: React.FC = () => {
                         )}
                       </td>
                       <td style={{ textAlign: 'right', fontWeight: 600 }}>{item.total_enrolled}</td>
-                      <td style={{ textAlign: 'right', color: '#065f46' }}>{item.passed_count}</td>
-                      <td style={{ textAlign: 'right', color: '#92400e' }}>{item.unresolved_count}</td>
+                      <td style={{ textAlign: 'right', color: 'var(--text)' }}>{item.passed_count}</td>
+                      <td style={{ textAlign: 'right', color: item.unresolved_count > 0 ? 'var(--status-warning-text)' : 'var(--text-muted)' }}>{item.unresolved_count}</td>
                       <td style={{ textAlign: 'right' }}>
                         {hasFailures ? (
                           <span className="badge badge-danger" style={{ fontWeight: 700 }}>
                             {item.confirmed_failures_count}
                           </span>
                         ) : (
-                          <span style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.8rem' }}>
-                            <CheckCircle size={12} /> 0
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                            0
                           </span>
                         )}
                       </td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                          <span style={{ fontWeight: 700, color: hasFailures ? '#b91c1c' : '#10b981' }}>
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              color:
+                                item.failure_rate_percent > 15
+                                  ? 'var(--status-danger-text)'
+                                  : item.failure_rate_percent >= 5
+                                  ? 'var(--status-warning-text)'
+                                  : 'var(--text)',
+                            }}
+                          >
                             {item.failure_rate_percent.toFixed(1)}%
                           </span>
                           <div
@@ -287,7 +299,12 @@ export const SubjectFailuresPage: React.FC = () => {
                               style={{
                                 width: `${Math.min(item.failure_rate_percent, 100)}%`,
                                 height: '100%',
-                                backgroundColor: item.failure_rate_percent > 20 ? '#ef4444' : item.failure_rate_percent > 0 ? '#f59e0b' : '#10b981',
+                                backgroundColor:
+                                  item.failure_rate_percent > 15
+                                    ? 'var(--status-danger-text)'
+                                    : item.failure_rate_percent >= 5
+                                    ? 'var(--status-warning-text)'
+                                    : 'var(--neutral-500)',
                               }}
                             />
                           </div>

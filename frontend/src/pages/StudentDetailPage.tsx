@@ -31,6 +31,7 @@ import { EmptyState } from '../ui/EmptyState'
 import { ErrorState } from '../ui/ErrorState'
 import { DisambiguationModal } from '../components/DisambiguationModal'
 import { Skeleton } from '../ui/Skeleton'
+import { toTitleCase } from '../utils/text'
 
 export const StudentDetailPage: React.FC = () => {
   const { identifier } = useParams<{ identifier: string }>()
@@ -47,6 +48,7 @@ export const StudentDetailPage: React.FC = () => {
 
   const [exporting, setExporting] = useState<boolean>(false)
   const [exportingExcel, setExportingExcel] = useState<boolean>(false)
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false)
 
   const handleExport = async () => {
     if (!identifier) return
@@ -264,35 +266,114 @@ export const StudentDetailPage: React.FC = () => {
           <span>Back to Student Roster</span>
         </Link>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative' }}>
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => window.print()}
-            icon={<Printer size={14} />}
-          >
-            Print Marksheet
-          </Button>
-
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={handleExportExcel}
-            loading={exportingExcel}
+            onClick={() => setIsExportMenuOpen((prev) => !prev)}
             icon={<Download size={14} />}
+            aria-haspopup="menu"
+            aria-expanded={isExportMenuOpen}
           >
-            Export to Excel (.xlsx)
+            Export
           </Button>
+          {isExportMenuOpen && (
+            <div
+              role="menu"
+              className="glass-3"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                right: 0,
+                zIndex: 50,
+                minWidth: '180px',
+                padding: '4px',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+              }}
+            >
+              <button
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setIsExportMenuOpen(false)
+                  window.print()
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text)',
+                  fontSize: 'var(--text-xs)',
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-sm)',
+                  textAlign: 'left',
+                  width: '100%',
+                }}
+              >
+                <Printer size={14} />
+                <span>Print Marksheet</span>
+              </button>
 
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handleExport}
-            loading={exporting}
-            icon={<Download size={14} />}
-          >
-            Export (CSV)
-          </Button>
+              <button
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setIsExportMenuOpen(false)
+                  handleExportExcel()
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text)',
+                  fontSize: 'var(--text-xs)',
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-sm)',
+                  textAlign: 'left',
+                  width: '100%',
+                }}
+              >
+                <Download size={14} />
+                <span>Export Excel (.xlsx)</span>
+              </button>
+
+              <button
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setIsExportMenuOpen(false)
+                  handleExport()
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text)',
+                  fontSize: 'var(--text-xs)',
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-sm)',
+                  textAlign: 'left',
+                  width: '100%',
+                }}
+              >
+                <Download size={14} />
+                <span>Export CSV (.csv)</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -340,9 +421,15 @@ export const StudentDetailPage: React.FC = () => {
                     fontWeight: 700,
                     color: 'var(--text)',
                     margin: 0,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    lineHeight: 1.25,
                   }}
+                  title={student.name}
                 >
-                  {student.name}
+                  {toTitleCase(student.name)}
                 </h1>
                 {getOutcomeBadge(student.overall_result)}
               </div>
@@ -382,8 +469,16 @@ export const StudentDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Overall Academic Metrics */}
-          <div style={{ display: 'flex', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          {/* Overall Academic Metrics (3-column grid) */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+              gap: 'var(--space-3)',
+              width: '100%',
+              maxWidth: '380px',
+            }}
+          >
             {student.total_marks != null && (
               <div
                 className="data-surface"

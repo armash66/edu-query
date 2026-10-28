@@ -171,7 +171,7 @@ export function DataTable<T>({
           width: '100%',
         }}
       >
-        <table
+        <table className="responsive-data-table"
           style={{
             width: '100%',
             borderCollapse: 'collapse',
@@ -187,7 +187,8 @@ export function DataTable<T>({
                 background: 'var(--surface-hover)',
               }}
             >
-              {columns.map((col) => {
+              {columns.map((col, cIdx) => {
+                const isSticky = col.sticky !== undefined ? col.sticky : cIdx === 0
                 const isSorted = sortKey === col.key
                 const sortAria = isSorted
                   ? sortDir === 'asc'
@@ -203,11 +204,12 @@ export function DataTable<T>({
                     scope="col"
                     aria-sort={sortAria}
                     onClick={() => handleSort(col)}
+                    className={isSticky ? 'table-sticky-col' : undefined}
                     style={{
                       position: 'sticky',
                       top: 0,
-                      zIndex: col.sticky ? 3 : 2,
-                      left: col.sticky ? 0 : undefined,
+                      zIndex: isSticky ? 4 : 2,
+                      left: isSticky ? 0 : undefined,
                       padding: cellPadding,
                       fontWeight: 600,
                       color: 'var(--text-secondary)',
@@ -219,8 +221,8 @@ export function DataTable<T>({
                       whiteSpace: 'nowrap',
                       width: col.width,
                       textAlign: col.align || 'left',
-                      background: 'inherit',
-                      boxShadow: col.sticky ? '2px 0 4px var(--border)' : undefined,
+                      background: 'var(--surface-hover)',
+                      boxShadow: isSticky ? '2px 0 4px var(--border)' : undefined,
                     }}
                   >
                     <div
@@ -294,20 +296,23 @@ export function DataTable<T>({
                       if (onRowClick) e.currentTarget.style.background = 'transparent'
                     }}
                   >
-                    {columns.map((col) => {
+                    {columns.map((col, cIdx) => {
+                      const isSticky = col.sticky !== undefined ? col.sticky : cIdx === 0
                       return (
                         <td
                           key={col.key}
+                          data-label={col.header}
+                          className={isSticky ? 'table-sticky-col' : undefined}
                           style={{
                             padding: cellPadding,
                             color: 'var(--text)',
                             textAlign: col.align || 'left',
                             whiteSpace: 'nowrap',
-                            position: col.sticky ? 'sticky' : undefined,
-                            left: col.sticky ? 0 : undefined,
-                            zIndex: col.sticky ? 1 : undefined,
-                            background: col.sticky ? 'var(--surface-card)' : 'transparent',
-                            boxShadow: col.sticky ? '2px 0 4px var(--border)' : undefined,
+                            position: isSticky ? 'sticky' : undefined,
+                            left: isSticky ? 0 : undefined,
+                            zIndex: isSticky ? 1 : undefined,
+                            background: isSticky ? 'var(--surface-card)' : 'transparent',
+                            boxShadow: isSticky ? '2px 0 4px var(--border)' : undefined,
                           }}
                         >
                           {col.render
