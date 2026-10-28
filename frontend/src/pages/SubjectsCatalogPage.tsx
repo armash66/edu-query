@@ -40,7 +40,7 @@ export const SubjectsCatalogPage: React.FC = () => {
   const [kindFilter, setKindFilter] = useState<string>('')
   const [divisionFilter, setDivisionFilter] = useState<string>('')
   const [page, setPage] = useState<number>(1)
-  const pageSize = 25
+  const [pageSize, setPageSize] = useState<number>(25)
 
   // Failures Ranking Data
   const [failuresSummary, setFailuresSummary] = useState<SubjectFailureSummaryItem[]>([])
@@ -70,7 +70,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [kindFilter, divisionFilter, page])
+  }, [kindFilter, divisionFilter, page, pageSize])
 
   const fetchFailures = useCallback(async () => {
     setFailuresLoading(true)
@@ -161,6 +161,53 @@ export const SubjectsCatalogPage: React.FC = () => {
           {row.enrolled_students_count ?? '—'}
         </span>
       ),
+    },
+    {
+      key: 'passed_students_count',
+      header: 'Passed',
+      sortable: true,
+      align: 'right',
+      render: (row) => (
+        <span className="tabular-nums font-mono" style={{ fontWeight: 600, color: 'var(--text)' }}>
+          {row.passed_students_count !== null && row.passed_students_count !== undefined
+            ? row.passed_students_count
+            : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'failed_students_count',
+      header: 'Failed',
+      sortable: true,
+      align: 'right',
+      render: (row) => {
+        const count = row.failed_students_count ?? 0
+        const totalEnrolled = row.enrolled_students_count || 0
+        const rate = totalEnrolled > 0 ? (count / totalEnrolled) * 100 : 0
+        if (count === 0) {
+          return (
+            <span className="tabular-nums font-mono" style={{ color: 'var(--text-muted)' }}>
+              0
+            </span>
+          )
+        }
+        return (
+          <span
+            className="tabular-nums font-mono"
+            style={{
+              fontWeight: 600,
+              color:
+                rate > 15
+                  ? 'var(--status-danger-text)'
+                  : rate > 5
+                  ? 'var(--status-warning-text)'
+                  : 'var(--text)',
+            }}
+          >
+            {count}
+          </span>
+        )
+      },
     },
     {
       key: 'actions',
@@ -350,6 +397,14 @@ export const SubjectsCatalogPage: React.FC = () => {
             data={courses}
             keyExtractor={(row) => row.code}
             pageSize={pageSize}
+            serverTotal={total}
+            currentPage={page}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize)
+              setPage(1)
+            }}
+            pageSizeOptions={[25, 50, 100]}
             showDensityToggle
             defaultDensity="comfortable"
             onRowClick={(row) => navigate(`/subjects/${row.code}`)}

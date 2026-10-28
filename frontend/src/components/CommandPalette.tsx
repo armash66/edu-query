@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useSession } from '../context/SessionContext'
+import { getStudents, getSubjects } from '../api/client'
+import type { CourseItem } from '../api/types'
 import {
   BarChart3,
   Users,
@@ -23,7 +25,7 @@ interface CommandItem {
   title: string
   subtitle?: string
   icon: React.ReactNode
-  category: 'Navigation' | 'Theme' | 'Actions'
+  category: 'Navigation' | 'Theme' | 'Actions' | 'Students' | 'Subjects'
   action: () => void
 }
 
@@ -33,11 +35,87 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
 }) => {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [dynamicResults, setDynamicResults] = useState<CommandItem[]>([])
+  const [cachedSubjects, setCachedSubjects] = useState<CourseItem[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const navigate = useNavigate()
   const { setTheme } = useTheme()
   const { hasActiveSession } = useSession()
+
+  // Preload subjects when palette opens to allow instant code & title search
+  useEffect(() => {
+    if (isOpen && cachedSubjects.length === 0) {
+      getSubjects({ limit: 50 }).then((res) => {
+        setCachedSubjects(res.items || [])
+      }).catch(() => {})
+    }
+  }, [isOpen, cachedSubjects.length])
+
+  // Live search for matching students and subjects when query changes
+  useEffect(() => {
+    const q = query.trim()
+    if (!q || q.length < 2) {
+      setDynamicResults([])
+      return
+    }
+
+    let active = true
+    const timer = setTimeout(async () => {
+      const items: CommandItem[] = []
+
+      // Matching courses from preloaded cache
+      const qLower = q.toLowerCase()
+      const matchingCourses = cachedSubjects.filter(
+        (c) => c.code.toLowerCase().includes(qLower) || c.name.toLowerCase().includes(qLower)
+      ).slice(0, 3)
+
+      matchingCourses.forEach((c) => {
+        items.push({
+          id: `subject-${c.code}`,
+          title: `${c.code} — ${c.name}`,
+          subtitle: `${c.kind || 'Course'} • ${c.credits ?? 0} Credits • ${c.enrolled_students_count ?? 0} Students`,
+          icon: <BookOpen size={16} />,
+          category: 'Subjects',
+          action: () => {
+            navigate(`/subjects/${c.code}`)
+            onClose()
+          },
+        })
+      })
+
+      // Search matching students from API
+      try {
+        const studentRes = await getStudents({ query: q, limit: 3 })
+        if (active && studentRes.items) {
+          studentRes.items.forEach((s) => {
+            items.push({
+              id: `student-${s.student_id}`,
+              title: s.name,
+              subtitle: `Seat: ${s.seat_no || '—'} • Roll: ${s.roll_no || '—'} • Div: ${s.division || '—'} (${s.overall_result || 'Result'})`,
+              icon: <Users size={16} />,
+              category: 'Students',
+              action: () => {
+                navigate(`/students/${s.student_id}`)
+                onClose()
+              },
+            })
+          })
+        }
+      } catch {
+        // Fallback gracefully
+      }
+
+      if (active) {
+        setDynamicResults(items)
+      }
+    }, 120)
+
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [query, cachedSubjects, navigate, onClose])
 
   const commands: CommandItem[] = [
     {
@@ -120,7 +198,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
     {
       id: 'nav-imports',
       title: 'Dataset Management & Imports',
-      subtitle: 'Manage workbook versions and administrative keys',
+      subtitle: 'Manage workbook versions and active dataset',
       icon: <Database size={16} />,
       category: 'Navigation',
       action: () => {
@@ -185,7 +263,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
     },
   ]
 
-  const filteredCommands = commands.filter((cmd) => {
+  const filteredStatic = commands.filter((cmd) => {
     const q = query.toLowerCase().trim()
     if (!q) return true
     return (
@@ -194,6 +272,9 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       cmd.category.toLowerCase().includes(q)
     )
   })
+
+  // Dynamic results (matching students and subjects) appear first when searching
+  const filteredCommands = [...dynamicResults, ...filteredStatic]
 
   // Focus input on open
   useEffect(() => {
@@ -281,18 +362,20 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
           <input
             ref={inputRef}
             type="text"
+            className="command-palette-input"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
               setSelectedIndex(0)
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Type a command or jump to page..."
+            placeholder="Search students, subjects, or jump to page..."
             style={{
               width: '100%',
               background: 'transparent',
               border: 'none',
               outline: 'none',
+              boxShadow: 'none',
               color: 'var(--text)',
               fontSize: 'var(--text-base)',
               fontFamily: 'var(--font-sans)',
@@ -313,10 +396,11 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
           </kbd>
         </div>
 
-        {/* Command list */}
+        {/* Command list with custom glass scrollbar */}
         <ul
           ref={listRef}
           role="listbox"
+          className="glass-scrollbar"
           style={{
             listStyle: 'none',
             margin: 0,
@@ -417,10 +501,10 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
           )}
         </ul>
 
-        {/* Footer hints */}
+        {/* Footer hints with generous insets from rounded corners */}
         <div
           style={{
-            padding: 'var(--space-2) var(--space-5)',
+            padding: '12px 24px',
             borderTop: '1px solid var(--border)',
             background: 'var(--surface-hover)',
             display: 'flex',
@@ -430,7 +514,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
             color: 'var(--text-muted)',
           }}
         >
-          <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
             <span>↑↓ Navigate</span>
             <span>↵ Select</span>
           </div>

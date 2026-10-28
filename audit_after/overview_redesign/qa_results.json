@@ -67,20 +67,20 @@
     "1024px": {
       "found": true,
       "overlaps": false,
-      "leftRight": 624,
-      "rightLeft": 624
+      "leftRight": 632,
+      "rightLeft": 632
     },
     "1280px": {
       "found": true,
       "overlaps": false,
-      "leftRight": 880,
-      "rightLeft": 880
+      "leftRight": 888,
+      "rightLeft": 888
     },
     "1440px": {
       "found": true,
       "overlaps": false,
-      "leftRight": 1040,
-      "rightLeft": 1040
+      "leftRight": 1048,
+      "rightLeft": 1048
     }
   },
   "g1_topbar_scrolled": false,

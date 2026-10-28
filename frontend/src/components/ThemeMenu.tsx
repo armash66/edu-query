@@ -5,9 +5,14 @@ import { useTheme, type ThemePreference } from '../context/ThemeContext'
 interface ThemeMenuProps {
   align?: 'left' | 'right' | 'top'
   direction?: 'down' | 'up'
+  shape?: 'circle' | 'square'
 }
 
-export const ThemeMenu: React.FC<ThemeMenuProps> = ({ align = 'right', direction = 'down' }) => {
+export const ThemeMenu: React.FC<ThemeMenuProps> = ({
+  align = 'right',
+  direction = 'down',
+  shape = 'square',
+}) => {
   const { theme, setTheme } = useTheme()
   const [isOpen, setIsOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -50,19 +55,19 @@ export const ThemeMenu: React.FC<ThemeMenuProps> = ({ align = 'right', direction
         aria-label={`Theme: currently ${theme}. Click to change theme.`}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="touch-target-44"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
-          width: '38px',
-          height: '38px',
-          borderRadius: 'var(--radius-full)',
+          width: '36px',
+          height: '36px',
+          borderRadius: shape === 'circle' ? 'var(--radius-full)' : 'var(--radius-sm)',
           background: 'var(--surface-hover)',
           border: '1px solid var(--border)',
           color: 'var(--text)',
           cursor: 'pointer',
           transition: 'all var(--transition-fast)',
+          flexShrink: 0,
         }}
       >
         {currentIcon}

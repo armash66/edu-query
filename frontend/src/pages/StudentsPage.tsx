@@ -36,7 +36,7 @@ export const StudentsPage: React.FC = () => {
     preset === 'absent' ? 'ABSENT' : ''
   )
   const [page, setPage] = useState<number>(1)
-  const pageSize = 25
+  const [pageSize, setPageSize] = useState<number>(25)
 
   // Export & Print State
   const [exporting, setExporting] = useState<boolean>(false)
@@ -83,7 +83,7 @@ export const StudentsPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, divisionFilter, resultFilter, page])
+  }, [searchQuery, divisionFilter, resultFilter, page, pageSize])
 
   useEffect(() => {
     fetchStudentList()
@@ -472,6 +472,14 @@ export const StudentsPage: React.FC = () => {
           data={students}
           keyExtractor={(row) => row.student_id}
           pageSize={pageSize}
+          serverTotal={total}
+          currentPage={page}
+          onPageChange={(p) => setPage(p)}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize)
+            setPage(1)
+          }}
+          pageSizeOptions={[25, 50, 100]}
           showDensityToggle
           defaultDensity="comfortable"
           onRowClick={(row) => navigate(`/students/${row.student_id}`)}

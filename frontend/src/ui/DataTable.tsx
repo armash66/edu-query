@@ -30,6 +30,11 @@ export interface DataTableProps<T> {
   showDensityToggle?: boolean
   defaultDensity?: 'comfortable' | 'compact'
   showPagination?: boolean
+  serverTotal?: number
+  currentPage?: number
+  onPageChange?: (page: number) => void
+  onPageSizeChange?: (pageSize: number) => void
+  pageSizeOptions?: number[]
   className?: string
   style?: React.CSSProperties
 }
@@ -48,13 +53,28 @@ export function DataTable<T>({
   showDensityToggle = true,
   defaultDensity = 'comfortable',
   showPagination = true,
+  serverTotal,
+  currentPage: propsCurrentPage,
+  onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = [25, 50, 100],
   className = '',
   style,
 }: DataTableProps<T>): React.ReactElement {
   const [sortKey, setSortKey] = useState<string | undefined>(initialSortKey)
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>(initialSortDirection)
   const [density, setDensity] = useState<'comfortable' | 'compact'>(defaultDensity)
-  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [internalPage, setInternalPage] = useState<number>(1)
+
+  const isServerPaged = serverTotal !== undefined
+  const activePage = isServerPaged && propsCurrentPage !== undefined ? propsCurrentPage : internalPage
+
+  const handlePageChange = (newPage: number) => {
+    if (onPageChange) {
+      onPageChange(newPage)
+    }
+    setInternalPage(newPage)
+  }
 
   // Handle column sort toggle
   const handleSort = (col: Column<T>) => {
@@ -65,7 +85,7 @@ export function DataTable<T>({
       setSortKey(col.key)
       setSortDir('asc')
     }
-    setCurrentPage(1)
+    handlePageChange(1)
   }
 
   // Sorting
@@ -102,12 +122,13 @@ export function DataTable<T>({
   }, [data, sortKey, sortDir, columns])
 
   // Pagination
-  const totalPages = Math.ceil(sortedData.length / pageSize) || 1
+  const totalCount = isServerPaged ? serverTotal : sortedData.length
+  const totalPages = Math.ceil(totalCount / pageSize) || 1
   const paginatedData = React.useMemo(() => {
-    if (!showPagination) return sortedData
-    const start = (currentPage - 1) * pageSize
+    if (isServerPaged || !showPagination) return sortedData
+    const start = (activePage - 1) * pageSize
     return sortedData.slice(start, start + pageSize)
-  }, [sortedData, currentPage, pageSize, showPagination])
+  }, [isServerPaged, sortedData, activePage, pageSize, showPagination])
 
   const rowHeight = density === 'comfortable' ? '54px' : '38px'
   const cellPadding =
@@ -145,7 +166,7 @@ export function DataTable<T>({
               textTransform: 'uppercase',
             }}
           >
-            {sortedData.length} records
+            {isServerPaged ? `${totalCount} total records` : `${sortedData.length} records`}
           </span>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
@@ -332,7 +353,7 @@ export function DataTable<T>({
       </div>
 
       {/* Pagination Footer */}
-      {showPagination && totalPages > 1 && (
+      {showPagination && (totalPages > 1 || isServerPaged) && (
         <div
           style={{
             display: 'flex',
@@ -345,23 +366,51 @@ export function DataTable<T>({
             gap: 'var(--space-3)',
           }}
         >
-          <span
-            className="tabular-nums"
-            style={{
-              fontSize: 'var(--text-xs)',
-              color: 'var(--text-muted)',
-            }}
-          >
-            Showing {(currentPage - 1) * pageSize + 1}–
-            {Math.min(currentPage * pageSize, sortedData.length)} of {sortedData.length} records
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+            <span
+              className="tabular-nums"
+              style={{
+                fontSize: 'var(--text-xs)',
+                color: 'var(--text-muted)',
+              }}
+            >
+              Showing {totalCount === 0 ? 0 : (activePage - 1) * pageSize + 1}–
+              {Math.min(activePage * pageSize, totalCount)} of {totalCount} records
+            </span>
+
+            {onPageSizeChange && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => onPageSizeChange(Number(e.target.value))}
+                  style={{
+                    fontSize: 'var(--text-xs)',
+                    padding: '2px 6px',
+                    borderRadius: 'var(--radius-xs)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface-card)',
+                    color: 'var(--text)',
+                    cursor: 'pointer',
+                  }}
+                  aria-label="Records per page"
+                >
+                  {pageSizeOptions.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
             <Button
               size="sm"
               variant="secondary"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={activePage <= 1}
+              onClick={() => handlePageChange(Math.max(1, activePage - 1))}
               aria-label="Previous page"
             >
               Previous
@@ -375,13 +424,13 @@ export function DataTable<T>({
                 padding: '0 var(--space-2)',
               }}
             >
-              Page {currentPage} of {totalPages}
+              Page {activePage} of {totalPages}
             </span>
             <Button
               size="sm"
               variant="secondary"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={activePage >= totalPages}
+              onClick={() => handlePageChange(Math.min(totalPages, activePage + 1))}
               aria-label="Next page"
             >
               Next

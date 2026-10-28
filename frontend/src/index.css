@@ -371,6 +371,43 @@ body::after {
   box-shadow: var(--focus-ring);
 }
 
+/* Custom Glass Scrollbar for sleek monochrome glass overflow areas */
+.glass-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+.glass-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.glass-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.glass-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+.glass-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Command palette input resets to prevent browser focus-ring box-shadow rectangle */
+.command-palette-input {
+  width: 100%;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  color: var(--text) !important;
+  font-size: var(--text-base) !important;
+  font-family: var(--font-sans) !important;
+}
+.command-palette-input:focus,
+.command-palette-input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
 /* Ensure 44px minimum touch targets on interactive controls */
 .touch-target-44 {
   min-width: 44px;

@@ -344,12 +344,14 @@ export const AppShell: React.FC = () => {
           <div
             style={{
               display: 'flex',
+              flexDirection: isRail ? 'column' : 'row',
               alignItems: 'center',
               justifyContent: isRail ? 'center' : 'space-between',
-              gap: '8px',
+              gap: isRail ? '12px' : '8px',
+              width: '100%',
             }}
           >
-            <ThemeMenu direction="up" align={isRail ? 'left' : 'right'} />
+            <ThemeMenu direction="up" align={isRail ? 'left' : 'right'} shape="square" />
             <IconButton
               aria-label={isRail ? 'Expand sidebar' : 'Collapse sidebar into rail'}
               variant="ghost"
@@ -411,7 +413,7 @@ export const AppShell: React.FC = () => {
           {/* Right: (a) Search Field, (b) Single Theme Menu Button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <GlobalSearchTrigger onClick={() => setIsCommandPaletteOpen(true)} />
-            <ThemeMenu align="right" direction="down" />
+            <ThemeMenu align="right" direction="down" shape="circle" />
           </div>
         </header>
 
