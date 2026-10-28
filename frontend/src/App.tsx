@@ -6,13 +6,10 @@ import { AdminKeyProvider } from './context/AdminKeyContext'
 import { SessionProvider, useSession } from './context/SessionContext'
 import { AppShell } from './components/AppShell'
 import { OverviewPage } from './pages/OverviewPage'
-import { ExplorePage } from './pages/ExplorePage'
 import { StudentsPage } from './pages/StudentsPage'
 import { StudentDetailPage } from './pages/StudentDetailPage'
-import { SubjectFailuresPage } from './pages/SubjectFailuresPage'
 import { SubjectDetailPage } from './pages/SubjectDetailPage'
 import { SubjectsCatalogPage } from './pages/SubjectsCatalogPage'
-import { AbsentStudentsPage } from './pages/AbsentStudentsPage'
 import { DataQualityPage } from './pages/DataQualityPage'
 import { ImportPage } from './pages/ImportPage'
 import { UploadPage } from './pages/UploadPage'
@@ -42,14 +39,14 @@ export function App() {
                   <Route element={<AppShell />}>
                     <Route path="/" element={<HomeRoute />} />
                     <Route path="/upload" element={<UploadPage />} />
-                    <Route path="/explore" element={<ExplorePage />} />
                     <Route path="/students" element={<StudentsPage />} />
                     <Route path="/students/:identifier" element={<StudentDetailPage />} />
-                    <Route path="/absent-students" element={<AbsentStudentsPage />} />
-                    <Route path="/failures" element={<SubjectFailuresPage />} />
+                    <Route path="/explore" element={<Navigate to="/students?preset=explore" replace />} />
+                    <Route path="/absent-students" element={<Navigate to="/students?preset=absent" replace />} />
+                    <Route path="/subjects" element={<SubjectsCatalogPage />} />
                     <Route path="/subjects/:courseCode" element={<SubjectDetailPage />} />
                     <Route path="/subjects/:courseCode/failures" element={<SubjectDetailPage />} />
-                    <Route path="/subjects" element={<SubjectsCatalogPage />} />
+                    <Route path="/failures" element={<Navigate to="/subjects?tab=failures" replace />} />
                     <Route path="/data-quality" element={<DataQualityPage />} />
                     <Route path="/imports" element={<ImportPage />} />
                     <Route path="/styleguide" element={<StyleguidePage />} />

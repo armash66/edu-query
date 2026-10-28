@@ -6,7 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] - Redesign Phase 3: Component Library & Data Visualizations
+## [Unreleased] - Redesign Phase 4: App Shell & Navigation Consolidation
+
+### Added
+- Redesigned `AppShell.tsx`:
+  - Consolidated navigation from 8 items to 5 items (`Overview`, `Students`, `Subjects`, `Data Quality`, `Datasets`).
+  - Desktop floating glass sidebar (248px width) with smooth collapse to 72px rail mode (persisted in `localStorage`).
+  - Mobile floating bottom glass navigation tab bar (`glass-3`) with 44px min hit targets on viewports $<768\text{px}$.
+  - Seamless route redirects for legacy bookmarks (`/explore` $\rightarrow$ `/students?preset=explore`, `/absent-students` $\rightarrow$ `/students?preset=absent`, `/failures` $\rightarrow$ `/subjects?tab=failures`).
+- Created `CommandPalette.tsx`:
+  - Global `Ctrl+K` / `⌘K` keyboard palette for instant navigation jumping, actions, and theme switching.
+- Created `BootScreen.tsx`:
+  - Graceful cold-start container wake-up screen with elapsed timer, progress bar, and automatic background health polling every 4 seconds.
+- Modernized `ConfirmDialog.tsx`, `AdminKeyModal.tsx`, and `LoadingState.tsx` into strict Monochrome Glass styling.
+
+---
+
+## [0.3.0] - Redesign Phase 3: Component Library & Data Visualizations
 
 ### Added
 - Complete "Monochrome Glass" component library in `frontend/src/ui/`:

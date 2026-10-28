@@ -68,7 +68,7 @@ export const Modal: React.FC<ModalProps> = ({
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown)
     // Prevent background scroll
     const originalOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
@@ -82,7 +82,7 @@ export const Modal: React.FC<ModalProps> = ({
     }, 50)
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = originalOverflow
       previousActiveElement.current?.focus()
     }
@@ -93,6 +93,7 @@ export const Modal: React.FC<ModalProps> = ({
   return (
     <div
       role="presentation"
+      className="modal-backdrop"
       style={{
         position: 'fixed',
         top: 0,

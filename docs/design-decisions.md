@@ -58,3 +58,29 @@ This document records architectural, design, and accessibility decisions made du
   - Amber `5% - 15%` failure rate (moderate backlog risk)
   - Red `> 15%` failure rate (critical curriculum intervention needed)
 - **Rationale:** Provides instant visual triage for academic faculty without arbitrary decorative colors.
+
+---
+
+## 5. Navigation Consolidation & App Shell Architecture
+
+### Decision 5.1: 5-Destination Information Architecture
+- **Choice:** Replaced 8 top-level navigation items with 5 primary destinations:
+  1. `Overview` (`/`)
+  2. `Students` (`/students`)
+  3. `Subjects` (`/subjects`)
+  4. `Data Quality` (`/data-quality`)
+  5. `Datasets` (`/imports`)
+- **Redirects:** Legacy deep links `/explore`, `/absent-students`, and `/failures` redirect automatically with query parameter presets (`?preset=explore`, `?preset=absent`, `?tab=failures`).
+- **Rationale:** Reduces navigational choice overload while keeping specialized views accessible via tabs or filters.
+
+### Decision 5.2: Adaptive Desktop Rail & Mobile Bottom Bar
+- **Choice:** Desktop sidebar can collapse from 248px to 72px rail mode (persisted in `localStorage`). On viewports $<768\text{px}$, the desktop sidebar is hidden and replaced by a floating glass tab bar (`.bottom-nav`) with 44px touch targets.
+- **Rationale:** Gives faculty maximum horizontal space on smaller laptops while providing native app ergonomics on mobile phones.
+
+### Decision 5.3: Global Command Palette (`Ctrl/Cmd+K`)
+- **Choice:** Added a keyboard-driven Command Palette overlay accessible globally via `Ctrl+K` or `⌘K` or search trigger.
+- **Rationale:** Allows instant keyboard jumping across all modules, actions, and theme toggling without taking hands off the keyboard.
+
+### Decision 5.4: Cold-Start Boot Screen with Auto-Retry
+- **Choice:** When the backend is sleeping on Render's free tier, instead of crashing or showing a blank page, `BootScreen` displays an estimated timer ($0 \rightarrow 50\text{s}$) with live progress bar and automatic background polling every 4 seconds.
+- **Rationale:** Eliminates faculty panic during container wake-up and guarantees smooth recovery without manual page reloads.

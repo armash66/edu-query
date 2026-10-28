@@ -429,6 +429,130 @@ button:disabled {
 }
 
 /* -------------------------------------------------------------------------
+   Application Layout & Navigation Shell
+   ------------------------------------------------------------------------- */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+}
+
+.sidebar {
+  width: 248px;
+  min-width: 248px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  justifyContent: space-between;
+  border-right: 1px solid var(--border);
+  transition: width var(--transition-normal), min-width var(--transition-normal);
+  z-index: 40;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+.sidebar.rail {
+  width: 72px;
+  min-width: 72px;
+}
+
+.main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: 64px;
+  padding: 0 var(--space-6);
+  display: flex;
+  align-items: center;
+  justifyContent: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-glass-1);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.page-body {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+/* Floating Bottom Navigation for Mobile (< 768px) */
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    display: none !important;
+  }
+
+  .top-bar {
+    padding: 0 var(--space-4);
+    height: 56px;
+  }
+
+  .page-body {
+    padding-bottom: 76px; /* Space for bottom nav */
+  }
+
+  .bottom-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    z-index: 90;
+    background: var(--surface-glass-3);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    border-top: 1px solid var(--glass-border);
+    padding: 0 var(--space-2);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 500;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition-fast), transform var(--transition-fast);
+  }
+
+  .bottom-nav-item.active {
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  .bottom-nav-item:active {
+    transform: scale(0.92);
+  }
+}
+
+/* -------------------------------------------------------------------------
    Print Stylesheet (@media print)
    ------------------------------------------------------------------------- */
 @media print {

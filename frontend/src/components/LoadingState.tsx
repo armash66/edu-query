@@ -1,7 +1,6 @@
 import React from 'react'
-import { Loader2 } from 'lucide-react'
 
-interface LoadingStateProps {
+export interface LoadingStateProps {
   message?: string
 }
 
@@ -15,14 +14,35 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '3rem 1.5rem',
-        color: '#64748b',
-        gap: '0.75rem',
+        padding: 'var(--space-12) var(--space-6)',
+        color: 'var(--text-secondary)',
+        gap: 'var(--space-3)',
       }}
       role="status"
     >
-      <Loader2 size={32} className="spinner" style={{ color: '#2563eb' }} />
-      <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>{message}</span>
+      <svg
+        aria-hidden="true"
+        style={{
+          width: '32px',
+          height: '32px',
+          animation: 'spin 1s linear infinite',
+          color: 'var(--text)',
+        }}
+        viewBox="0 0 24 24"
+        fill="none"
+      >
+        <circle
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeDasharray="40 60"
+        />
+      </svg>
+      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 500, color: 'var(--text-secondary)' }}>
+        {message}
+      </span>
     </div>
   )
 }
