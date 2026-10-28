@@ -787,6 +787,22 @@ export const ImportPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Retention & Storage Policy Disclosure */}
+        <div style={{ padding: '0.875rem 1rem', marginBottom: '1.25rem', background: 'var(--surface-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.25rem' }}>
+            Institutional Dataset Storage & Retention Policy
+          </div>
+          <div>
+            <strong>What is stored:</strong> Extracted relational DuckDB database tables (<code className="font-mono">data/datasets/{'<id>'}.duckdb</code>) and faculty review annotations. Source <code className="font-mono">.xlsx</code> workbooks are unlinked immediately after ingestion and never permanently retained on disk.
+          </div>
+          <div style={{ marginTop: '0.25rem' }}>
+            <strong>Retention duration:</strong> Promoted datasets are stored permanently across sessions and container restarts (in persistent institutional volume storage).
+          </div>
+          <div style={{ marginTop: '0.25rem' }}>
+            <strong>Access & Deletion:</strong> Only authenticated administrators with the Admin API Key can activate versions, switch datasets, or trigger rollbacks. Permanent removal of dataset files requires host system operator access. Regular unauthenticated sessions cannot delete or mutate saved institutional datasets.
+          </div>
+        </div>
+
         {rollbackSuccessMsg && (
           <div
             style={{

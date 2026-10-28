@@ -9,8 +9,11 @@ import { AppShell } from './components/AppShell'
 import { LoadingState } from './components/LoadingState'
 
 const OverviewPage = lazy(() => import('./pages/OverviewPage').then((m) => ({ default: m.OverviewPage })))
+const ExplorePage = lazy(() => import('./pages/ExplorePage').then((m) => ({ default: m.ExplorePage })))
 const StudentsPage = lazy(() => import('./pages/StudentsPage').then((m) => ({ default: m.StudentsPage })))
 const StudentDetailPage = lazy(() => import('./pages/StudentDetailPage').then((m) => ({ default: m.StudentDetailPage })))
+const AbsentStudentsPage = lazy(() => import('./pages/AbsentStudentsPage').then((m) => ({ default: m.AbsentStudentsPage })))
+const SubjectFailuresPage = lazy(() => import('./pages/SubjectFailuresPage').then((m) => ({ default: m.SubjectFailuresPage })))
 const SubjectDetailPage = lazy(() => import('./pages/SubjectDetailPage').then((m) => ({ default: m.SubjectDetailPage })))
 const SubjectsCatalogPage = lazy(() => import('./pages/SubjectsCatalogPage').then((m) => ({ default: m.SubjectsCatalogPage })))
 const DataQualityPage = lazy(() => import('./pages/DataQualityPage').then((m) => ({ default: m.DataQualityPage })))
@@ -42,14 +45,14 @@ export function App() {
                     <Route element={<AppShell />}>
                       <Route path="/" element={<HomeRoute />} />
                       <Route path="/upload" element={<UploadPage />} />
+                      <Route path="/explore" element={<ExplorePage />} />
                       <Route path="/students" element={<StudentsPage />} />
                       <Route path="/students/:identifier" element={<StudentDetailPage />} />
-                      <Route path="/explore" element={<Navigate to="/students?preset=explore" replace />} />
-                      <Route path="/absent-students" element={<Navigate to="/students?preset=absent" replace />} />
+                      <Route path="/absent-students" element={<AbsentStudentsPage />} />
                       <Route path="/subjects" element={<SubjectsCatalogPage />} />
                       <Route path="/subjects/:courseCode" element={<SubjectDetailPage />} />
                       <Route path="/subjects/:courseCode/failures" element={<SubjectDetailPage />} />
-                      <Route path="/failures" element={<Navigate to="/subjects?tab=failures" replace />} />
+                      <Route path="/failures" element={<SubjectFailuresPage />} />
                       <Route path="/data-quality" element={<DataQualityPage />} />
                       <Route path="/imports" element={<ImportPage />} />
                       <Route path="/styleguide" element={<StyleguidePage />} />

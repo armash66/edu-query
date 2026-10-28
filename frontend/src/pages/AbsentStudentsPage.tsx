@@ -5,6 +5,7 @@ import {
   getAbsentStudents,
   getAbsentComponents,
   getSubjects,
+  downloadAbsentStudentsExcel,
 } from '../api/client'
 import { exportAbsentStudents } from '../utils/excelExport'
 import {
@@ -144,6 +145,28 @@ export const AbsentStudentsPage: React.FC = () => {
     setExporting(true)
     try {
       const isFiltered = Boolean(searchQuery.trim() || divisionFilter.trim() || courseFilter.trim() || componentFilter.trim())
+      // 1. Try server-side real .xlsx endpoint
+      try {
+        const blob = await downloadAbsentStudentsExcel({
+          query: searchQuery.trim() || undefined,
+          division: divisionFilter.trim() || undefined,
+          course_code: courseFilter.trim() || undefined,
+          component: componentFilter.trim() || undefined,
+        })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = isFiltered ? 'EduQuery_Absent_Students_Filtered.xlsx' : 'EduQuery_Absent_Students.xlsx'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        return
+      } catch (serverErr) {
+        console.warn('Server-side absent xlsx export failed, falling back to client CSV export', serverErr)
+      }
+
+      // 2. Client-side fallback to RFC 4180 CSV
       let recordsToExport: AbsentStudentItem[] = []
       if (records.length >= total && records.length > 0) {
         recordsToExport = records

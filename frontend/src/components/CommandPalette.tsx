@@ -80,7 +80,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       icon: <Search size={16} />,
       category: 'Navigation',
       action: () => {
-        navigate('/students?preset=explore')
+        navigate('/explore')
         onClose()
       },
     },

@@ -9,7 +9,7 @@ import {
   Users,
   Printer,
 } from 'lucide-react'
-import { getSubjectStudents } from '../api/client'
+import { getSubjectStudents, downloadSubjectStudentsExcel } from '../api/client'
 import { exportSubjectRoster } from '../utils/excelExport'
 import {
   ApiError,
@@ -137,6 +137,27 @@ export const SubjectDetailPage: React.FC = () => {
   const handleExportExcel = async (type: 'all' | 'passed' | 'failed' | 'absent') => {
     if (!courseCode) return
     try {
+      // 1. Try server-side real .xlsx endpoint
+      try {
+        const blob = await downloadSubjectStudentsExcel(
+          courseCode,
+          type,
+          divisionParam.trim() || null
+        )
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `EduQuery_${courseCode}_${type}.xlsx`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        return
+      } catch (serverErr) {
+        console.warn('Server-side subject xlsx export failed, falling back to client CSV export', serverErr)
+      }
+
+      // 2. Client-side fallback to RFC 4180 CSV
       let recordsToExport: SubjectStudentItem[] = []
       const currentList = data?.students || []
       const targetTotal =

@@ -583,8 +583,8 @@ export const UploadPage: React.FC = () => {
                       lineHeight: 1.45,
                     }}
                   >
-                    Data is isolated to your private session. Erased completely when you click
-                    &quot;Delete session and data&quot; or upon session expiry.
+                    Stored in an isolated temporary DuckDB workspace (/tmp). Raw .xlsx file is unlinked immediately.
+                    Erased automatically after 1 hour (3,600s), or instantly when clicking &quot;Delete session and data&quot;.
                   </div>
                 </div>
               </label>
@@ -668,8 +668,8 @@ export const UploadPage: React.FC = () => {
                       lineHeight: 1.45,
                     }}
                   >
-                    Opt-in to retain cohort in persistent institutional database for multi-year
-                    records and historical audits.
+                    Promotes the parsed DuckDB database to institutional storage (/app/data/datasets/).
+                    Retained indefinitely across sessions and container restarts. Deletable and mutable only by authenticated administrators.
                   </div>
                 </div>
               </label>
@@ -1231,7 +1231,7 @@ export const UploadPage: React.FC = () => {
                   }}
                 />
                 <span>
-                  <strong>Deterministic & Offline:</strong> Zero external AI/LLM APIs. Classification, reconciliation,
+                  <strong>Deterministic Processing:</strong> Zero external AI/LLM APIs. Classification, reconciliation,
                   and anomaly detection run entirely deterministically within your container.
                 </span>
               </div>

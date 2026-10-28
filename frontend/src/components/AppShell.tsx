@@ -84,6 +84,9 @@ export const AppShell: React.FC = () => {
     }
     if (pathname === '/students') return { title: 'Student Directory', subtitle: 'Search & individual breakdown' }
     if (pathname.startsWith('/students/')) return { title: 'Student Breakdown', subtitle: 'Detailed marks & evaluation' }
+    if (pathname === '/explore') return { title: 'Explore Academic Data', subtitle: 'Interactive multi-condition filter builder' }
+    if (pathname === '/absent-students') return { title: 'Absentee Roster', subtitle: 'Unattempted evaluations & missing marks' }
+    if (pathname === '/failures') return { title: 'Curriculum Failure Summary', subtitle: 'Subject-wise failure distribution' }
     if (pathname === '/subjects') return { title: 'Curriculum & Subjects', subtitle: 'Course performance & failure rates' }
     if (pathname.startsWith('/subjects/')) return { title: 'Subject Roster', subtitle: 'Student evaluations & pass marks' }
     if (pathname === '/data-quality') return { title: 'Data Quality & Anomalies', subtitle: 'Integrity checks & review audits' }

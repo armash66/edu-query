@@ -51,22 +51,25 @@ export function sanitizeSheetName(name: string, fallback = 'Sheet1'): string {
   return cleaned || fallback
 }
 
-export function sanitizeFilename(filename: string, fallback = 'EduQuery_Export.xlsx'): string {
+export function sanitizeFilename(filename: string, fallback = 'EduQuery_Export.csv'): string {
   let name = (filename || fallback).trim().replace(/[\\/:*?"<>|]/g, '_')
-  if (!name.toLowerCase().endsWith('.xlsx')) {
-    name += '.xlsx'
+  if (!name.toLowerCase().endsWith('.csv') && !name.toLowerCase().endsWith('.xlsx')) {
+    name += '.csv'
   }
   return name
 }
 
-function escapeXml(unsafe: string | number | null | undefined): string {
-  if (unsafe === null || unsafe === undefined) return ''
-  return String(unsafe)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;')
+/**
+ * Formula-safe CSV cell escaping (RFC 4180 compliant with formula injection protection).
+ * Neutralizes leading '=', '+', '-', '@', '\t', '\r' by prefixing single-quote.
+ */
+export function sanitizeCsvCell(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '""'
+  let str = String(value)
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`
+  }
+  return `"${str.replace(/"/g, '""')}"`
 }
 
 export function createWorksheet<T>(
@@ -198,8 +201,11 @@ export function downloadBlobFile(blob: Blob, filename: string): void {
   }, 60000)
 }
 
-function generateSpreadsheetXml(sheetName: string, ws: WorkSheet): string {
-  // Find dimensions
+/**
+ * Clean UTF-8 formula-safe CSV generator (replaces legacy XML-2003 generator).
+ * Produces genuine RFC 4180 CSV with UTF-8 BOM so Microsoft Excel opens it seamlessly.
+ */
+export function generateCsv(ws: WorkSheet): string {
   const cellKeys = Object.keys(ws).filter((k) => !k.startsWith('!'))
   const rowsMap = new Map<number, { col: number; cell: ExcelCell }[]>()
 
@@ -220,33 +226,19 @@ function generateSpreadsheetXml(sheetName: string, ws: WorkSheet): string {
   }
 
   const sortedRowIndices = Array.from(rowsMap.keys()).sort((a, b) => a - b)
-  let rowsXml = ''
+  let csv = '\uFEFF' // UTF-8 Byte Order Mark for Excel
 
   for (const r of sortedRowIndices) {
     const cells = rowsMap.get(r)!.sort((a, b) => a.col - b.col)
-    rowsXml += '   <Row>\n'
-    let lastCol = -1
+    const maxCol = cells.length > 0 ? Math.max(...cells.map((c) => c.col)) : 0
+    const rowVals = new Array(maxCol + 1).fill('""')
     for (const { col, cell } of cells) {
-      const indexAttr = col !== lastCol + 1 ? ` ss:Index="${col + 1}"` : ''
-      lastCol = col
-      const type = cell.t === 'n' ? 'Number' : 'String'
-      rowsXml += `    <Cell${indexAttr}><Data ss:Type="${type}">${escapeXml(cell.v)}</Data></Cell>\n`
+      rowVals[col] = sanitizeCsvCell(cell.v)
     }
-    rowsXml += '   </Row>\n'
+    csv += rowVals.join(',') + '\r\n'
   }
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <Worksheet ss:Name="${escapeXml(sheetName)}">
-  <Table>
-${rowsXml}  </Table>
- </Worksheet>
-</Workbook>`
+  return csv
 }
 
 export function exportToExcel<T>(options: ExcelExportOptions<T>): {
@@ -264,9 +256,9 @@ export function exportToExcel<T>(options: ExcelExportOptions<T>): {
     },
   }
 
-  const xml = generateSpreadsheetXml(sheetName, ws)
-  const blob = new Blob([xml], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  const csv = generateCsv(ws)
+  const blob = new Blob([csv], {
+    type: 'text/csv;charset=utf-8;',
   })
 
   if (typeof window !== 'undefined' && typeof document !== 'undefined') {
@@ -280,7 +272,7 @@ export function exportStudentsRoster(
   students: StudentSummaryItem[],
   isFiltered: boolean = false
 ): { workbook: WorkBook; blob: Blob; filename: string } {
-  const filename = isFiltered ? 'EduQuery_Students_Filtered.xlsx' : 'EduQuery_Students.xlsx'
+  const filename = isFiltered ? 'EduQuery_Students_Filtered.csv' : 'EduQuery_Students.csv'
   const columns: ExcelColumn<StudentSummaryItem>[] = [
     { header: 'Roll No', key: 'roll_no', type: 'string', width: 14, getValue: (s) => s.roll_no ?? s.student_id },
     { header: 'Seat No', key: 'seat_no', type: 'string', width: 14, getValue: (s) => s.seat_no ?? '' },
@@ -329,7 +321,7 @@ export function exportSubjectRoster(
     sheetName = 'Absent Students'
   }
 
-  const filename = `EduQuery_${safeCode}_${suffix}.xlsx`
+  const filename = `EduQuery_${safeCode}_${suffix}.csv`
   const columns: ExcelColumn<SubjectStudentItem>[] = [
     { header: 'Roll No', key: 'roll_no', type: 'string', width: 14, getValue: (s) => s.roll_no ?? s.student_id },
     { header: 'Seat No', key: 'seat_no', type: 'string', width: 14, getValue: (s) => s.seat_no ?? '' },
@@ -371,7 +363,7 @@ export function exportAbsentStudents(
   records: AbsentStudentItem[],
   isFiltered: boolean = false
 ): { workbook: WorkBook; blob: Blob; filename: string } {
-  const filename = isFiltered ? 'EduQuery_Absent_Students_Filtered.xlsx' : 'EduQuery_Absent_Students_Roster.xlsx'
+  const filename = isFiltered ? 'EduQuery_Absent_Students_Filtered.csv' : 'EduQuery_Absent_Students_Roster.csv'
   const columns: ExcelColumn<AbsentStudentItem>[] = [
     { header: 'Roll No', key: 'roll_no', type: 'string', width: 14, getValue: (r) => r.roll_no ?? r.student_id },
     { header: 'Seat No', key: 'seat_no', type: 'string', width: 14, getValue: (r) => r.seat_no ?? '' },

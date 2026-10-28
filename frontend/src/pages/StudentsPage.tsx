@@ -6,7 +6,7 @@ import {
   Download,
   Printer,
 } from 'lucide-react'
-import { getStudents, type StudentListParams } from '../api/client'
+import { getStudents, downloadStudentsRosterExcel, type StudentListParams } from '../api/client'
 import { exportStudentsRoster } from '../utils/excelExport'
 import { ApiError, type StudentSummaryItem, type PaginatedResponse } from '../api/types'
 import { GlassCard } from '../ui/GlassCard'
@@ -100,6 +100,27 @@ export const StudentsPage: React.FC = () => {
   const handleExportExcel = async () => {
     setExporting(true)
     try {
+      // 1. Try server-side real .xlsx endpoint
+      try {
+        const blob = await downloadStudentsRosterExcel({
+          query: searchQuery.trim() || undefined,
+          division: divisionFilter.trim() || undefined,
+          result: resultFilter.trim() || undefined,
+        })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'EduQuery_Students.xlsx'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        return
+      } catch (serverErr) {
+        console.warn('Server-side xlsx export failed, falling back to client CSV export', serverErr)
+      }
+
+      // 2. Client-side fallback to RFC 4180 CSV
       let recordsToExport: StudentSummaryItem[] = []
       if (total <= 200) {
         const allData = await getStudents({
@@ -124,7 +145,7 @@ export const StudentsPage: React.FC = () => {
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
     } catch {
-      alert('Failed to generate Excel export.')
+      alert('Failed to generate export.')
     } finally {
       setExporting(false)
     }

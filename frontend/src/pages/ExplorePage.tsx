@@ -499,15 +499,15 @@ export const ExplorePage: React.FC = () => {
           className="card"
           style={{
             padding: '1rem 1.25rem',
-            backgroundColor: '#f0f9ff',
-            border: '1px solid #bae6fd',
+            backgroundColor: 'var(--surface-hover)',
+            border: '1px solid var(--border)',
             boxShadow: 'var(--shadow-sm)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              <SlidersHorizontal size={16} style={{ color: '#0284c7' }} />
-              <strong style={{ fontSize: '0.85rem', color: '#0369a1' }}>Add Investigation Filter Condition</strong>
+              <SlidersHorizontal size={16} style={{ color: 'var(--text)' }} />
+              <strong style={{ fontSize: '0.85rem', color: 'var(--text)' }}>Add Investigation Filter Condition</strong>
             </div>
             <button
               type="button"
@@ -679,10 +679,7 @@ export const ExplorePage: React.FC = () => {
               style={{
                 cursor: 'pointer',
                 padding: '0.25rem 0.5rem',
-                backgroundColor: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? '#fef3c7' : undefined,
-                color: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? '#92400e' : undefined,
-                border: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? '1px solid #fde68a' : undefined,
-              }}
+                                                              }}
             >
               Students with Absences
             </button>
@@ -795,7 +792,7 @@ export const ExplorePage: React.FC = () => {
 
           {/* Condition Rows */}
           {conditions.length === 0 ? (
-            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', border: '1px dashed #cbd5e1', borderRadius: 'var(--radius-sm)' }}>
+            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)' }}>
               No custom conditions defined. Click <strong>+ Add Condition</strong> above to construct multi-field filters.
             </div>
           ) : (
@@ -932,15 +929,16 @@ export const ExplorePage: React.FC = () => {
               return (
                 <span
                   key={i}
+                  data-testid="active-filter-chip"
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '0.3rem',
                     padding: '0.15rem 0.5rem',
                     borderRadius: '12px',
-                    backgroundColor: '#e0e7ff',
-                    color: '#3730a3',
-                    border: '1px solid #c7d2fe',
+                    backgroundColor: 'var(--surface-hover)',
+                    color: 'var(--text)',
+                    border: '1px solid var(--border)',
                     fontSize: '0.72rem',
                     fontWeight: 600,
                   }}
@@ -953,7 +951,7 @@ export const ExplorePage: React.FC = () => {
                     style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
                     title="Remove filter"
                   >
-                    <X size={12} style={{ color: '#4338ca' }} />
+                    <X size={12} style={{ color: 'var(--text-muted)' }} />
                   </span>
                 </span>
               )
@@ -970,11 +968,11 @@ export const ExplorePage: React.FC = () => {
             flexWrap: 'wrap',
             gap: '0.5rem',
             padding: '0.45rem 0.75rem',
-            backgroundColor: '#ffffff',
+            backgroundColor: 'var(--surface-hover)',
             borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-color)',
+            border: '1px solid var(--border)',
             fontSize: '0.8rem',
-            color: 'var(--text-sub)',
+            color: 'var(--text)',
           }}
         >
           <div>
@@ -1142,9 +1140,9 @@ export const ExplorePage: React.FC = () => {
                               fontWeight: 600,
                               minWidth: '24px',
                               display: 'inline-block',
-                              backgroundColor: (st.absent_subject_count ?? 0) > 0 ? '#fef3c7' : '#f1f5f9',
-                              color: (st.absent_subject_count ?? 0) > 0 ? '#92400e' : '#64748b',
-                              border: (st.absent_subject_count ?? 0) > 0 ? '1px solid #fde68a' : '1px solid #e2e8f0',
+                              backgroundColor: (st.absent_subject_count ?? 0) > 0 ? 'var(--status-warning-fill)' : 'var(--surface-hover)',
+                              color: (st.absent_subject_count ?? 0) > 0 ? 'var(--status-warning-text)' : 'var(--text-muted)',
+                              border: (st.absent_subject_count ?? 0) > 0 ? '1px solid var(--status-warning-border)' : '1px solid var(--border)',
                             }}
                             title={`${st.absent_subject_count ?? 0} distinct subjects with absent marks`}
                           >
