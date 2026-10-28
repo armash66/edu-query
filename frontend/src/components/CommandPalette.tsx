@@ -410,6 +410,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
             padding: '16px 20px',
             borderBottom: '1px solid var(--border)',
             background: 'var(--surface-hover)',
+            flexShrink: 0,
           }}
         >
           <Search size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
@@ -460,7 +461,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
           role="listbox"
           className="glass-scrollbar"
           style={{
-            maxHeight: 'min(420px, 60vh)',
+            maxHeight: 'min(480px, 68vh)',
             overflowY: 'auto',
             padding: '10px 12px 18px 12px',
           }}
@@ -644,6 +645,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
             padding: '10px 18px',
             borderTop: '1px solid var(--border)',
             background: 'var(--surface-hover)',
+            flexShrink: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',

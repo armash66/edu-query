@@ -100,7 +100,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'code',
       header: 'Course Code',
-      width: '120px',
+      width: '95px',
       sticky: true,
       sortable: true,
       render: (row) => (
@@ -112,12 +112,14 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'name',
       header: 'Course Title',
-      width: '260px',
+      minWidth: '180px',
+      maxWidth: '300px',
+      wrap: true,
       sortable: true,
       render: (row) => (
-        <div>
-          <div style={{ fontWeight: 600, color: 'var(--text)' }}>{row.name}</div>
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+        <div style={{ maxWidth: '290px' }}>
+          <div style={{ fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }}>{row.name}</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', lineHeight: 1.2 }}>
             {(row.components || []).join(' • ') || 'No components defined'}
           </div>
         </div>
@@ -126,7 +128,8 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'kind',
       header: 'Modality',
-      width: '100px',
+      width: '80px',
+      align: 'center',
       sortable: true,
       render: (row) => (
         <span
@@ -146,7 +149,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'credits',
       header: 'Credits',
-      width: '85px',
+      width: '65px',
       sortable: true,
       align: 'right',
       render: (row) => (
@@ -158,7 +161,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'enrolled_students_count',
       header: 'Headcount',
-      width: '105px',
+      width: '80px',
       sortable: true,
       align: 'right',
       render: (row) => (
@@ -170,7 +173,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'passed_students_count',
       header: 'Passed',
-      width: '95px',
+      width: '75px',
       sortable: true,
       align: 'right',
       render: (row) => (
@@ -184,7 +187,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'failed_students_count',
       header: 'Failed',
-      width: '95px',
+      width: '75px',
       sortable: true,
       align: 'right',
       render: (row) => {
@@ -219,7 +222,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'actions',
       header: '',
-      width: '150px',
+      width: '120px',
       align: 'right',
       render: (row) => (
         <Link
@@ -227,26 +230,24 @@ export const SubjectsCatalogPage: React.FC = () => {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '6px',
+            gap: '5px',
+            padding: '5px 10px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface-hover)',
+            border: '1px solid var(--border)',
             fontSize: 'var(--text-xs)',
             fontWeight: 600,
             color: 'var(--text)',
             textDecoration: 'none',
-            padding: '5px 12px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--surface-hover)',
-            border: '1px solid var(--border)',
-            transition: 'all var(--transition-fast)',
             whiteSpace: 'nowrap',
           }}
         >
           <span>View Roster</span>
-          <ArrowRight size={13} />
+          <ArrowRight size={12} />
         </Link>
       ),
     },
   ]
-
   return (
     <div
       style={{
