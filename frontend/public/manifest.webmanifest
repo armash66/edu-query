@@ -1,0 +1,17 @@
+{
+  "name": "EduQuery — Academic Marksheet Analysis Engine",
+  "short_name": "EduQuery",
+  "description": "Privacy-first academic marksheet verification, deterministic data quality auditing, and faculty analytics.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

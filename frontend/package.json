@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",
-    "build": "node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build",
+    "check:contrast": "node ../scripts/check-contrast.mjs",
+    "build": "node ../scripts/check-contrast.mjs && node ./node_modules/typescript/bin/tsc -b && node ./node_modules/vite/bin/vite.js build",
     "lint": "node ./node_modules/oxlint/dist/cli.js",
     "test": "node ./node_modules/vitest/vitest.mjs run",
     "preview": "node ./node_modules/vite/bin/vite.js preview"
