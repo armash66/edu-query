@@ -1,7 +1,9 @@
 import React from 'react'
-import { AlertTriangle, X } from 'lucide-react'
+import { Modal } from '../ui/Modal'
+import { Button } from '../ui/Button'
+import { AlertTriangle } from 'lucide-react'
 
-interface ConfirmDialogProps {
+export interface ConfirmDialogProps {
   title: string
   message: string
   confirmLabel?: string
@@ -22,68 +24,47 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !loading) {
-        onCancel()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [loading, onCancel])
-
   return (
-    <div
-      className="modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-dialog-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget && !loading) onCancel()
-      }}
-    >
-      <div className="modal-dialog">
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <AlertTriangle size={20} style={{ color: danger ? '#ef4444' : '#f59e0b' }} />
-            <h3 id="confirm-dialog-title" className="modal-title">{title}</h3>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary btn-icon"
-            onClick={onCancel}
-            disabled={loading}
-            aria-label="Close dialog"
-          >
-            <X size={18} />
-          </button>
+    <Modal
+      isOpen={true}
+      onClose={() => !loading && onCancel()}
+      title={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <AlertTriangle
+            size={18}
+            style={{
+              color: danger ? 'var(--status-danger-text)' : 'var(--status-warning-text)',
+            }}
+          />
+          <span>{title}</span>
         </div>
-
-        <div className="modal-body">
-          <p style={{ fontSize: '0.9rem', color: '#334155', lineHeight: 1.5 }}>
-            {message}
-          </p>
-        </div>
-
-        <div className="modal-footer">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onCancel}
-            disabled={loading}
-          >
+      }
+      size="sm"
+      footer={
+        <>
+          <Button variant="ghost" disabled={loading} onClick={onCancel}>
             {cancelLabel}
-          </button>
-          <button
-            type="button"
-            className={danger ? 'btn btn-danger' : 'btn btn-primary'}
+          </Button>
+          <Button
+            variant={danger ? 'danger' : 'primary'}
+            loading={loading}
             onClick={onConfirm}
-            disabled={loading}
           >
-            {loading ? 'Activating...' : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+            {confirmLabel}
+          </Button>
+        </>
+      }
+    >
+      <p
+        style={{
+          fontSize: 'var(--text-sm)',
+          color: 'var(--text-secondary)',
+          lineHeight: 1.5,
+          margin: 0,
+        }}
+      >
+        {message}
+      </p>
+    </Modal>
   )
 }

@@ -95,8 +95,10 @@ describe('StudentsPage', () => {
     })
 
     // Filter by division A
-    const divisionSelect = screen.getByLabelText(/filter by division/i)
-    fireEvent.change(divisionSelect, { target: { value: 'A' } })
+    const divisionTrigger = screen.getByLabelText(/filter by division/i)
+    fireEvent.click(divisionTrigger)
+    const option = screen.getByRole('option', { name: /Division A/i })
+    fireEvent.click(option)
 
     await waitFor(() => {
       expect(getStudentsSpy).toHaveBeenCalledWith(

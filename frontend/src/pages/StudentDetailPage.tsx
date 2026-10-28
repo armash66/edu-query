@@ -24,11 +24,14 @@ import {
   type CandidateSummary,
   type ComponentScoreSchema,
 } from '../api/types'
-import { StatusBadge } from '../components/StatusBadge'
-import { LoadingState } from '../components/LoadingState'
-import { EmptyState } from '../components/EmptyState'
-import { ErrorBanner } from '../components/ErrorBanner'
+import { GlassCard } from '../ui/GlassCard'
+import { Button } from '../ui/Button'
+import { StatusBadge } from '../ui/StatusBadge'
+import { EmptyState } from '../ui/EmptyState'
+import { ErrorState } from '../ui/ErrorState'
 import { DisambiguationModal } from '../components/DisambiguationModal'
+import { Skeleton } from '../ui/Skeleton'
+import { toTitleCase } from '../utils/text'
 
 export const StudentDetailPage: React.FC = () => {
   const { identifier } = useParams<{ identifier: string }>()
@@ -45,6 +48,7 @@ export const StudentDetailPage: React.FC = () => {
 
   const [exporting, setExporting] = useState<boolean>(false)
   const [exportingExcel, setExportingExcel] = useState<boolean>(false)
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState<boolean>(false)
 
   const handleExport = async () => {
     if (!identifier) return
@@ -108,26 +112,44 @@ export const StudentDetailPage: React.FC = () => {
   }
 
   if (loading) {
-    return <LoadingState message={`Resolving records and compiling breakdown for "${identifier}"...`} />
+    return (
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: 'var(--space-6) var(--space-4)' }}>
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <Skeleton height="36px" width="180px" />
+        </div>
+        <Skeleton height="160px" radius="var(--radius-card)" style={{ marginBottom: 'var(--space-6)' }} />
+        <Skeleton height="300px" radius="var(--radius-card)" />
+      </div>
+    )
   }
 
   // Handle 404
   if (error && error.status === 404) {
     return (
-      <div>
-        <div style={{ marginBottom: '1rem' }}>
-          <Link to="/students" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-            <ArrowLeft size={14} /> Back to Student Roster
+      <div style={{ maxWidth: '800px', margin: '4rem auto', padding: '0 var(--space-4)' }}>
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <Link
+            to="/students"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              fontSize: 'var(--text-sm)',
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+            }}
+          >
+            <ArrowLeft size={16} /> Back to Student Roster
           </Link>
         </div>
         <EmptyState
           icon={<AlertCircle size={44} />}
           title="Student Record Not Found"
-          message={`No student was found matching the query "${identifier}". Please verify the Roll No or PRN and try searching again.`}
+          description={`No student was found matching the query "${identifier}". Please verify the Roll No or PRN and try searching again.`}
           action={
-            <Link to="/students" className="btn btn-primary btn-sm">
+            <Button variant="primary" onClick={() => navigate('/students')}>
               Search Student Roster
-            </Link>
+            </Button>
           }
         />
       </div>
@@ -136,23 +158,47 @@ export const StudentDetailPage: React.FC = () => {
 
   if (error) {
     return (
-      <div>
-        <div style={{ marginBottom: '1rem' }}>
-          <Link to="/students" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-            <ArrowLeft size={14} /> Back to Student Roster
+      <div style={{ maxWidth: '800px', margin: '4rem auto', padding: '0 var(--space-4)' }}>
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <Link
+            to="/students"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              fontSize: 'var(--text-sm)',
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+            }}
+          >
+            <ArrowLeft size={16} /> Back to Student Roster
           </Link>
         </div>
-        <ErrorBanner error={error} title="Could not load student breakdown" onRetry={fetchBreakdown} />
+        <ErrorState
+          title="Could not load student breakdown"
+          message={error.message || 'Database error retrieving student records.'}
+          onRetry={fetchBreakdown}
+        />
       </div>
     )
   }
 
   if (isDisambiguationOpen && ambiguousCandidates.length > 0) {
     return (
-      <div>
-        <div style={{ marginBottom: '1rem' }}>
-          <Link to="/students" className="btn btn-secondary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-            <ArrowLeft size={14} /> Back to Student Roster
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: 'var(--space-6) var(--space-4)' }}>
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <Link
+            to="/students"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              fontSize: 'var(--text-sm)',
+              color: 'var(--text-secondary)',
+              textDecoration: 'none',
+            }}
+          >
+            <ArrowLeft size={16} /> Back to Student Roster
           </Link>
         </div>
         <DisambiguationModal
@@ -175,242 +221,496 @@ export const StudentDetailPage: React.FC = () => {
 
   const getOutcomeBadge = (outcome: string | null) => {
     const val = (outcome || '').toUpperCase()
-    if (val.includes('PASS')) return <StatusBadge status="passed" text={outcome || 'PASS'} />
-    if (val.includes('FAIL')) return <StatusBadge status="failed" text={outcome || 'FAIL'} />
-    return <StatusBadge status="unresolved" text={outcome || 'UNRESOLVED'} />
+    if (val.includes('PASS')) return <StatusBadge tone="pass" label={outcome || 'PASS'} />
+    if (val.includes('FAIL')) return <StatusBadge tone="fail" label={outcome || 'FAIL'} />
+    return <StatusBadge tone="warn" label={outcome || 'UNRESOLVED'} />
   }
 
   return (
-    <div>
+    <div
+      style={{
+        maxWidth: '1200px',
+        margin: '0 auto',
+        padding: 'var(--space-6) var(--space-4) var(--space-12)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-6)',
+      }}
+    >
       {/* Back button and quick actions */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 'var(--space-3)',
+        }}
+      >
         <Link
           to="/students"
-          className="btn btn-secondary btn-sm"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 'var(--space-2)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 500,
+            color: 'var(--text)',
+            textDecoration: 'none',
+            padding: '6px 12px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface-hover)',
+          }}
         >
-          <ArrowLeft size={14} /> Back to Student Roster
+          <ArrowLeft size={16} />
+          <span>Back to Student Roster</span>
         </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-            title="Print student performance marksheet"
-          >
-            <Printer size={14} /> Print Marksheet
-          </button>
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            disabled={exportingExcel}
-            className="btn btn-primary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-            title="Export complete student subject breakdown as Excel workbook (.xlsx)"
-          >
-            <Download size={14} /> {exportingExcel ? 'Exporting...' : 'Export to Excel (.xlsx)'}
-          </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={exporting}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-            title="Export complete student subject breakdown as CSV"
-          >
-            <Download size={14} /> {exporting ? 'Exporting...' : 'Export (CSV)'}
-          </button>
-        </div>
-      </div>
 
-      {/* Student Identity Card */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div className="card-body">
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-              <div
+        <div style={{ position: 'relative' }}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setIsExportMenuOpen((prev) => !prev)}
+            icon={<Download size={14} />}
+            aria-haspopup="menu"
+            aria-expanded={isExportMenuOpen}
+          >
+            Export
+          </Button>
+          {isExportMenuOpen && (
+            <div
+              role="menu"
+              className="glass-3"
+              style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                right: 0,
+                zIndex: 50,
+                minWidth: '180px',
+                padding: '4px',
+                borderRadius: 'var(--radius-md)',
+                boxShadow: 'var(--shadow-lg)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+              }}
+            >
+              <button
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  setIsExportMenuOpen(false)
+                  window.print()
+                }}
                 style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: '#eff6ff',
-                  color: '#2563eb',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
+                  gap: '8px',
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text)',
+                  fontSize: 'var(--text-xs)',
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-sm)',
+                  textAlign: 'left',
+                  width: '100%',
                 }}
               >
-                <User size={26} />
-              </div>
+                <Printer size={14} />
+                <span>Print Marksheet</span>
+              </button>
 
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                  <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-                    {student.name}
-                  </h2>
-                  {getOutcomeBadge(student.overall_result)}
-                </div>
+              <button
+                role="menuitem"
+                type="button"
+                disabled={exportingExcel}
+                onClick={() => {
+                  setIsExportMenuOpen(false)
+                  handleExportExcel()
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text)',
+                  fontSize: 'var(--text-xs)',
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-sm)',
+                  textAlign: 'left',
+                  width: '100%',
+                }}
+              >
+                <Download size={14} />
+                <span>Export Excel (.xlsx)</span>
+              </button>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginTop: '0.4rem', flexWrap: 'wrap', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  {student.roll_no && (
-                    <span>
-                      Roll No: <strong style={{ color: 'var(--text-main)' }}>{student.roll_no}</strong>
-                    </span>
-                  )}
-                  {student.seat_no && (
-                    <span>
-                      Seat No: <strong style={{ color: 'var(--text-main)' }}>{student.seat_no}</strong>
-                    </span>
-                  )}
-                  {student.division && (
-                    <span>
-                      Division: <strong style={{ color: 'var(--text-main)' }}>{student.division}</strong>
-                    </span>
-                  )}
-                  {student.email && (
-                    <span>
-                      Email: <strong style={{ color: 'var(--text-main)' }}>{student.email}</strong>
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Overall Academic Metrics */}
-            <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-              {student.total_marks != null && (
-                <div style={{ padding: '0.5rem 0.85rem', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Total Marks</div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)' }}>{student.total_marks}</div>
-                </div>
-              )}
-              {student.sgpi != null && (
-                <div style={{ padding: '0.5rem 0.85rem', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>SGPI</div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)' }}>{student.sgpi.toFixed(2)}</div>
-                </div>
-              )}
-              {student.cgpa != null && (
-                <div style={{ padding: '0.5rem 0.85rem', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>CGPA</div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)' }}>{student.cgpa.toFixed(2)}</div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Subjects Outcome Summary Bar */}
-        <div style={{ padding: '0.75rem 1.25rem', backgroundColor: '#fafbfc', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.82rem' }}>
-          <div>
-            Enrolled Subjects: <strong>{data.total_enrolled}</strong>
-          </div>
-          <div style={{ color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <CheckCircle size={14} style={{ color: '#10b981' }} />
-            Passed: <strong>{passed_count}</strong>
-          </div>
-          <div style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <AlertTriangle size={14} style={{ color: '#ef4444' }} />
-            Failed: <strong>{failed_count}</strong>
-          </div>
-          {unresolved_count > 0 && (
-            <div style={{ color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-              <HelpCircle size={14} style={{ color: '#f59e0b' }} />
-              Unresolved: <strong>{unresolved_count}</strong>
+              <button
+                role="menuitem"
+                type="button"
+                disabled={exporting}
+                onClick={() => {
+                  setIsExportMenuOpen(false)
+                  handleExport()
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text)',
+                  fontSize: 'var(--text-xs)',
+                  cursor: 'pointer',
+                  borderRadius: 'var(--radius-sm)',
+                  textAlign: 'left',
+                  width: '100%',
+                }}
+              >
+                <Download size={14} />
+                <span>Export CSV (.csv)</span>
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Subject-by-Subject Breakdown Table */}
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title">
-            <Award size={18} style={{ color: 'var(--primary)' }} />
-            <span>Curriculum Subject Performance Breakdown</span>
+      {/* Student Identity Card */}
+      <GlassCard variant="glass-2" padding="lg">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-4)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-4)' }}>
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: 'var(--radius-card)',
+                backgroundColor: 'var(--surface-hover)',
+                color: 'var(--text)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '1px solid var(--border)',
+                flexShrink: 0,
+              }}
+            >
+              <User size={28} />
+            </div>
+
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-3)',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <h1
+                  style={{
+                    fontSize: 'var(--text-xl)',
+                    fontWeight: 700,
+                    color: 'var(--text)',
+                    margin: 0,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    lineHeight: 1.25,
+                  }}
+                  title={student.name}
+                >
+                  {toTitleCase(student.name)}
+                </h1>
+                {getOutcomeBadge(student.overall_result)}
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-4)',
+                  marginTop: 'var(--space-2)',
+                  flexWrap: 'wrap',
+                  fontSize: 'var(--text-xs)',
+                  color: 'var(--text-secondary)',
+                }}
+              >
+                {student.roll_no && (
+                  <span>
+                    Roll No: <strong style={{ color: 'var(--text)' }}>{student.roll_no}</strong>
+                  </span>
+                )}
+                {student.seat_no && (
+                  <span>
+                    Seat No: <strong style={{ color: 'var(--text)' }}>{student.seat_no}</strong>
+                  </span>
+                )}
+                {student.division && (
+                  <span>
+                    Division: <strong style={{ color: 'var(--text)' }}>{student.division}</strong>
+                  </span>
+                )}
+                {student.email && (
+                  <span>
+                    Email: <strong style={{ color: 'var(--text)' }}>{student.email}</strong>
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+
+          {/* Overall Academic Metrics (3-column grid) */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
+              gap: 'var(--space-3)',
+              width: '100%',
+              maxWidth: '380px',
+            }}
+          >
+            {student.total_marks != null && (
+              <div
+                className="data-surface"
+                style={{
+                  padding: 'var(--space-2) var(--space-4)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Total Marks
+                </div>
+                <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text)' }}>
+                  {student.total_marks}
+                </div>
+              </div>
+            )}
+            {student.sgpi != null && (
+              <div
+                className="data-surface"
+                style={{
+                  padding: 'var(--space-2) var(--space-4)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                  SGPI
+                </div>
+                <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text)' }}>
+                  {student.sgpi.toFixed(2)}
+                </div>
+              </div>
+            )}
+            {student.cgpa != null && (
+              <div
+                className="data-surface"
+                style={{
+                  padding: 'var(--space-2) var(--space-4)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                  CGPA
+                </div>
+                <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text)' }}>
+                  {student.cgpa.toFixed(2)}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Subjects Outcome Summary Bar */}
+        <div
+          style={{
+            padding: 'var(--space-3) var(--space-4)',
+            marginTop: 'var(--space-4)',
+            borderTop: '1px solid var(--border)',
+            display: 'flex',
+            gap: 'var(--space-5)',
+            flexWrap: 'wrap',
+            fontSize: 'var(--text-xs)',
+          }}
+        >
+          <div>
+            Enrolled Subjects: <strong>{data.total_enrolled}</strong>
+          </div>
+          <div style={{ color: 'var(--status-success-text)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+            <CheckCircle size={14} />
+            Passed: <strong>{passed_count}</strong>
+          </div>
+          <div style={{ color: 'var(--status-danger-text)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+            <AlertTriangle size={14} />
+            Failed: <strong>{failed_count}</strong>
+          </div>
+          {unresolved_count > 0 && (
+            <div style={{ color: 'var(--status-warning-text)', display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+              <HelpCircle size={14} />
+              Unresolved: <strong>{unresolved_count}</strong>
+            </div>
+          )}
+        </div>
+      </GlassCard>
+
+      {/* Subject-by-Subject Breakdown Table */}
+      <GlassCard variant="glass-2" padding="none">
+        <div
+          style={{
+            padding: 'var(--space-4) var(--space-6)',
+            borderBottom: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <Award size={18} />
+            <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 650, color: 'var(--text)', margin: 0 }}>
+              Curriculum Subject Performance Breakdown
+            </h2>
+          </div>
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
             Components, calculated sums, and printed totals verified by ingestion engine
           </div>
         </div>
 
-        <div className="table-responsive">
-          <table className="table">
+        <div style={{ overflowX: 'auto' }}>
+          <table
+            style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              textAlign: 'left',
+              fontSize: 'var(--text-xs)',
+            }}
+          >
             <thead>
-              <tr>
-                <th>Course Code & Title</th>
-                <th>Kind / Credits</th>
-                <th>Component Scores</th>
-                <th>Sum of Components</th>
-                <th>Printed Total</th>
-                <th>Match</th>
-                <th>Outcome</th>
+              <tr style={{ borderBottom: '1px solid var(--border-strong)', background: 'var(--surface-hover)' }}>
+                <th style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Course Code & Title
+                </th>
+                <th style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Kind / Credits
+                </th>
+                <th style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Component Scores
+                </th>
+                <th style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Sum of Components
+                </th>
+                <th style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Printed Total
+                </th>
+                <th style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Match
+                </th>
+                <th style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                  Outcome
+                </th>
               </tr>
             </thead>
             <tbody>
               {subjects.map((sub) => {
                 const outcome = sub.recorded_result || 'unresolved'
-                const statusType = outcome === 'passed' ? 'passed' : outcome === 'failed' ? 'failed' : 'unresolved'
+                const statusTone =
+                  outcome === 'passed' ? 'pass' : outcome === 'failed' ? 'fail' : 'warn'
 
                 const componentEntries = Object.entries(sub.components || {})
 
                 return (
-                  <tr key={sub.course_code}>
-                    <td>
-                      <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{sub.course_name}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                  <tr
+                    key={sub.course_code}
+                    style={{ borderBottom: '1px solid var(--border-hairline)', height: '48px' }}
+                  >
+                    <td style={{ padding: 'var(--space-3) var(--space-4)' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text)' }}>{sub.course_name}</div>
+                      <div className="font-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                         {sub.course_code}
                       </div>
                       {sub.flags && sub.flags.length > 0 && (
-                        <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 'var(--space-1)', marginTop: 'var(--space-1)', flexWrap: 'wrap' }}>
                           {sub.flags.map((flag, idx) => (
-                            <span key={idx} className="badge badge-warning" style={{ fontSize: '0.65rem' }}>
+                            <span
+                              key={idx}
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                padding: '1px 5px',
+                                borderRadius: 'var(--radius-xs)',
+                                background: 'var(--status-warning-bg)',
+                                color: 'var(--status-warning-text)',
+                                border: '1px solid var(--status-warning-border)',
+                              }}
+                            >
                               {flag}
                             </span>
                           ))}
                         </div>
                       )}
                       {sub.is_absent && (
-                        <span className="badge badge-danger" style={{ fontSize: '0.65rem', marginTop: '0.2rem' }}>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: 'var(--radius-xs)',
+                            background: 'var(--status-danger-bg)',
+                            color: 'var(--status-danger-text)',
+                            border: '1px solid var(--status-danger-border)',
+                            display: 'inline-block',
+                            marginTop: '2px',
+                          }}
+                        >
                           ABSENT
                         </span>
                       )}
                     </td>
 
-                    <td>
+                    <td style={{ padding: 'var(--space-3) var(--space-4)' }}>
                       <div>{sub.kind || '—'}</div>
                       {sub.credits != null && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                           {sub.credits} Credits
                         </div>
                       )}
                     </td>
 
-                    <td>
+                    <td style={{ padding: 'var(--space-3) var(--space-4)' }}>
                       {componentEntries.length === 0 ? (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No component marks</span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>No component marks</span>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                           {componentEntries.map(([compName, score]: [string, ComponentScoreSchema]) => {
                             let scoreDisplay = '—'
-                            let badgeClass = ''
 
                             if (score.state === 'marked') {
-                              scoreDisplay = score.marks !== null ? String(score.marks) : (score.raw_text || '—')
+                              scoreDisplay =
+                                score.marks !== null ? String(score.marks) : score.raw_text || '—'
                             } else if (score.state === 'not_enrolled') {
                               scoreDisplay = 'N/E'
-                              badgeClass = 'badge-neutral'
                             } else if (score.state === 'flagged') {
                               scoreDisplay = score.flag || score.raw_text || 'Flagged'
-                              badgeClass = 'badge-warning'
                             } else if (score.state === 'uncalculated') {
                               scoreDisplay = 'Uncalc'
-                              badgeClass = 'badge-info'
                             } else if (score.state === 'unparsed') {
                               scoreDisplay = score.raw_text || 'Unparsed'
-                              badgeClass = 'badge-danger'
                             }
 
                             return (
@@ -420,21 +720,19 @@ export const StudentDetailPage: React.FC = () => {
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'space-between',
-                                  fontSize: '0.78rem',
-                                  padding: '0.15rem 0.35rem',
-                                  backgroundColor: '#f8fafc',
-                                  borderRadius: 'var(--radius-sm)',
-                                  border: '1px solid #e2e8f0',
+                                  fontSize: '11px',
+                                  padding: '2px 6px',
+                                  backgroundColor: 'var(--surface-hover)',
+                                  borderRadius: 'var(--radius-xs)',
+                                  border: '1px solid var(--border)',
                                 }}
                               >
-                                <span style={{ color: '#475569', fontWeight: 500 }}>{compName}:</span>
-                                {badgeClass ? (
-                                  <span className={`badge ${badgeClass}`} style={{ fontSize: '0.7rem' }}>
-                                    {scoreDisplay}
-                                  </span>
-                                ) : (
-                                  <span style={{ fontWeight: 600, color: '#0f172a' }}>{scoreDisplay}</span>
-                                )}
+                                <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                  {compName}:
+                                </span>
+                                <span className="tabular-nums font-mono" style={{ fontWeight: 600, color: 'var(--text)' }}>
+                                  {scoreDisplay}
+                                </span>
                               </div>
                             )
                           })}
@@ -442,45 +740,63 @@ export const StudentDetailPage: React.FC = () => {
                       )}
                     </td>
 
-                    <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                    <td className="tabular-nums font-mono" style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 600 }}>
                       {sub.computed_marks_sum !== null ? sub.computed_marks_sum : '—'}
                     </td>
 
-                    <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
+                    <td className="tabular-nums font-mono" style={{ padding: 'var(--space-3) var(--space-4)', fontWeight: 600 }}>
                       {sub.total_marks !== null ? sub.total_marks : '—'}
                       {sub.letter_grade && (
-                        <span style={{ marginLeft: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        <span style={{ marginLeft: '4px', fontSize: '11px', color: 'var(--text-muted)' }}>
                           ({sub.letter_grade})
                         </span>
                       )}
                     </td>
 
-                    <td>
+                    <td style={{ padding: 'var(--space-3) var(--space-4)' }}>
                       {sub.total_match === true ? (
                         <span
-                          className="badge badge-success"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            color: 'var(--status-success-text)',
+                            background: 'var(--status-success-bg)',
+                            border: '1px solid var(--status-success-border)',
+                            padding: '2px 6px',
+                            borderRadius: 'var(--radius-xs)',
+                            fontWeight: 600,
+                          }}
                           title="Computed sum exactly matches the printed total"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
                         >
                           <Check size={11} /> Match
                         </span>
                       ) : sub.total_match === false ? (
                         <span
-                          className="badge badge-warning"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            color: 'var(--status-warning-text)',
+                            background: 'var(--status-warning-bg)',
+                            border: '1px solid var(--status-warning-border)',
+                            padding: '2px 6px',
+                            borderRadius: 'var(--radius-xs)',
+                            fontWeight: 600,
+                          }}
                           title="Computed component sum differs from printed marksheet total"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
                         >
                           <AlertTriangle size={11} /> Mismatch
                         </span>
                       ) : (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>
+                        <span style={{ color: 'var(--text-muted)' }}>—</span>
                       )}
                     </td>
 
-                    <td>
-                      <StatusBadge status={statusType} text={outcome.toUpperCase()} />
+                    <td style={{ padding: 'var(--space-3) var(--space-4)' }}>
+                      <StatusBadge tone={statusTone} label={outcome.toUpperCase()} size="sm" />
                       {sub.classification_reason && (
-                        <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.2rem' }}>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
                           {sub.classification_reason}
                         </div>
                       )}
@@ -491,7 +807,7 @@ export const StudentDetailPage: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </div>
+      </GlassCard>
 
       {/* Disambiguation Modal for HTTP 409 Resolution */}
       <DisambiguationModal
@@ -507,3 +823,5 @@ export const StudentDetailPage: React.FC = () => {
     </div>
   )
 }
+
+export default StudentDetailPage

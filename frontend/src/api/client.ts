@@ -34,6 +34,7 @@ import type {
   SessionStatusResponse,
   SessionDeleteResponse,
   SessionSaveResponse,
+  OverviewSummaryResponse,
 } from './types'
 
 export { ApiError }
@@ -464,7 +465,7 @@ export async function getDataQuality(signal?: AbortSignal): Promise<DataQualityR
 
 export async function previewImport(
   file: File,
-  adminKey: string,
+  adminKey?: string | null,
   signal?: AbortSignal
 ): Promise<ImportPreviewResponse> {
   const formData = new FormData()
@@ -480,7 +481,7 @@ export async function previewImport(
 
 export async function confirmImport(
   importId: string,
-  adminKey: string,
+  adminKey?: string | null,
   signal?: AbortSignal
 ): Promise<ImportConfirmResponse> {
   return request<ImportConfirmResponse>('/api/v1/imports/confirm', {
@@ -496,7 +497,7 @@ export async function confirmImport(
 
 export async function getImportStatus(
   importId: string,
-  adminKey: string,
+  adminKey?: string | null,
   signal?: AbortSignal
 ): Promise<ImportSessionStatus> {
   const cleanId = encodeURIComponent(importId.trim())
@@ -508,7 +509,7 @@ export async function getImportStatus(
 }
 
 export async function getDatasetVersions(
-  adminKey: string,
+  adminKey?: string | null,
   signal?: AbortSignal
 ): Promise<DatasetVersionsResponse> {
   return request<DatasetVersionsResponse>('/api/v1/imports/versions', {
@@ -520,7 +521,7 @@ export async function getDatasetVersions(
 
 export async function rollbackDataset(
   datasetId: string,
-  adminKey: string,
+  adminKey?: string | null,
   signal?: AbortSignal
 ): Promise<RollbackResponse> {
   return request<RollbackResponse>('/api/v1/imports/rollback', {
@@ -899,3 +900,11 @@ export async function saveSession(datasetName?: string): Promise<SessionSaveResp
 
 
 
+
+// =========================================================================
+// Additive Overview Summary API
+// =========================================================================
+
+export async function getOverviewSummary(signal?: AbortSignal): Promise<OverviewSummaryResponse> {
+  return request<OverviewSummaryResponse>('/api/v1/overview/summary', { signal })
+}

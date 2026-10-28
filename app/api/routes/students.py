@@ -58,6 +58,7 @@ def get_students(
     )
 
 
+@router.get("/export/xlsx", response_model=None)
 @router.get("/export-excel", response_model=None)
 def export_students_excel_route(
     query: Annotated[str | None, Query(description="Case-insensitive student search filter")] = None,
@@ -140,6 +141,7 @@ def get_absent_students_route(
     )
 
 
+@router.get("/absent/export/xlsx", response_model=None)
 @router.get("/absent/export-excel", response_model=None)
 @router.get("/absent/export", response_model=None)
 def export_absent_students_excel_route(

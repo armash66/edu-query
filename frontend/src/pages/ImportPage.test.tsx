@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ImportPage } from './ImportPage'
-import { AdminKeyProvider } from '../context/AdminKeyContext'
 import { HealthProvider } from '../context/HealthContext'
 import * as client from '../api/client'
 import { ApiError } from '../api/types'
@@ -24,14 +23,12 @@ describe('ImportPage', () => {
 
   it('validates file extension client-side and blocks non-xlsx files', async () => {
     render(
-      <AdminKeyProvider>
-        <HealthProvider>
+              <HealthProvider>
           <MemoryRouter>
             <ImportPage />
           </MemoryRouter>
         </HealthProvider>
-      </AdminKeyProvider>
-    )
+          )
 
     const file = new File(['dummy content'], 'report.pdf', { type: 'application/pdf' })
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
@@ -45,14 +42,12 @@ describe('ImportPage', () => {
 
   it('validates file size client-side and blocks files exceeding 25MB', async () => {
     render(
-      <AdminKeyProvider>
-        <HealthProvider>
+              <HealthProvider>
           <MemoryRouter>
             <ImportPage />
           </MemoryRouter>
         </HealthProvider>
-      </AdminKeyProvider>
-    )
+          )
 
     // 26 MB file
     const largeBlob = new Blob([new Uint8Array(26 * 1024 * 1024)])
@@ -68,15 +63,49 @@ describe('ImportPage', () => {
     })
   })
 
-  it('prompts for administrative key when attempting preview without key', async () => {
+  it('triggers preview directly without requiring administrative key', async () => {
+    const previewSpy = vi.spyOn(client, 'previewImport').mockResolvedValue({
+      import_id: 'imp_valid_01',
+      state: 'preview_ready',
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 900000).toISOString(),
+      workbook: {
+        filename: 'marksheet.xlsx',
+        file_size_bytes: 1048576,
+        sha256: 'abc123sha',
+        content_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
+      layout: {
+        strategy: 'sheet_per_branch',
+        sheets_inspected: ['Sheet1'],
+        sheets_accepted: ['Sheet1'],
+        sheets_skipped: [],
+      },
+      students_count: 50,
+      courses_count: 6,
+      scores_count: 300,
+      enrollment_count: 300,
+      reconciliation_count: 50,
+      data_quality: {
+        health_status: 'Good',
+        quality_score: 100.0,
+        total_checks: 5,
+        error_count: 0,
+        warning_count: 0,
+        info_count: 0,
+        findings: [],
+      },
+      can_confirm: true,
+      blocking_errors: [],
+      active_dataset_changed: false,
+    })
+
     render(
-      <AdminKeyProvider>
-        <HealthProvider>
-          <MemoryRouter>
-            <ImportPage />
-          </MemoryRouter>
-        </HealthProvider>
-      </AdminKeyProvider>
+      <HealthProvider>
+        <MemoryRouter>
+          <ImportPage />
+        </MemoryRouter>
+      </HealthProvider>
     )
 
     const file = new File(['valid content'], 'marksheet.xlsx', {
@@ -92,9 +121,8 @@ describe('ImportPage', () => {
     const previewBtn = screen.getByRole('button', { name: /generate safe preview/i })
     fireEvent.click(previewBtn)
 
-    // Admin key modal opens
     await waitFor(() => {
-      expect(screen.getByText('Administrative Import Key')).toBeInTheDocument()
+      expect(previewSpy).toHaveBeenCalledWith(file)
     })
   })
 
@@ -136,20 +164,14 @@ describe('ImportPage', () => {
     })
 
     render(
-      <AdminKeyProvider>
-        <HealthProvider>
+              <HealthProvider>
           <MemoryRouter>
             <ImportPage />
           </MemoryRouter>
         </HealthProvider>
-      </AdminKeyProvider>
-    )
+          )
 
-    // Set admin key in modal
-    fireEvent.click(screen.getByRole('button', { name: /configure admin key/i }))
-    const keyInput = screen.getByPlaceholderText(/paste administrative import key/i)
-    fireEvent.change(keyInput, { target: { value: 'test-admin-secret' } })
-    fireEvent.click(screen.getByRole('button', { name: /save key in memory/i }))
+
 
     // Now select file
     const file = new File(['dummy'], 'broken.xlsx')
@@ -217,20 +239,14 @@ describe('ImportPage', () => {
     })
 
     render(
-      <AdminKeyProvider>
-        <HealthProvider>
+              <HealthProvider>
           <MemoryRouter>
             <ImportPage />
           </MemoryRouter>
         </HealthProvider>
-      </AdminKeyProvider>
-    )
+          )
 
-    // Set admin key
-    fireEvent.click(screen.getByRole('button', { name: /configure admin key/i }))
-    const keyInput = screen.getByPlaceholderText(/paste administrative import key/i)
-    fireEvent.change(keyInput, { target: { value: 'test-admin-secret' } })
-    fireEvent.click(screen.getByRole('button', { name: /save key in memory/i }))
+
 
     // Select file and preview
     const file = new File(['dummy'], 'valid.xlsx')
@@ -257,7 +273,7 @@ describe('ImportPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /yes, activate dataset/i }))
 
     await waitFor(() => {
-      expect(confirmSpy).toHaveBeenCalledWith('imp_valid_01', 'test-admin-secret')
+      expect(confirmSpy).toHaveBeenCalledWith('imp_valid_01')
       expect(screen.getByText('Dataset Successfully Activated')).toBeInTheDocument()
     })
   })
@@ -322,20 +338,14 @@ describe('ImportPage', () => {
     })
 
     render(
-      <AdminKeyProvider>
-        <HealthProvider>
+              <HealthProvider>
           <MemoryRouter>
             <ImportPage />
           </MemoryRouter>
         </HealthProvider>
-      </AdminKeyProvider>
-    )
+          )
 
-    // Set key
-    fireEvent.click(screen.getByRole('button', { name: /configure admin key/i }))
-    const keyInput = screen.getByPlaceholderText(/paste administrative import key/i)
-    fireEvent.change(keyInput, { target: { value: 'admin-key' } })
-    fireEvent.click(screen.getByRole('button', { name: /save key in memory/i }))
+
 
     // Preview
     const file = new File(['dummy'], 'valid.xlsx')
@@ -396,20 +406,14 @@ describe('ImportPage', () => {
     })
 
     render(
-      <AdminKeyProvider>
-        <HealthProvider>
+              <HealthProvider>
           <MemoryRouter>
             <ImportPage />
           </MemoryRouter>
         </HealthProvider>
-      </AdminKeyProvider>
-    )
+          )
 
-    // Set admin key to enable versions inspection
-    fireEvent.click(screen.getByRole('button', { name: /configure admin key/i }))
-    const keyInput = screen.getByPlaceholderText(/paste administrative import key/i)
-    fireEvent.change(keyInput, { target: { value: 'admin-key' } })
-    fireEvent.click(screen.getByRole('button', { name: /save key in memory/i }))
+
 
     // Verify versions table rendered
     await waitFor(() => {
@@ -430,7 +434,7 @@ describe('ImportPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /restore this version/i }))
 
     await waitFor(() => {
-      expect(rollbackMock).toHaveBeenCalledWith('dataset_v1', 'admin-key')
+      expect(rollbackMock).toHaveBeenCalledWith('dataset_v1')
       expect(screen.getByText(/Successfully rolled back to dataset version 'dataset_v1'/i)).toBeInTheDocument()
     })
   })

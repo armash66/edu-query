@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import * as XLSX from 'xlsx'
 import {
   createWorksheet,
   exportToExcel,
@@ -8,18 +7,44 @@ import {
   exportAbsentStudents,
   sanitizeFilename,
   sanitizeSheetName,
+  sanitizeCsvCell,
+  generateCsv,
 } from './excelExport'
 import type { AbsentStudentItem, StudentSummaryItem, SubjectStudentItem } from '../api/types'
 
-describe('Shared SheetJS Excel Export Utility', () => {
+describe('Shared Lightweight Excel Export Utility', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('sanitizes filename to always end in .xlsx and strip illegal characters', () => {
-    expect(sanitizeFilename('EduQuery_Students')).toBe('EduQuery_Students.xlsx')
-    expect(sanitizeFilename('Test:Export*File?.xlsx')).toBe('Test_Export_File_.xlsx')
-    expect(sanitizeFilename('')).toBe('EduQuery_Export.xlsx')
+  it('sanitizes filename to always end in .csv and strip illegal characters', () => {
+    expect(sanitizeFilename('EduQuery_Students')).toBe('EduQuery_Students.csv')
+    expect(sanitizeFilename('Test:Export*File?.csv')).toBe('Test_Export_File_.csv')
+    expect(sanitizeFilename('')).toBe('EduQuery_Export.csv')
+  })
+
+  it('neutralizes spreadsheet formula injection with sanitizeCsvCell', () => {
+    expect(sanitizeCsvCell('=SUM(A1:A10)')).toBe(`"'=SUM(A1:A10)"`)
+    expect(sanitizeCsvCell('+cmd|')).toBe(`"'+cmd|"`)
+    expect(sanitizeCsvCell('-100')).toBe(`"'-100"`)
+    expect(sanitizeCsvCell('@threat')).toBe(`"'@threat"`)
+    expect(sanitizeCsvCell('Normal Name')).toBe(`"Normal Name"`)
+    expect(sanitizeCsvCell(42)).toBe(`"42"`)
+    expect(sanitizeCsvCell(null)).toBe(`""`)
+  })
+
+  it('generates valid UTF-8 BOM CSV with RFC 4180 escaping', () => {
+    const ws = {
+      '!ref': 'A1:B2',
+      A1: { v: 'Header,One', t: 's' as const },
+      B1: { v: 'Header "Two"', t: 's' as const },
+      A2: { v: 'Data 1', t: 's' as const },
+      B2: { v: 99.5, t: 'n' as const },
+    }
+    const csv = generateCsv(ws)
+    expect(csv.startsWith('\uFEFF')).toBe(true)
+    expect(csv).toContain('"Header,One","Header ""Two"""')
+    expect(csv).toContain('"Data 1","99.5"')
   })
 
   it('sanitizes sheet names to be <= 31 chars and remove illegal characters', () => {
@@ -98,14 +123,17 @@ describe('Shared SheetJS Excel Export Utility', () => {
     ]
 
     const result = exportStudentsRoster(students, false)
-    expect(result.filename).toBe('EduQuery_Students.xlsx')
+    expect(result.filename).toBe('EduQuery_Students.csv')
     expect(result.workbook.SheetNames).toContain('Student Roster')
+    expect(result.blob.type).toContain('text/csv')
+    expect(result.blob.size).toBeGreaterThan(0)
 
     const ws = result.workbook.Sheets['Student Roster']
     expect(ws).toBeDefined()
-    // Convert to JSON array to inspect rows
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][]
-    expect(rows.length).toBeGreaterThan(3) // metadata + header + data
+    expect(ws['A1'].v).toContain('EduQuery — Academic Student Roster')
+    expect(ws['A4'].v).toBe('Roll No')
+    expect(ws['C4'].v).toBe('Student Name')
+    expect(ws['C5'].v).toBe('Student One')
   })
 
   it('exports subject roster with status-aware filename and sheet name', () => {
@@ -127,11 +155,11 @@ describe('Shared SheetJS Excel Export Utility', () => {
     ]
 
     const passedExport = exportSubjectRoster('MDM01', 'Skill Development', 'passed', students, 'A')
-    expect(passedExport.filename).toBe('EduQuery_MDM01_Passed_Students.xlsx')
+    expect(passedExport.filename).toBe('EduQuery_MDM01_Passed_Students.csv')
     expect(passedExport.workbook.SheetNames).toContain('Passed Students')
 
     const failedExport = exportSubjectRoster('MDM01', 'Skill Development', 'failed', [], null)
-    expect(failedExport.filename).toBe('EduQuery_MDM01_Failed_Students.xlsx')
+    expect(failedExport.filename).toBe('EduQuery_MDM01_Failed_Students.csv')
     expect(failedExport.workbook.SheetNames).toContain('Failed Students')
   })
 
@@ -157,7 +185,7 @@ describe('Shared SheetJS Excel Export Utility', () => {
     ]
 
     const result = exportAbsentStudents(absentRecords, true)
-    expect(result.filename).toBe('EduQuery_Absent_Students_Filtered.xlsx')
+    expect(result.filename).toBe('EduQuery_Absent_Students_Filtered.csv')
     expect(result.workbook.SheetNames).toContain('Absent Students')
   })
 })

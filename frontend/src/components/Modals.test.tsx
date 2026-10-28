@@ -2,8 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { DisambiguationModal } from './DisambiguationModal'
 import { ConfirmDialog } from './ConfirmDialog'
-import { AdminKeyModal } from './AdminKeyModal'
-import { AdminKeyProvider } from '../context/AdminKeyContext'
 import type { CandidateSummary } from '../api/types'
 
 describe('Modal Accessibility and Escape handling', () => {
@@ -137,20 +135,5 @@ describe('Modal Accessibility and Escape handling', () => {
     })
   })
 
-  describe('AdminKeyModal', () => {
-    it('renders input, saves key in context, and closes on Escape', () => {
-      const handleClose = vi.fn()
 
-      render(
-        <AdminKeyProvider>
-          <AdminKeyModal isOpen={true} onClose={handleClose} />
-        </AdminKeyProvider>
-      )
-
-      expect(screen.getByText('Administrative Import Key')).toBeInTheDocument()
-
-      fireEvent.keyDown(window, { key: 'Escape' })
-      expect(handleClose).toHaveBeenCalledTimes(1)
-    })
-  })
 })

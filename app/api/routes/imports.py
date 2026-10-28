@@ -1,10 +1,9 @@
-"""API routes for secure workbook upload, preview, validation, and activation."""
+"""API routes for workbook upload, preview, validation, and activation."""
 from __future__ import annotations
 
-import secrets
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 
 from app.api.schemas.common import ErrorResponse, NotFoundErrorResponse
 from app.api.schemas.imports import (
@@ -28,81 +27,15 @@ from app.services.import_manager import (
 router = APIRouter(prefix="/imports", tags=["Imports"])
 
 
-def verify_import_authorization(
-    request: Request,
-    x_eduquery_import_key: Annotated[str | None, Header(alias="X-EduQuery-Import-Key")] = None,
-    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
-) -> None:
-    """Administrative authorization safeguard for marksheet upload and activation.
-
-    Requires an administrative API key configured in EDUQUERY_IMPORT_API_KEY.
-    If the key is not configured, import operations are disabled.
-    Compares provided credentials using constant-time comparison to prevent timing leaks.
-    """
-    settings: Settings = getattr(request.app.state, "settings", None) or get_settings()
-    configured_key = settings.import_api_key
-
-    # 1. Reject if administrative key is not configured
-    if not configured_key or not configured_key.strip():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={
-                "status": "error",
-                "error_code": "IMPORT_DISABLED",
-                "message": "Workbook import operations are currently disabled because no administrative import API key has been configured.",
-                "details": ["Set the EDUQUERY_IMPORT_API_KEY environment variable to enable workbook imports."],
-            },
-        )
-
-    # 2. Extract provided key from headers
-    provided_key: str | None = None
-    if x_eduquery_import_key:
-        provided_key = x_eduquery_import_key.strip()
-    elif authorization:
-        parts = authorization.strip().split()
-        if len(parts) == 2 and parts[0].lower() == "bearer":
-            provided_key = parts[1]
-        elif len(parts) == 1:
-            provided_key = parts[0]
-
-    if not provided_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "status": "error",
-                "error_code": "UNAUTHORIZED",
-                "message": "Missing administrative import API key credentials.",
-                "details": [
-                    "Supply the administrative import key in the 'X-EduQuery-Import-Key' or 'Authorization: Bearer <key>' header."
-                ],
-            },
-        )
-
-    # 3. Constant-time digest comparison (prevents timing side-channels)
-    if not secrets.compare_digest(provided_key, configured_key.strip()):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={
-                "status": "error",
-                "error_code": "UNAUTHORIZED",
-                "message": "Invalid administrative import API key credentials.",
-                "details": [],
-            },
-        )
-
-
 @router.post(
     "/preview",
     response_model=ImportPreviewResponse,
     status_code=status.HTTP_200_OK,
     responses={
-        401: {"model": ErrorResponse, "description": "Missing or invalid administrative import credentials"},
         413: {"model": ErrorResponse, "description": "Uploaded file exceeds maximum permitted size"},
         415: {"model": ErrorResponse, "description": "Unsupported file format or invalid magic bytes"},
         422: {"model": ErrorResponse, "description": "Workbook structure invalid or zero accepted students"},
-        503: {"model": ErrorResponse, "description": "Import operations disabled by configuration"},
     },
-    dependencies=[Depends(verify_import_authorization)],
 )
 async def preview_workbook_upload(
     request: Request,
@@ -122,14 +55,11 @@ async def preview_workbook_upload(
     response_model=ImportConfirmResponse,
     status_code=status.HTTP_200_OK,
     responses={
-        401: {"model": ErrorResponse, "description": "Missing or invalid administrative import credentials"},
         404: {"model": NotFoundErrorResponse, "description": "Import session not found"},
         409: {"model": ErrorResponse, "description": "Session expired or blocking validation errors present"},
         422: {"model": ErrorResponse, "description": "Candidate database integrity check failed"},
         500: {"model": ErrorResponse, "description": "Dataset activation failure"},
-        503: {"model": ErrorResponse, "description": "Import operations disabled by configuration"},
     },
-    dependencies=[Depends(verify_import_authorization)],
 )
 async def confirm_workbook_import(
     request: Request,
@@ -152,11 +82,6 @@ async def confirm_workbook_import(
     "/versions",
     response_model=DatasetVersionsResponse,
     status_code=status.HTTP_200_OK,
-    responses={
-        401: {"model": ErrorResponse, "description": "Missing or invalid administrative import credentials"},
-        503: {"model": ErrorResponse, "description": "Import operations disabled by configuration"},
-    },
-    dependencies=[Depends(verify_import_authorization)],
 )
 def get_dataset_versions_list(request: Request) -> DatasetVersionsResponse:
     """List all stored persistent dataset versions for audit and rollback."""
@@ -169,13 +94,10 @@ def get_dataset_versions_list(request: Request) -> DatasetVersionsResponse:
     response_model=RollbackResponse,
     status_code=status.HTTP_200_OK,
     responses={
-        401: {"model": ErrorResponse, "description": "Missing or invalid administrative import credentials"},
         404: {"model": NotFoundErrorResponse, "description": "Dataset version not found"},
         422: {"model": ErrorResponse, "description": "Target dataset integrity check failed"},
         500: {"model": ErrorResponse, "description": "Activation rollback failed"},
-        503: {"model": ErrorResponse, "description": "Import operations disabled by configuration"},
     },
-    dependencies=[Depends(verify_import_authorization)],
 )
 async def rollback_dataset(
     request: Request,
@@ -194,11 +116,8 @@ async def rollback_dataset(
     "/{import_id}",
     response_model=dict[str, Any],
     responses={
-        401: {"model": ErrorResponse, "description": "Missing or invalid administrative import credentials"},
         404: {"model": NotFoundErrorResponse, "description": "Import session not found"},
-        503: {"model": ErrorResponse, "description": "Import operations disabled by configuration"},
     },
-    dependencies=[Depends(verify_import_authorization)],
 )
 def get_import_status(
     request: Request,

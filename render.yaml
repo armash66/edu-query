@@ -4,7 +4,7 @@ services:
     env: docker
     dockerfilePath: Dockerfile
     plan: free
-    region: oregon
+    region: singapore
     numInstances: 1
     healthCheckPath: /livez
     envVars:

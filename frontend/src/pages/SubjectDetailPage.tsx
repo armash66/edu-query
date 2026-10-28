@@ -3,21 +3,13 @@ import { useParams, useSearchParams, Link } from 'react-router-dom'
 import {
   ArrowLeft,
   AlertTriangle,
-  Filter,
   CheckCircle,
-  HelpCircle,
-  ArrowUpRight,
   Download,
   ChevronDown,
   Users,
-  UserX,
-  Search,
-  BookOpen,
   Printer,
 } from 'lucide-react'
-import {
-  getSubjectStudents,
-} from '../api/client'
+import { getSubjectStudents, downloadSubjectStudentsExcel } from '../api/client'
 import { exportSubjectRoster } from '../utils/excelExport'
 import {
   ApiError,
@@ -25,17 +17,26 @@ import {
   type SubjectStudentItem,
   type ComponentScoreSchema,
 } from '../api/types'
-import { Pagination } from '../components/Pagination'
-import { LoadingState } from '../components/LoadingState'
-import { ErrorBanner } from '../components/ErrorBanner'
+import { GlassCard } from '../ui/GlassCard'
+import { Button } from '../ui/Button'
+import { StatusBadge } from '../ui/StatusBadge'
+import { SearchField } from '../ui/SearchField'
+import { DataTable, type Column } from '../ui/DataTable'
+import { EmptyState } from '../ui/EmptyState'
+import { ErrorState } from '../ui/ErrorState'
+import { Skeleton } from '../ui/Skeleton'
 
 export const SubjectDetailPage: React.FC = () => {
   const { courseCode } = useParams<{ courseCode: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
 
   const divisionParam = searchParams.get('division') || ''
-  const rawStatus = (searchParams.get('status') || searchParams.get('result') || 'all').toLowerCase()
-  const statusParam = (rawStatus as 'all' | 'passed' | 'failed' | 'absent')
+  const rawStatus = (
+    searchParams.get('status') ||
+    searchParams.get('result') ||
+    'all'
+  ).toLowerCase()
+  const statusParam = rawStatus as 'all' | 'passed' | 'failed' | 'absent'
   const searchParam = searchParams.get('search') || ''
   const pageParam = parseInt(searchParams.get('page') || '1', 10)
 
@@ -43,11 +44,9 @@ export const SubjectDetailPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<ApiError | null>(null)
 
-  const [exportingType, setExportingType] = useState<string | null>(null)
   const [exportMenuOpen, setExportMenuOpen] = useState<boolean>(false)
   const [searchInput, setSearchInput] = useState<string>(searchParam)
   const [printing, setPrinting] = useState<boolean>(false)
-  const [printStudents, setPrintStudents] = useState<SubjectStudentItem[] | null>(null)
 
   const pageSize = 25
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -92,17 +91,6 @@ export const SubjectDetailPage: React.FC = () => {
     }
   }, [fetchCourseStudents])
 
-  const handleDivisionChange = (newDivision: string) => {
-    const nextParams = new URLSearchParams(searchParams)
-    if (newDivision) {
-      nextParams.set('division', newDivision)
-    } else {
-      nextParams.delete('division')
-    }
-    nextParams.set('page', '1')
-    setSearchParams(nextParams)
-  }
-
   const handleStatusChange = (newStatus: 'all' | 'passed' | 'failed' | 'absent') => {
     const nextParams = new URLSearchParams(searchParams)
     if (newStatus !== 'all') {
@@ -114,29 +102,17 @@ export const SubjectDetailPage: React.FC = () => {
     setSearchParams(nextParams)
   }
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSearchSubmit = (val: string) => {
+    setSearchInput(val)
     const nextParams = new URLSearchParams(searchParams)
-    if (searchInput.trim()) {
-      nextParams.set('search', searchInput.trim())
+    if (val.trim()) {
+      nextParams.set('search', val.trim())
     } else {
       nextParams.delete('search')
     }
     nextParams.set('page', '1')
     setSearchParams(nextParams)
   }
-
-  const handlePageChange = (newPage: number) => {
-    const nextParams = new URLSearchParams(searchParams)
-    nextParams.set('page', String(newPage))
-    setSearchParams(nextParams)
-  }
-
-  // Filter matching count
-  let displayedTotal = data?.total_enrolled ?? 0
-  if (statusParam === 'passed') displayedTotal = data?.passed_count ?? 0
-  else if (statusParam === 'failed') displayedTotal = data?.failed_count ?? 0
-  else if (statusParam === 'absent') displayedTotal = data?.absent_count ?? 0
 
   const visibleStudents = useMemo(() => {
     if (!data?.students) return []
@@ -150,85 +126,48 @@ export const SubjectDetailPage: React.FC = () => {
     })
   }, [data?.students, statusParam])
 
-  const studentsToPrint = printStudents && printStudents.length > 0 ? printStudents : visibleStudents
-
-  const handlePrintRoster = async () => {
-    if (!courseCode) return
+  const handlePrintRoster = () => {
     setPrinting(true)
-    try {
-      const currentList = visibleStudents
-      const targetTotal = displayedTotal
-      if (currentList.length >= targetTotal && currentList.length > 0) {
-        setPrintStudents(currentList)
-      } else if (targetTotal <= 100) {
-        const fullRes = await getSubjectStudents(courseCode, {
-          division: divisionParam.trim() || undefined,
-          status: statusParam !== 'all' ? statusParam : undefined,
-          result: statusParam !== 'all' ? statusParam : undefined,
-          search: searchParam.trim() || undefined,
-          limit: Math.min(Math.max(targetTotal, 1), 100),
-          offset: 0,
-        })
-        const items = fullRes?.students || []
-        const filtered = statusParam === 'all' ? items : items.filter((s) => {
-          const st = (s.status || '').toLowerCase()
-          if (statusParam === 'passed') return st === 'passed'
-          if (statusParam === 'failed') return st === 'failed'
-          if (statusParam === 'absent') return s.is_absent || st === 'absent'
-          return true
-        })
-        setPrintStudents(filtered.length > 0 ? filtered : currentList)
-      } else {
-        const batchSize = 100
-        const pagesNeeded = Math.ceil(Math.min(targetTotal, 1000) / batchSize)
-        const fetchPromises = []
-        for (let i = 0; i < pagesNeeded; i++) {
-          fetchPromises.push(
-            getSubjectStudents(courseCode, {
-              division: divisionParam.trim() || undefined,
-              status: statusParam !== 'all' ? statusParam : undefined,
-              result: statusParam !== 'all' ? statusParam : undefined,
-              search: searchParam.trim() || undefined,
-              limit: batchSize,
-              offset: i * batchSize,
-            })
-          )
-        }
-        const pages = await Promise.all(fetchPromises)
-        const allItems = pages.flatMap((p) => p?.students || [])
-        const filtered = statusParam === 'all' ? allItems : allItems.filter((s) => {
-          const st = (s.status || '').toLowerCase()
-          if (statusParam === 'passed') return st === 'passed'
-          if (statusParam === 'failed') return st === 'failed'
-          if (statusParam === 'absent') return s.is_absent || st === 'absent'
-          return true
-        })
-        setPrintStudents(filtered.length > 0 ? filtered : currentList)
-      }
-    } catch {
-      setPrintStudents(visibleStudents)
-    } finally {
-      setTimeout(() => {
-        window.print()
-        setPrinting(false)
-      }, 150)
-    }
+    setTimeout(() => {
+      window.print()
+      setPrinting(false)
+    }, 150)
   }
 
   const handleExportExcel = async (type: 'all' | 'passed' | 'failed' | 'absent') => {
     if (!courseCode) return
-    setExportingType(type)
     try {
+      // 1. Try server-side real .xlsx endpoint
+      try {
+        const blob = await downloadSubjectStudentsExcel(
+          courseCode,
+          type,
+          divisionParam.trim() || null
+        )
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `EduQuery_${courseCode}_${type}.xlsx`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        return
+      } catch (serverErr) {
+        console.warn('Server-side subject xlsx export failed, falling back to client CSV export', serverErr)
+      }
+
+      // 2. Client-side fallback to RFC 4180 CSV
       let recordsToExport: SubjectStudentItem[] = []
       const currentList = data?.students || []
       const targetTotal =
         type === 'passed'
-          ? (data?.passed_count ?? 0)
+          ? data?.passed_count ?? 0
           : type === 'failed'
-          ? (data?.failed_count ?? 0)
+          ? data?.failed_count ?? 0
           : type === 'absent'
-          ? (data?.absent_count ?? 0)
-          : (data?.total_enrolled ?? 0)
+          ? data?.absent_count ?? 0
+          : data?.total_enrolled ?? 0
 
       if (targetTotal <= 200) {
         const fullRes = await getSubjectStudents(courseCode, {
@@ -239,23 +178,6 @@ export const SubjectDetailPage: React.FC = () => {
           offset: 0,
         })
         recordsToExport = fullRes?.students || []
-      } else {
-        const batchSize = 200
-        const pagesNeeded = Math.ceil(targetTotal / batchSize)
-        const fetchPromises = []
-        for (let i = 0; i < pagesNeeded; i++) {
-          fetchPromises.push(
-            getSubjectStudents(courseCode, {
-              division: divisionParam.trim() || undefined,
-              result: type === 'all' ? undefined : type,
-              status: type === 'all' ? undefined : type,
-              limit: batchSize,
-              offset: i * batchSize,
-            })
-          )
-        }
-        const pages = await Promise.all(fetchPromises)
-        recordsToExport = pages.flatMap((p) => p?.students || [])
       }
 
       if (recordsToExport.length === 0) {
@@ -276,664 +198,476 @@ export const SubjectDetailPage: React.FC = () => {
       )
     } catch {
       alert(`Failed to download ${type} students Excel workbook. Please try again.`)
-    } finally {
-      setExportingType(null)
     }
   }
 
-  if (loading && !data) {
-    return <LoadingState message={`Retrieving student roster for subject "${courseCode}"...`} />
+  const columns: Column<SubjectStudentItem>[] = [
+    {
+      key: 'seat_no',
+      header: 'Seat No',
+      sticky: true,
+      sortable: true,
+      render: (row) => (
+        <span className="font-mono" style={{ fontWeight: 600 }}>
+          {row.seat_no || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'roll_no',
+      header: 'Roll No',
+      sortable: true,
+      render: (row) => (
+        <span className="tabular-nums font-mono" style={{ color: 'var(--text-secondary)' }}>
+          {row.roll_no || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'name',
+      header: 'Student Name',
+      sortable: true,
+      render: (row) => (
+        <Link
+          to={`/students/${row.student_id}`}
+          style={{
+            fontWeight: 600,
+            color: 'var(--text)',
+            textDecoration: 'none',
+          }}
+        >
+          {row.name}
+        </Link>
+      ),
+    },
+    {
+      key: 'division',
+      header: 'Div',
+      sortable: true,
+      align: 'center',
+      render: (row) => (
+        <span
+          style={{
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            padding: '2px 6px',
+            borderRadius: 'var(--radius-xs)',
+            background: 'var(--surface-hover)',
+          }}
+        >
+          {row.division || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'components',
+      header: 'Component Marks',
+      render: (row) => {
+        const entries = Object.entries(row.components || {})
+        if (entries.length === 0) return <span style={{ color: 'var(--text-muted)' }}>—</span>
+
+        return (
+          <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
+            {entries.map(([cName, sc]: [string, ComponentScoreSchema]) => (
+              <span
+                key={cName}
+                style={{
+                  fontSize: '11px',
+                  padding: '1px 5px',
+                  borderRadius: 'var(--radius-xs)',
+                  background: 'var(--surface-hover)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                {cName}:{' '}
+                <strong className="font-mono tabular-nums">
+                  {sc.marks !== null ? sc.marks : sc.raw_text || '—'}
+                </strong>
+              </span>
+            ))}
+          </div>
+        )
+      },
+    },
+    {
+      key: 'total_marks',
+      header: 'Total Marks',
+      sortable: true,
+      align: 'right',
+      render: (row) => (
+        <span className="tabular-nums font-mono" style={{ fontWeight: 700 }}>
+          {row.total_marks ?? '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      sortable: true,
+      align: 'center',
+      render: (row) => {
+        const isPassed = (row.status || '').toLowerCase() === 'passed'
+        const isFailed = (row.status || '').toLowerCase() === 'failed'
+
+        return (
+          <StatusBadge
+            tone={isPassed ? 'pass' : isFailed ? 'fail' : 'warn'}
+            size="sm"
+            label={row.status || 'Pending'}
+          />
+        )
+      },
+    },
+  ]
+
+  if (loading) {
+    return (
+      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: 'var(--space-6) var(--space-4)' }}>
+        <Skeleton height="36px" width="200px" style={{ marginBottom: 'var(--space-4)' }} />
+        <Skeleton height="140px" radius="var(--radius-card)" style={{ marginBottom: 'var(--space-6)' }} />
+        <Skeleton height="320px" radius="var(--radius-card)" />
+      </div>
+    )
   }
 
-
+  if (error || !data) {
+    return (
+      <div style={{ maxWidth: '800px', margin: '4rem auto', padding: '0 var(--space-4)' }}>
+        <ErrorState
+          title="Could not load subject roster"
+          message={error?.message || 'Database error retrieving course roster.'}
+          onRetry={fetchCourseStudents}
+        />
+      </div>
+    )
+  }
 
   return (
-    <div>
-      <style>{`
-        @media screen {
-          .print-subject-view {
-            display: none !important;
-          }
-        }
-        @page {
-          size: landscape;
-          margin: 10mm 12mm;
-        }
-        @media print {
-          body {
-            background: #ffffff !important;
-            color: #0f172a !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          body * {
-            visibility: hidden;
-          }
-          .sidebar, .top-bar, .top-header, .header, .card, nav, button, select, input, .pagination {
-            display: none !important;
-          }
-          .print-subject-view, .print-subject-view * {
-            visibility: visible;
-          }
-          .print-subject-view {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            display: block !important;
-            background: #ffffff !important;
-            color: #0f172a !important;
-            box-sizing: border-box !important;
-          }
-          .print-subject-view table {
-            display: table !important;
-            width: 100% !important;
-            border-collapse: collapse !important;
-            table-layout: fixed !important;
-          }
-          .print-subject-view thead {
-            display: table-header-group !important;
-          }
-          .print-subject-view tbody {
-            display: table-row-group !important;
-          }
-          .print-subject-view tr {
-            display: table-row !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-          .print-subject-view th, .print-subject-view td {
-            display: table-cell !important;
-            border: 1px solid #cbd5e1 !important;
-            padding: 5px 7px !important;
-            font-size: 8.5pt !important;
-            line-height: 1.3 !important;
-          }
-          .print-subject-view th {
-            background-color: #f1f5f9 !important;
-            font-weight: 700 !important;
-            color: #0f172a !important;
-            text-align: left;
-          }
-        }
-      `}</style>
-
-      {/* Top Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+    <div
+      style={{
+        maxWidth: '1200px',
+        margin: '0 auto',
+        padding: 'var(--space-6) var(--space-4) var(--space-12)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-6)',
+      }}
+    >
+      {/* Back Link */}
+      <div>
         <Link
           to="/subjects"
-          className="btn btn-secondary btn-sm"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 'var(--space-2)',
+            fontSize: 'var(--text-sm)',
+            fontWeight: 500,
+            color: 'var(--text)',
+            textDecoration: 'none',
+            padding: '6px 12px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface-hover)',
+          }}
         >
-          <ArrowLeft size={14} /> Back to Course Catalog
+          <ArrowLeft size={16} />
+          <span>Back to Course Catalog</span>
         </Link>
       </div>
 
-      {error && (
-        <ErrorBanner
-          error={error}
-          title="Could not load subject roster"
-          onRetry={fetchCourseStudents}
-        />
-      )}
-
-      {data && (
-        <>
-          {/* Course Details Header Card */}
-          <div className="card" style={{ marginBottom: '1.5rem' }}>
-            <div className="card-body">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                    <span className="badge badge-neutral" style={{ fontFamily: 'monospace' }}>
-                      {data.course_code}
-                    </span>
-                    {data.kind && (
-                      <span className="badge badge-info" style={{ textTransform: 'capitalize' }}>
-                        {data.kind}
-                      </span>
-                    )}
-                    {data.credits != null && (
-                      <span className="badge badge-neutral">{data.credits} Credits</span>
-                    )}
-                  </div>
-                  <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 0.25rem 0' }}>
-                    {data.course_name}
-                  </h2>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Unified student evaluation roster showing passed, failed, and absent candidates
-                  </div>
-                </div>
-
-                {/* Action Buttons: Print Roster & Export Menu */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={handlePrintRoster}
-                    disabled={printing || displayedTotal === 0}
-                    className="btn btn-secondary btn-sm"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
-                    title="Print complete filtered subject roster"
-                  >
-                    <Printer size={14} />
-                    <span>{printing ? 'Preparing Print...' : 'Print Roster'}</span>
-                  </button>
-
-                  <div style={{ position: 'relative' }}>
-                    <button
-                      type="button"
-                      onClick={() => setExportMenuOpen((prev) => !prev)}
-                      disabled={exportingType !== null}
-                      className="btn btn-secondary btn-sm"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}
-                      title="Export subject roster to Excel (.xlsx)"
-                      aria-expanded={exportMenuOpen}
-                      aria-label="Export Course Roster Menu"
-                    >
-                      <Download size={14} />
-                      <span>{exportingType ? 'Exporting...' : 'Export (.xlsx)'}</span>
-                      <ChevronDown size={13} style={{ transform: exportMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
-                    </button>
-
-                  {exportMenuOpen && (
-                    <>
-                      <div
-                        style={{ position: 'fixed', inset: 0, zIndex: 40 }}
-                        onClick={() => setExportMenuOpen(false)}
-                      />
-                      <div
-                        style={{
-                          position: 'absolute',
-                          right: 0,
-                          top: 'calc(100% + 4px)',
-                          backgroundColor: '#ffffff',
-                          borderRadius: '6px',
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                          border: '1px solid #e2e8f0',
-                          minWidth: '220px',
-                          zIndex: 50,
-                          padding: '0.35rem 0',
-                          textAlign: 'left',
-                        }}
-                      >
-                        <div
-                          style={{
-                            padding: '0.35rem 0.75rem',
-                            fontSize: '0.7rem',
-                            fontWeight: 700,
-                            color: '#64748b',
-                            borderBottom: '1px solid #f1f5f9',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em',
-                          }}
-                        >
-                          Export {data.course_code} Rosters
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setExportMenuOpen(false)
-                            handleExportExcel('all')
-                          }}
-                          disabled={exportingType !== null}
-                          className="dropdown-item-btn"
-                          title="Download complete subject enrollment as Excel (.xlsx)"
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '0.5rem 0.75rem',
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            fontSize: '0.8rem',
-                            color: '#1e293b',
-                          }}
-                        >
-                          <Users size={14} style={{ color: '#0284c7' }} />
-                          <span>All Students (.xlsx)</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setExportMenuOpen(false)
-                            handleExportExcel('passed')
-                          }}
-                          disabled={exportingType !== null || data.passed_count === 0}
-                          className="dropdown-item-btn"
-                          title="Download passed students as Excel (.xlsx)"
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '0.5rem 0.75rem',
-                            background: 'none',
-                            border: 'none',
-                            cursor: data.passed_count === 0 ? 'not-allowed' : 'pointer',
-                            opacity: data.passed_count === 0 ? 0.5 : 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            fontSize: '0.8rem',
-                            color: '#065f46',
-                          }}
-                        >
-                          <CheckCircle size={14} style={{ color: '#10b981' }} />
-                          <span>Passed Students ({data.passed_count})</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setExportMenuOpen(false)
-                            handleExportExcel('failed')
-                          }}
-                          disabled={exportingType !== null || data.failed_count === 0}
-                          className="dropdown-item-btn"
-                          title="Download confirmed failed students as Excel (.xlsx)"
-                          style={{
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '0.5rem 0.75rem',
-                            background: 'none',
-                            border: 'none',
-                            cursor: data.failed_count === 0 ? 'not-allowed' : 'pointer',
-                            opacity: data.failed_count === 0 ? 0.5 : 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem',
-                            fontSize: '0.8rem',
-                            color: '#991b1b',
-                          }}
-                        >
-                          <AlertTriangle size={14} style={{ color: '#ef4444' }} />
-                          <span>Failed Students ({data.failed_count})</span>
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+      {/* Course Details Header Card */}
+      <GlassCard variant="glass-2" padding="lg">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-4)',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-1)' }}>
+              <span className="font-mono" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, padding: '2px 8px', borderRadius: 'var(--radius-xs)', background: 'var(--surface-hover)', color: 'var(--text)' }}>
+                {data.course_code}
+              </span>
+              {data.kind && (
+                <span style={{ fontSize: 'var(--text-xs)', textTransform: 'capitalize', padding: '2px 8px', borderRadius: 'var(--radius-xs)', background: 'var(--surface-hover)', color: 'var(--text-secondary)' }}>
+                  {data.kind}
+                </span>
+              )}
+              {data.credits != null && (
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                  {data.credits} Credits
+                </span>
+              )}
             </div>
+
+            <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--text)', margin: '0 0 var(--space-1) 0' }}>
+              {data.course_name}
+            </h1>
+            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
+              Unified student evaluation roster showing passed, failed, and absent candidates
+            </p>
           </div>
 
-            {/* Course Metrics Ribbon */}
-            <div style={{ padding: '0.85rem 1.25rem', backgroundColor: '#fafbfc', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '1.75rem', flexWrap: 'wrap', fontSize: '0.85rem' }}>
-              <div>
-                Total Enrolled: <strong>{data.total_enrolled}</strong>
-              </div>
-              <div style={{ color: '#065f46', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <CheckCircle size={14} style={{ color: '#10b981' }} />
-                Passed: <strong>{data.passed_count}</strong>
-              </div>
-              <div style={{ color: '#991b1b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <AlertTriangle size={14} style={{ color: '#ef4444' }} />
-                Failed: <strong>{data.failed_count}</strong>
-              </div>
-              <div style={{ color: (data.absent_count ?? 0) > 0 ? '#92400e' : '#64748b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <UserX size={14} style={{ color: (data.absent_count ?? 0) > 0 ? '#d97706' : '#94a3b8' }} />
-                Absent: <strong>{data.absent_count ?? 0}</strong>
-              </div>
-              <div style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <HelpCircle size={14} style={{ color: '#94a3b8' }} />
-                Unclassified: <strong>{data.unresolved_count ?? 0}</strong>
-              </div>
-              <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                <span style={{ fontWeight: 700, color: data.pass_percentage >= 50 ? '#059669' : '#b91c1c' }}>
-                  Pass Percentage: {data.pass_percentage.toFixed(1)}%
-                </span>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }} title={data.denominator_explanation}>
-                  {data.denominator_explanation || 'Passed / (Passed + Failed) [excludes absent and unclassified records]'}
-                </span>
-              </div>
-            </div>
-          </div>
+          {/* Action Buttons: Print Roster & Export Menu */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', position: 'relative' }}>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={printing}
+              onClick={handlePrintRoster}
+              icon={<Printer size={14} />}
+            >
+              Print Roster
+            </Button>
 
-          {/* Filters & Search Control Card */}
-          <div className="card" style={{ marginBottom: '1rem', padding: '0.75rem 1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-              {/* Search Bar */}
-              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: '1 1 260px' }}>
-                <div style={{ position: 'relative', width: '100%' }}>
-                  <Search
-                    size={15}
+            <div style={{ position: 'relative' }}>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setExportMenuOpen((prev) => !prev)}
+                icon={<Download size={14} />}
+                iconPosition="left"
+                aria-label="Export Course Roster Menu"
+              >
+                <span>Export</span>
+                <ChevronDown size={14} style={{ marginLeft: '4px', transform: exportMenuOpen ? 'rotate(180deg)' : 'none' }} />
+              </Button>
+
+              {exportMenuOpen && (
+                <>
+                  <div
+                    style={{ position: 'fixed', inset: 0, zIndex: 100 }}
+                    onClick={() => setExportMenuOpen(false)}
+                  />
+                  <div
+                    className="glass-3"
                     style={{
                       position: 'absolute',
-                      left: '0.65rem',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: 'var(--text-muted)',
-                    }}
-                  />
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Search by student name, roll no, or seat no..."
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    style={{ paddingLeft: '2rem', fontSize: '0.82rem' }}
-                  />
-                </div>
-                <button type="submit" className="btn btn-secondary btn-sm">
-                  Search
-                </button>
-              </form>
-
-              {/* Status Filter Buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className={`btn btn-xs ${statusParam === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => handleStatusChange('all')}
-                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
-                >
-                  All ({data.total_enrolled})
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-xs ${statusParam === 'passed' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => handleStatusChange('passed')}
-                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
-                >
-                  Passed ({data.passed_count})
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-xs ${statusParam === 'failed' ? 'btn-primary' : 'btn-secondary'}`}
-                  onClick={() => handleStatusChange('failed')}
-                  style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
-                >
-                  Failed ({data.failed_count})
-                </button>
-                {data.absent_count > 0 && (
-                  <button
-                    type="button"
-                    className={`btn btn-xs ${statusParam === 'absent' ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => handleStatusChange('absent')}
-                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
-                  >
-                    Absent ({data.absent_count})
-                  </button>
-                )}
-              </div>
-
-              {/* Division Select */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Filter size={14} style={{ color: 'var(--text-muted)' }} />
-                <select
-                  className="form-control"
-                  style={{ width: '130px', padding: '0.35rem 0.6rem', fontSize: '0.82rem' }}
-                  value={divisionParam}
-                  onChange={(e) => handleDivisionChange(e.target.value)}
-                  aria-label="Filter roster by division"
-                >
-                  <option value="">All Divisions</option>
-                  <option value="A">Division A</option>
-                  <option value="B">Division B</option>
-                  <option value="C">Division C</option>
-                  <option value="D">Division D</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Unified Student Table */}
-          {visibleStudents.length === 0 ? (
-            <div className="card">
-              <div className="card-body" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
-                <div
-                  style={{
-                    width: '52px',
-                    height: '52px',
-                    borderRadius: '50%',
-                    backgroundColor: '#f1f5f9',
-                    color: '#64748b',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 1rem auto',
-                  }}
-                >
-                  <BookOpen size={28} />
-                </div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
-                  No Students Found
-                </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', maxWidth: '440px', margin: '0 auto 1rem auto' }}>
-                  No student records matched the current filter criteria (Status: {statusParam}
-                  {divisionParam ? `, Division: ${divisionParam}` : ''}
-                  {searchParam ? `, Search: "${searchParam}"` : ''}).
-                </p>
-                {(statusParam !== 'all' || divisionParam || searchParam) && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => {
-                      setSearchInput('')
-                      setSearchParams(new URLSearchParams())
+                      right: 0,
+                      top: 'calc(100% + 4px)',
+                      borderRadius: 'var(--radius-sm)',
+                      minWidth: '240px',
+                      zIndex: 101,
+                      padding: 'var(--space-1)',
+                      boxShadow: 'var(--shadow-lg)',
                     }}
                   >
-                    Reset Filters
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="card">
-              <div className="table-responsive">
-                <table className="table" style={{ width: '100%', tableLayout: 'fixed' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '15%' }}>Roll / Seat No</th>
-                      <th style={{ width: '25%' }}>Student Name</th>
-                      <th style={{ width: '10%' }}>Division</th>
-                      <th style={{ width: '22%' }}>Component Scores</th>
-                      <th style={{ width: '12%', textAlign: 'right' }}>Total Marks</th>
-                      <th style={{ width: '14%' }}>Result Status</th>
-                      <th style={{ width: '12%', textAlign: 'right' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleStudents.map((student: SubjectStudentItem) => {
-                      const componentEntries = Object.entries(student.components || {})
+                    <div
+                      style={{
+                        padding: 'var(--space-2) var(--space-3)',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        borderBottom: '1px solid var(--border)',
+                      }}
+                    >
+                      Export {data.course_code} Rosters
+                    </div>
 
-                      let badgeClass = 'badge-neutral'
-                      const sStatus = (student.status || '').toLowerCase()
-                      if (sStatus === 'passed') badgeClass = 'badge-success'
-                      else if (sStatus === 'failed') badgeClass = 'badge-danger'
-                      else if (sStatus === 'absent' || student.is_absent) badgeClass = 'badge-warning'
+                    <button
+                      type="button"
+                      title="Download complete subject enrollment as Excel (.xlsx)"
+                      onClick={() => {
+                        setExportMenuOpen(false)
+                        handleExportExcel('all')
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-2)',
+                        padding: 'var(--space-2) var(--space-3)',
+                        fontSize: 'var(--text-xs)',
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--text)',
+                        cursor: 'pointer',
+                        borderRadius: 'var(--radius-xs)',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <Users size={14} />
+                      <span>Download All (.xlsx)</span>
+                    </button>
 
-                      return (
-                        <tr key={student.student_id}>
-                          <td style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {student.roll_no || student.seat_no || student.student_id}
-                            {student.roll_no && student.seat_no && (
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                Seat: {student.seat_no}
-                              </div>
-                            )}
-                          </td>
+                    <button
+                      type="button"
+                      title="Download passed students as Excel (.xlsx)"
+                      onClick={() => {
+                        setExportMenuOpen(false)
+                        handleExportExcel('passed')
+                      }}
+                      disabled={data.passed_count === 0}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-2)',
+                        padding: 'var(--space-2) var(--space-3)',
+                        fontSize: 'var(--text-xs)',
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--status-success-text)',
+                        cursor: data.passed_count === 0 ? 'not-allowed' : 'pointer',
+                        borderRadius: 'var(--radius-xs)',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <CheckCircle size={14} />
+                      <span>Passed Students ({data.passed_count})</span>
+                    </button>
 
-                          <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <Link
-                              to={`/students/${encodeURIComponent(student.student_id)}`}
-                              style={{ fontWeight: 600, color: 'var(--text-main)', textDecoration: 'none' }}
-                              className="hover-underline"
-                              title={student.name}
-                            >
-                              {student.name}
-                            </Link>
-                            {student.warning && (
-                              <div style={{ fontSize: '0.68rem', color: '#b45309', marginTop: '0.15rem' }}>
-                                {student.warning}
-                              </div>
-                            )}
-                            {student.failure_reason && student.status === 'Failed' && (
-                              <div style={{ fontSize: '0.68rem', color: '#dc2626', marginTop: '0.15rem' }}>
-                                {student.failure_reason}
-                              </div>
-                            )}
-                          </td>
-
-                          <td>{student.division || '—'}</td>
-
-                          <td>
-                            {componentEntries.length === 0 ? (
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>
-                            ) : (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
-                                {componentEntries.map(([name, score]: [string, ComponentScoreSchema]) => {
-                                  const display =
-                                    score.state === 'marked'
-                                      ? score.marks !== null
-                                        ? score.marks
-                                        : score.raw_text
-                                      : score.state === 'flagged'
-                                      ? score.flag || 'Flagged'
-                                      : score.state === 'not_enrolled'
-                                      ? 'N/E'
-                                      : score.raw_text || score.state
-
-                                  return (
-                                    <span
-                                      key={name}
-                                      style={{
-                                        fontSize: '0.72rem',
-                                        padding: '0.1rem 0.35rem',
-                                        backgroundColor: '#f1f5f9',
-                                        borderRadius: 'var(--radius-sm)',
-                                        border: '1px solid #cbd5e1',
-                                      }}
-                                    >
-                                      <strong style={{ color: '#475569' }}>{name}:</strong> {display}
-                                    </span>
-                                  )
-                                })}
-                              </div>
-                            )}
-                          </td>
-
-                          <td style={{ textAlign: 'right', fontWeight: 600, fontFamily: 'monospace' }}>
-                            {student.total_marks != null ? student.total_marks : '—'}
-                            {student.max_marks != null && (
-                              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                                {' '}/ {student.max_marks}
-                              </span>
-                            )}
-                          </td>
-
-                          <td>
-                            <span className={`badge ${badgeClass}`}>
-                              {student.status}
-                            </span>
-                            {student.letter_grade && student.status !== 'Absent' && (
-                              <span className="badge badge-neutral" style={{ marginLeft: '0.35rem', fontSize: '0.7rem' }}>
-                                {student.letter_grade}
-                              </span>
-                            )}
-                          </td>
-
-                          <td style={{ textAlign: 'right' }}>
-                            <Link
-                              to={`/students/${encodeURIComponent(student.student_id)}`}
-                              className="btn btn-secondary btn-sm"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                            >
-                              <span>Breakdown</span>
-                              <ArrowUpRight size={13} />
-                            </Link>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Showing {visibleStudents.length > 0 ? (pageParam - 1) * pageSize + 1 : 0} to{' '}
-                  {Math.min(pageParam * pageSize, displayedTotal)} of {displayedTotal} records
-                </div>
-                <Pagination
-                  currentPage={pageParam}
-                  totalItems={displayedTotal}
-                  pageSize={pageSize}
-                  onPageChange={handlePageChange}
-                />
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Dedicated Print-Only Subject Roster Section */}
-      {printing && studentsToPrint && studentsToPrint.length > 0 && (
-        <div className="print-subject-view">
-          <div style={{ marginBottom: '1.25rem', borderBottom: '2px solid #0f172a', paddingBottom: '0.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <h1 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0 0 0.25rem 0', color: '#0f172a' }}>
-                  EduQuery — Subject Evaluation Roster
-                </h1>
-                <div style={{ fontSize: '11pt', fontWeight: 600, color: '#334155' }}>
-                  {data?.course_code} — {data?.course_name}
-                </div>
-              </div>
-              <div style={{ textAlign: 'right', fontSize: '8.5pt', color: '#64748b' }}>
-                <div>Printed: {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
-                <div>Filter: {statusParam.toUpperCase()} {divisionParam ? `| Div: ${divisionParam}` : ''}</div>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '1.5rem', marginTop: '0.5rem', fontSize: '8.5pt', color: '#475569' }}>
-              <span>Total Enrolled: <strong>{data?.total_enrolled}</strong></span>
-              <span>Passed: <strong>{data?.passed_count}</strong></span>
-              <span>Failed: <strong>{data?.failed_count}</strong></span>
-              <span>Absent: <strong>{data?.absent_count}</strong></span>
-              <span>Pass Rate: <strong>{data?.pass_percentage.toFixed(1)}%</strong></span>
+                    <button
+                      type="button"
+                      title="Download confirmed failed students as Excel (.xlsx)"
+                      onClick={() => {
+                        setExportMenuOpen(false)
+                        handleExportExcel('failed')
+                      }}
+                      disabled={data.failed_count === 0}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-2)',
+                        padding: 'var(--space-2) var(--space-3)',
+                        fontSize: 'var(--text-xs)',
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--status-danger-text)',
+                        cursor: data.failed_count === 0 ? 'not-allowed' : 'pointer',
+                        borderRadius: 'var(--radius-xs)',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <AlertTriangle size={14} />
+                      <span>Failed Students ({data.failed_count})</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th style={{ width: '6%' }}>#</th>
-                <th style={{ width: '12%' }}>Roll No</th>
-                <th style={{ width: '12%' }}>Seat No</th>
-                <th style={{ width: '26%' }}>Student Name</th>
-                <th style={{ width: '6%', textAlign: 'center' }}>Div</th>
-                <th style={{ width: '18%' }}>Component Marks</th>
-                <th style={{ width: '10%', textAlign: 'right' }}>Total</th>
-                <th style={{ width: '10%', textAlign: 'center' }}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {studentsToPrint.map((st, idx) => {
-                const compStr = Object.entries(st.components || {})
-                  .map(([name, score]) => `${name}: ${score.raw_text || (score.marks != null ? score.marks : '—')}`)
-                  .join(', ')
-                return (
-                  <tr key={`print-subject-${st.student_id}-${idx}`}>
-                    <td>{idx + 1}</td>
-                    <td style={{ fontWeight: 600 }}>{st.roll_no || '—'}</td>
-                    <td>{st.seat_no || '—'}</td>
-                    <td>{st.name}</td>
-                    <td style={{ textAlign: 'center' }}>{st.division || '—'}</td>
-                    <td>{compStr || '—'}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{st.total_marks != null ? st.total_marks : '—'}</td>
-                    <td style={{ textAlign: 'center', fontWeight: 600, color: (st.status || '').toLowerCase() === 'passed' ? '#065f46' : (st.status || '').toLowerCase() === 'failed' ? '#991b1b' : '#92400e' }}>
-                      {st.status}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
         </div>
+
+        {/* Metrics Ribbon */}
+        <div
+          style={{
+            padding: 'var(--space-3) var(--space-4)',
+            marginTop: 'var(--space-4)',
+            borderTop: '1px solid var(--border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-4)',
+            fontSize: 'var(--text-xs)',
+          }}
+        >
+          <div style={{ display: 'flex', gap: 'var(--space-4)', flexWrap: 'wrap' }}>
+            <div>
+              Total Enrolled: <strong className="tabular-nums font-mono">{data.total_enrolled}</strong>
+            </div>
+            <div style={{ color: 'var(--status-success-text)' }}>
+              Passed: <strong className="tabular-nums font-mono">{data.passed_count}</strong>
+            </div>
+            <div style={{ color: 'var(--status-danger-text)' }}>
+              Failed: <strong className="tabular-nums font-mono">{data.failed_count}</strong>
+            </div>
+            {(data.absent_count ?? 0) > 0 && (
+              <div style={{ color: 'var(--status-warning-text)' }}>
+                Absent: <strong className="tabular-nums font-mono">{data.absent_count}</strong>
+              </div>
+            )}
+          </div>
+
+          <div style={{ textAlign: 'right' }}>
+            <span
+              className="tabular-nums font-mono"
+              style={{
+                fontWeight: 700,
+                fontSize: 'var(--text-sm)',
+                color: data.pass_percentage >= 50 ? 'var(--status-success-text)' : 'var(--status-danger-text)',
+              }}
+            >
+              Pass Rate: {data.pass_percentage.toFixed(1)}%
+            </span>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              {data.denominator_explanation || 'Pass rate calculated as Passed / (Passed + Failed)'}
+            </div>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Filter and Search Bar */}
+      <GlassCard variant="glass-1" padding="sm">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-3)',
+          }}
+        >
+          <div style={{ flex: '1 1 280px', maxWidth: '380px' }}>
+            <SearchField
+              placeholder="Search by student name, roll no, or seat no..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onClear={() => handleSearchSubmit('')}
+            />
+          </div>
+
+          {/* Status Filter Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            <Button
+              size="sm"
+              variant={statusParam === 'all' ? 'primary' : 'secondary'}
+              onClick={() => handleStatusChange('all')}
+            >
+              All ({data.total_enrolled})
+            </Button>
+            <Button
+              size="sm"
+              variant={statusParam === 'passed' ? 'primary' : 'secondary'}
+              onClick={() => handleStatusChange('passed')}
+            >
+              Passed ({data.passed_count})
+            </Button>
+            <Button
+              size="sm"
+              variant={statusParam === 'failed' ? 'primary' : 'secondary'}
+              onClick={() => handleStatusChange('failed')}
+            >
+              Failed ({data.failed_count})
+            </Button>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Student List Table */}
+      {visibleStudents.length === 0 ? (
+        <EmptyState
+          title="No Students in Roster"
+          description="There are no student records matching the selected status or query."
+        />
+      ) : (
+        <DataTable
+          columns={columns}
+          data={visibleStudents}
+          keyExtractor={(row) => row.student_id}
+          pageSize={pageSize}
+          showDensityToggle
+          defaultDensity="comfortable"
+        />
       )}
     </div>
   )
 }
+
+export default SubjectDetailPage

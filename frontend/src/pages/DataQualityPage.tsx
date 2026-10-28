@@ -1,15 +1,20 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   ShieldCheck,
-  Info,
   CheckCircle2,
+  AlertCircle,
   Filter,
 } from 'lucide-react'
 import { getDataQuality } from '../api/client'
 import { ApiError, type DataQualityResponse, type DataQualityFindingItem } from '../api/types'
-import { StatusBadge } from '../components/StatusBadge'
+import {
+  GlassCard,
+  StatusBadge,
+  Stat,
+  EmptyState,
+  ErrorState,
+} from '../ui'
 import { LoadingState } from '../components/LoadingState'
-import { ErrorBanner } from '../components/ErrorBanner'
 
 export const DataQualityPage: React.FC = () => {
   const [data, setData] = useState<DataQualityResponse | null>(null)
@@ -45,131 +50,184 @@ export const DataQualityPage: React.FC = () => {
   }, [data?.findings, severityFilter])
 
   return (
-    <div>
-      {/* Header Card */}
-      <div className="card" style={{ marginBottom: '1.25rem' }}>
-        <div className="card-body">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <ShieldCheck size={20} style={{ color: 'var(--primary)' }} />
+    <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Page Header */}
+      <GlassCard elevation={1}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <ShieldCheck size={22} style={{ color: 'var(--text-primary)' }} />
+              <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
                 Data Quality & Ingestion Diagnostics
-              </h2>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Audits marksheet structure, component reconciliations, and academic rule consistency.
-              </div>
+              </h1>
             </div>
+            <p style={{ margin: 0, fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+              Audits marksheet structure, component reconciliations, and academic rule consistency.
+            </p>
+          </div>
 
-            {/* Severity Filter Tabs */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Filter size={15} style={{ color: 'var(--text-muted)' }} />
-              <div style={{ display: 'flex', gap: '0.25rem', backgroundColor: '#f1f5f9', padding: '0.2rem', borderRadius: 'var(--radius-md)' }}>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${severityFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ border: 'none', padding: '0.3rem 0.6rem', fontSize: '0.78rem' }}
-                  onClick={() => setSeverityFilter('all')}
-                >
-                  All ({data?.findings?.length || 0})
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${severityFilter === 'error' ? 'btn-danger' : 'btn-secondary'}`}
-                  style={{ border: 'none', padding: '0.3rem 0.6rem', fontSize: '0.78rem' }}
-                  onClick={() => setSeverityFilter('error')}
-                >
-                  Errors ({data?.error_count || 0})
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${severityFilter === 'warning' ? 'btn-warning' : 'btn-secondary'}`}
-                  style={{ border: 'none', padding: '0.3rem 0.6rem', fontSize: '0.78rem' }}
-                  onClick={() => setSeverityFilter('warning')}
-                >
-                  Warnings ({data?.warning_count || 0})
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-sm ${severityFilter === 'info' ? 'btn-secondary' : 'btn-secondary'}`}
-                  style={{ border: 'none', padding: '0.3rem 0.6rem', fontSize: '0.78rem', backgroundColor: severityFilter === 'info' ? '#bfdbfe' : undefined }}
-                  onClick={() => setSeverityFilter('info')}
-                >
-                  Info ({data?.info_count || 0})
-                </button>
-              </div>
+          {/* Severity Filter Tabs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Filter size={15} style={{ color: 'var(--text-tertiary)' }} />
+            <div
+              role="group"
+              aria-label="Filter findings by severity"
+              style={{
+                display: 'inline-flex',
+                background: 'var(--glass-base)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: 'var(--radius-pill)',
+                padding: '2px',
+                gap: '2px',
+              }}
+            >
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  background: severityFilter === 'all' ? 'var(--text-primary)' : 'transparent',
+                  color: severityFilter === 'all' ? 'var(--bg-canvas)' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-pill)',
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-fast)',
+                }}
+                onClick={() => setSeverityFilter('all')}
+              >
+                All ({data?.findings?.length || 0})
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  background: severityFilter === 'error' ? 'var(--status-fail)' : 'transparent',
+                  color: severityFilter === 'error' ? '#ffffff' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-pill)',
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-fast)',
+                }}
+                onClick={() => setSeverityFilter('error')}
+              >
+                Errors ({data?.error_count || 0})
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  background: severityFilter === 'warning' ? 'var(--status-warn)' : 'transparent',
+                  color: severityFilter === 'warning' ? '#000000' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-pill)',
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-fast)',
+                }}
+                onClick={() => setSeverityFilter('warning')}
+              >
+                Warnings ({data?.warning_count || 0})
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{
+                  background: severityFilter === 'info' ? 'var(--status-info)' : 'transparent',
+                  color: severityFilter === 'info' ? '#ffffff' : 'var(--text-secondary)',
+                  border: 'none',
+                  borderRadius: 'var(--radius-pill)',
+                  padding: '4px 10px',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all var(--transition-fast)',
+                }}
+                onClick={() => setSeverityFilter('info')}
+              >
+                Info ({data?.info_count || 0})
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      </GlassCard>
 
-      {error && <ErrorBanner error={error} title="Could not load data quality report" onRetry={fetchQuality} />}
+      {error && (
+        <ErrorState
+          error={error.message || 'Could not load data quality report'}
+          onRetry={fetchQuality}
+        />
+      )}
 
       {loading && !data ? (
         <LoadingState message="Auditing active marksheet dataset against data-quality rules..." />
       ) : data ? (
         <>
           {/* Quality Summary Ribbon */}
-          <div className="grid-3" style={{ marginBottom: '1.5rem' }}>
-            <div className="card">
-              <div className="card-body">
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+            <GlassCard elevation={2}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Overall Integrity Status
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginTop: '0.3rem' }}>
-                  <span style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono)' }}>
                     {data.quality_score}%
                   </span>
                   <StatusBadge
-                    status={
+                    tone={
                       data.health_status === 'Good'
-                        ? 'passed'
+                        ? 'pass'
                         : data.health_status === 'Needs Attention'
-                        ? 'warning'
-                        : 'failed'
+                        ? 'warn'
+                        : 'fail'
                     }
-                    text={data.health_status}
-                  />
+                  >
+                    {data.health_status}
+                  </StatusBadge>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
                   Evaluated across {data.total_checks} automated integrity checks
                 </div>
               </div>
-            </div>
+            </GlassCard>
 
-            <div className="card">
-              <div className="card-body">
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Blocking Anomalies
-                </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: data.error_count > 0 ? '#ef4444' : '#10b981', marginTop: '0.2rem' }}>
-                  {data.error_count}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  Critical structural or mathematical errors
-                </div>
-              </div>
-            </div>
+            <Stat
+              label="Blocking Anomalies"
+              value={data.error_count}
+              subtext="Critical structural or mathematical errors"
+            />
 
-            <div className="card">
-              <div className="card-body">
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                  Warnings & Non-Blocking Notes
-                </div>
-                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f59e0b', marginTop: '0.2rem' }}>
-                  {data.warning_count + data.info_count}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  {data.warning_count} warnings, {data.info_count} informational observations
-                </div>
-              </div>
-            </div>
+            <Stat
+              label="Warnings & Observations"
+              value={data.warning_count + data.info_count}
+              subtext={`${data.warning_count} warnings, ${data.info_count} informational`}
+            />
           </div>
 
           {/* Clean Report Notice */}
-          <div className="alert alert-info" style={{ marginBottom: '1.25rem', fontSize: '0.82rem' }}>
-            <Info size={16} style={{ flexShrink: 0 }} />
+          <div
+            style={{
+              padding: '0.875rem 1.25rem',
+              borderRadius: 'var(--radius-lg)',
+              background: 'var(--status-info-subtle)',
+              border: '1px solid var(--glass-border)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.75rem',
+              fontSize: '0.8125rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <AlertCircle size={18} style={{ color: 'var(--text-primary)', flexShrink: 0, marginTop: '2px' }} />
             <div>
-              <strong>Audit Scope Disclaimer:</strong> A clean report means the configured integrity rules
+              <strong style={{ color: 'var(--text-primary)' }}>Audit Scope Disclaimer:</strong> A clean report means the configured integrity rules
               detected no structural contradictions or component mismatches. It does not certify that external
               transcription errors in source sheets are impossible.
             </div>
@@ -177,83 +235,83 @@ export const DataQualityPage: React.FC = () => {
 
           {/* Findings Table */}
           {filteredFindings.length === 0 ? (
-            <div className="card">
-              <div className="card-body" style={{ textAlign: 'center', padding: '3rem 1.5rem' }}>
-                <div
-                  style={{
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ecfdf5',
-                    color: '#10b981',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 1rem auto',
-                  }}
-                >
-                  <CheckCircle2 size={32} />
-                </div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#065f46', marginBottom: '0.4rem' }}>
-                  {severityFilter === 'all'
+            <GlassCard elevation={1}>
+              <EmptyState
+                icon={<CheckCircle2 size={36} style={{ color: 'var(--status-pass)' }} />}
+                title={
+                  severityFilter === 'all'
                     ? 'No Data Quality Findings'
-                    : `No ${severityFilter} findings detected`}
-                </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '480px', margin: '0 auto' }}>
-                  All executed automated checks completed without raising findings in this category.
-                </p>
-              </div>
-            </div>
+                    : `No ${severityFilter} findings detected`
+                }
+                description="All executed automated checks completed without raising findings in this category."
+              />
+            </GlassCard>
           ) : (
-            <div className="card">
-              <div className="card-header">
-                <div className="card-title">
-                  <span>Detailed Quality Findings</span>
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <GlassCard elevation={1} padding="none">
+              <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0, color: 'var(--text-primary)' }}>
+                  Detailed Quality Findings
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
                   Showing {filteredFindings.length} findings
-                </div>
+                </span>
               </div>
 
-              <div className="table-responsive">
-                <table className="table">
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8125rem' }}>
                   <thead>
-                    <tr>
-                      <th style={{ width: '110px' }}>Severity</th>
-                      <th style={{ width: '220px' }}>Problem / Rule</th>
-                      <th>Impact on Analytics</th>
-                      <th>Recommended Action</th>
-                      <th style={{ textAlign: 'right', width: '90px' }}>Count</th>
+                    <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '0.75rem 1.25rem', width: '120px' }}>Severity</th>
+                      <th style={{ padding: '0.75rem 1.25rem', width: '260px' }}>Problem / Rule</th>
+                      <th style={{ padding: '0.75rem 1.25rem' }}>Impact on Analytics</th>
+                      <th style={{ padding: '0.75rem 1.25rem' }}>Recommended Action</th>
+                      <th style={{ padding: '0.75rem 1.25rem', textAlign: 'right', width: '90px' }}>Count</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredFindings.map((finding: DataQualityFindingItem) => {
                       const sev = finding.severity.toLowerCase()
-                      const statusType = sev === 'error' ? 'error' : sev === 'warning' ? 'warning' : 'info'
+                      const tone = sev === 'error' ? 'fail' : sev === 'warning' ? 'warn' : 'info'
 
                       return (
-                        <tr key={finding.check_id}>
-                          <td>
-                            <StatusBadge status={statusType} text={finding.severity.toUpperCase()} />
+                        <tr
+                          key={finding.check_id}
+                          style={{
+                            borderBottom: '1px solid var(--glass-border)',
+                            transition: 'background var(--transition-fast)',
+                          }}
+                        >
+                          <td style={{ padding: '0.875rem 1.25rem' }}>
+                            <StatusBadge tone={tone}>{finding.severity.toUpperCase()}</StatusBadge>
                           </td>
-                          <td>
-                            <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{finding.title}</div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--text-sub)', marginTop: '0.2rem' }}>
+                          <td style={{ padding: '0.875rem 1.25rem' }}>
+                            <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{finding.title}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                               {finding.problem}
                             </div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.25rem' }}>
+                            <div style={{ fontSize: '0.6875rem', color: 'var(--text-tertiary)', fontFamily: 'var(--font-mono)', marginTop: '0.25rem' }}>
                               {finding.check_id}
                             </div>
                           </td>
-                          <td>
-                            <div style={{ fontSize: '0.82rem', color: 'var(--text-sub)' }}>{finding.impact}</div>
+                          <td style={{ padding: '0.875rem 1.25rem', color: 'var(--text-secondary)' }}>
+                            {finding.impact}
                           </td>
-                          <td>
-                            <div style={{ fontSize: '0.82rem', color: '#1e40af', backgroundColor: '#eff6ff', padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-sm)' }}>
+                          <td style={{ padding: '0.875rem 1.25rem' }}>
+                            <div
+                              style={{
+                                fontSize: '0.78125rem',
+                                color: 'var(--text-primary)',
+                                background: 'var(--glass-base)',
+                                border: '1px solid var(--glass-border)',
+                                padding: '0.4rem 0.6rem',
+                                borderRadius: 'var(--radius-sm)',
+                                lineHeight: 1.4,
+                              }}
+                            >
                               {finding.recommended_action}
                             </div>
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                          <td style={{ padding: '0.875rem 1.25rem', textAlign: 'right', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                             {finding.count.toLocaleString()}
                           </td>
                         </tr>
@@ -262,7 +320,7 @@ export const DataQualityPage: React.FC = () => {
                   </tbody>
                 </table>
               </div>
-            </div>
+            </GlassCard>
           )}
         </>
       ) : null}

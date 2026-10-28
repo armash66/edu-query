@@ -1,21 +1,37 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   BookOpen,
-  Filter,
   ArrowRight,
+  TrendingDown,
+  Layers,
 } from 'lucide-react'
 import {
   getSubjects,
+  getSubjectFailureSummary,
   type SubjectListParams,
 } from '../api/client'
-import { ApiError, type CourseItem, type PaginatedResponse } from '../api/types'
-import { Pagination } from '../components/Pagination'
-import { LoadingState } from '../components/LoadingState'
-import { EmptyState } from '../components/EmptyState'
-import { ErrorBanner } from '../components/ErrorBanner'
+import {
+  ApiError,
+  type CourseItem,
+  type PaginatedResponse,
+  type SubjectFailureSummaryItem,
+} from '../api/types'
+import { GlassCard } from '../ui/GlassCard'
+import { Button } from '../ui/Button'
+import { Tabs } from '../ui/Tabs'
+import { DataTable, type Column } from '../ui/DataTable'
+import { FailureRateBar } from '../ui/FailureRateBar'
+import { EmptyState } from '../ui/EmptyState'
+import { ErrorState } from '../ui/ErrorState'
+import { Listbox } from '../ui/Listbox'
+import { Skeleton } from '../ui/Skeleton'
 
 export const SubjectsCatalogPage: React.FC = () => {
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = searchParams.get('tab') === 'failures' ? 'failures' : 'catalog'
+
   const [courses, setCourses] = useState<CourseItem[]>([])
   const [total, setTotal] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
@@ -24,7 +40,11 @@ export const SubjectsCatalogPage: React.FC = () => {
   const [kindFilter, setKindFilter] = useState<string>('')
   const [divisionFilter, setDivisionFilter] = useState<string>('')
   const [page, setPage] = useState<number>(1)
-  const pageSize = 25
+  const [pageSize, setPageSize] = useState<number>(25)
+
+  // Failures Ranking Data
+  const [failuresSummary, setFailuresSummary] = useState<SubjectFailureSummaryItem[]>([])
+  const [failuresLoading, setFailuresLoading] = useState<boolean>(false)
 
   const fetchCatalog = useCallback(async () => {
     setLoading(true)
@@ -50,207 +70,394 @@ export const SubjectsCatalogPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [kindFilter, divisionFilter, page])
+  }, [kindFilter, divisionFilter, page, pageSize])
+
+  const fetchFailures = useCallback(async () => {
+    setFailuresLoading(true)
+    try {
+      const res = await getSubjectFailureSummary(divisionFilter || undefined)
+      setFailuresSummary(res.summary || [])
+    } catch {
+      // Handled in tab
+    } finally {
+      setFailuresLoading(false)
+    }
+  }, [divisionFilter])
 
   useEffect(() => {
-    fetchCatalog()
-  }, [fetchCatalog])
+    if (activeTab === 'catalog') {
+      fetchCatalog()
+    } else {
+      fetchFailures()
+    }
+  }, [activeTab, fetchCatalog, fetchFailures])
+
+  const handleTabChange = (tabId: string) => {
+    setSearchParams(tabId === 'failures' ? { tab: 'failures' } : {})
+  }
+
+  const columns: Column<CourseItem>[] = [
+    {
+      key: 'code',
+      header: 'Course Code',
+      width: '120px',
+      sticky: true,
+      sortable: true,
+      render: (row) => (
+        <span className="font-mono" style={{ fontWeight: 700 }}>
+          {row.code}
+        </span>
+      ),
+    },
+    {
+      key: 'name',
+      header: 'Course Title',
+      width: '260px',
+      sortable: true,
+      render: (row) => (
+        <div>
+          <div style={{ fontWeight: 600, color: 'var(--text)' }}>{row.name}</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            {(row.components || []).join(' • ') || 'No components defined'}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'kind',
+      header: 'Modality',
+      width: '100px',
+      sortable: true,
+      render: (row) => (
+        <span
+          style={{
+            fontSize: 'var(--text-xs)',
+            textTransform: 'capitalize',
+            padding: '2px 8px',
+            borderRadius: 'var(--radius-xs)',
+            background: 'var(--surface-hover)',
+            fontWeight: 500,
+          }}
+        >
+          {row.kind || 'Theory'}
+        </span>
+      ),
+    },
+    {
+      key: 'credits',
+      header: 'Credits',
+      width: '85px',
+      sortable: true,
+      align: 'right',
+      render: (row) => (
+        <span className="tabular-nums font-mono" style={{ fontWeight: 600 }}>
+          {row.credits ?? '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'enrolled_students_count',
+      header: 'Headcount',
+      width: '105px',
+      sortable: true,
+      align: 'right',
+      render: (row) => (
+        <span className="tabular-nums font-mono">
+          {row.enrolled_students_count ?? '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'passed_students_count',
+      header: 'Passed',
+      width: '95px',
+      sortable: true,
+      align: 'right',
+      render: (row) => (
+        <span className="tabular-nums font-mono" style={{ fontWeight: 600, color: 'var(--text)' }}>
+          {row.passed_students_count !== null && row.passed_students_count !== undefined
+            ? row.passed_students_count
+            : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'failed_students_count',
+      header: 'Failed',
+      width: '95px',
+      sortable: true,
+      align: 'right',
+      render: (row) => {
+        const count = row.failed_students_count ?? 0
+        const totalEnrolled = row.enrolled_students_count || 0
+        const rate = totalEnrolled > 0 ? (count / totalEnrolled) * 100 : 0
+        if (count === 0) {
+          return (
+            <span className="tabular-nums font-mono" style={{ color: 'var(--text-muted)' }}>
+              0
+            </span>
+          )
+        }
+        return (
+          <span
+            className="tabular-nums font-mono"
+            style={{
+              fontWeight: 600,
+              color:
+                rate > 15
+                  ? 'var(--status-danger-text)'
+                  : rate > 5
+                  ? 'var(--status-warning-text)'
+                  : 'var(--text)',
+            }}
+          >
+            {count}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: '140px',
+      align: 'right',
+      render: (row) => (
+        <Link
+          to={`/subjects/${row.code}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            color: 'var(--text)',
+            textDecoration: 'none',
+            padding: '5px 12px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface-hover)',
+            border: '1px solid var(--border)',
+            transition: 'all var(--transition-fast)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span>View Roster</span>
+          <ArrowRight size={13} />
+        </Link>
+      ),
+    },
+  ]
 
   return (
-    <div>
-      {/* Header and Filter Card */}
-      <div className="card" style={{ marginBottom: '1.25rem' }}>
-        <div className="card-body">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <BookOpen size={20} style={{ color: 'var(--primary)' }} />
-                Academic Course Catalog
-              </h2>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Ingested course catalog with curriculum components, credits, and enrollment headcounts. Click <strong>View Roster & Export</strong> on any course to access its subject-wise Pass/Fail Excel export menu.
-              </div>
-            </div>
-
-            {/* Filter Bar */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Filter size={15} style={{ color: 'var(--text-muted)' }} />
-                <select
-                  className="form-control"
-                  style={{ width: '140px', padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
-                  value={kindFilter}
-                  onChange={(e) => {
-                    setKindFilter(e.target.value)
-                    setPage(1)
-                  }}
-                  aria-label="Filter by Modality"
-                >
-                  <option value="">All Modalities</option>
-                  <option value="theory">Theory</option>
-                  <option value="practical">Practical</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <select
-                  className="form-control"
-                  style={{ width: '140px', padding: '0.45rem 0.65rem', fontSize: '0.85rem' }}
-                  value={divisionFilter}
-                  onChange={(e) => {
-                    setDivisionFilter(e.target.value)
-                    setPage(1)
-                  }}
-                  aria-label="Filter by Division"
-                >
-                  <option value="">All Divisions</option>
-                  <option value="A">Division A</option>
-                  <option value="B">Division B</option>
-                  <option value="C">Division C</option>
-                  <option value="D">Division D</option>
-                </select>
-              </div>
-            </div>
+    <div
+      style={{
+        maxWidth: '1280px',
+        margin: '0 auto',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-6)',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 'var(--space-4)',
+        }}
+      >
+        <div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              color: 'var(--text-muted)',
+              letterSpacing: '0.04em',
+              marginBottom: '2px',
+            }}
+          >
+            <BookOpen size={14} />
+            <span>Academic Curriculum</span>
           </div>
+          <h1
+            style={{
+              fontSize: 'var(--text-xl)',
+              fontWeight: 700,
+              color: 'var(--text)',
+              margin: 0,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Academic Course Catalog
+          </h1>
+          <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
+            Ingested course catalog with curriculum components, credits, and enrollment headcounts.
+            Click <strong>View Roster &amp; Export</strong> on any course to access its subject-wise
+            Pass/Fail Excel export menu.
+          </p>
+        </div>
+
+        {/* Tab switcher */}
+        <div>
+          <Tabs
+            activeId={activeTab}
+            onChange={handleTabChange}
+            items={[
+              { id: 'catalog', label: 'All Courses', icon: <Layers size={14} /> },
+              { id: 'failures', label: 'Failure Rankings', icon: <TrendingDown size={14} /> },
+            ]}
+          />
         </div>
       </div>
 
-      {error && <ErrorBanner error={error} title="Could not load course catalog" onRetry={fetchCatalog} />}
+      {/* Filter Bar */}
+      <GlassCard variant="glass-1" padding="sm">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-3)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+            {activeTab === 'catalog' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: '150px' }}>
+                <Listbox
+                  options={[
+                    { value: '', label: 'All Modalities' },
+                    { value: 'theory', label: 'Theory' },
+                    { value: 'practical', label: 'Practical' },
+                  ]}
+                  value={kindFilter}
+                  onChange={(val) => {
+                    setKindFilter(val)
+                    setPage(1)
+                  }}
+                  size="sm"
+                  ariaLabel="Filter by Modality"
+                />
+              </div>
+            )}
 
-      {loading && !courses.length ? (
-        <LoadingState message="Fetching academic course catalog..." />
-      ) : !loading && !courses.length ? (
-        <EmptyState
-          icon={<BookOpen size={44} />}
-          title="No Courses Found"
-          message={
-            kindFilter || divisionFilter
-              ? "No courses matched the selected filters."
-              : "No courses are currently present in the active marksheet dataset."
-          }
-          action={
-            kindFilter || divisionFilter ? (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: '150px' }}>
+              <Listbox
+                options={[
+                  { value: '', label: 'All Divisions' },
+                  { value: 'A', label: 'Division A' },
+                  { value: 'B', label: 'Division B' },
+                  { value: 'C', label: 'Division C' },
+                  { value: 'D', label: 'Division D' },
+                ]}
+                value={divisionFilter}
+                onChange={(val) => {
+                  setDivisionFilter(val)
+                  setPage(1)
+                }}
+                size="sm"
+                ariaLabel="Filter by Division"
+              />
+            </div>
+          </div>
+
+          <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+            {activeTab === 'catalog' ? `${total} Courses Enrolled` : `${failuresSummary.length} Courses Ranked`}
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Tab Content */}
+      {activeTab === 'catalog' ? (
+        loading ? (
+          <GlassCard variant="glass-2" padding="xl" style={{ textAlign: 'center' }}>
+            <Skeleton height="320px" radius="var(--radius-card)" />
+          </GlassCard>
+        ) : error ? (
+          <ErrorState
+            title="Could not load course catalog"
+            message={error.message || 'Database error loading courses.'}
+            onRetry={fetchCatalog}
+          />
+        ) : courses.length === 0 ? (
+          <EmptyState
+            title="No Courses Found"
+            description="There are no courses matching your modality or division filter."
+            action={
+              <Button
+                size="sm"
+                variant="secondary"
                 onClick={() => {
                   setKindFilter('')
                   setDivisionFilter('')
-                  setPage(1)
                 }}
               >
                 Reset Filters
-              </button>
-            ) : (
-              <Link to="/imports" className="btn btn-primary btn-sm">
-                Import Marksheet
-              </Link>
-            )
-          }
-        />
+              </Button>
+            }
+          />
+        ) : (
+          <DataTable
+            columns={columns}
+            data={courses}
+            keyExtractor={(row) => row.code}
+            pageSize={pageSize}
+            serverTotal={total}
+            currentPage={page}
+            onPageChange={(p) => setPage(p)}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize)
+              setPage(1)
+            }}
+            pageSizeOptions={[25, 50, 100]}
+            showDensityToggle
+            defaultDensity="comfortable"
+            onRowClick={(row) => navigate(`/subjects/${row.code}`)}
+          />
+        )
       ) : (
-        <div className="card">
-          <div className="table-responsive">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Course Code</th>
-                  <th>Course Title</th>
-                  <th>Modality</th>
-                  <th>Credits</th>
-                  <th>Evaluated Components</th>
-                  <th style={{ textAlign: 'center' }}>Enrolled</th>
-                  <th style={{ textAlign: 'center' }}>Passed</th>
-                  <th style={{ textAlign: 'center' }}>Failed</th>
-                  <th style={{ textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {courses.map((course) => (
-                  <tr key={course.code}>
-                    <td style={{ fontWeight: 600, fontFamily: 'monospace' }}>
-                      {course.code}
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{course.name}</div>
-                    </td>
-                    <td>
-                      <span className={`badge ${course.kind === 'theory' ? 'badge-info' : 'badge-neutral'}`} style={{ textTransform: 'capitalize' }}>
-                        {course.kind || 'Course'}
-                      </span>
-                    </td>
-                    <td>{course.credits != null ? course.credits : '—'}</td>
-                    <td>
-                      {course.components && course.components.length > 0 ? (
-                        <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                          {course.components.map((comp) => (
-                            <span key={comp} className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
-                              {comp}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>—</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className="badge badge-neutral" style={{ fontSize: '0.8rem', minWidth: '28px', fontWeight: 600 }}>
-                        {course.enrolled_students_count != null ? course.enrolled_students_count.toLocaleString() : '—'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className="badge badge-success" style={{ fontSize: '0.8rem', minWidth: '28px', fontWeight: 600 }}>
-                        {course.passed_students_count != null ? course.passed_students_count.toLocaleString() : '0'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span
-                        className="badge"
-                        style={{
-                          fontSize: '0.8rem',
-                          minWidth: '28px',
-                          fontWeight: 600,
-                          backgroundColor: (course.failed_students_count ?? 0) > 0 ? '#fee2e2' : '#f1f5f9',
-                          color: (course.failed_students_count ?? 0) > 0 ? '#991b1b' : '#64748b',
-                          border: (course.failed_students_count ?? 0) > 0 ? '1px solid #fca5a5' : '1px solid #e2e8f0',
-                        }}
-                      >
-                        {course.failed_students_count != null ? course.failed_students_count.toLocaleString() : '0'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <Link
-                        to={`/subjects/${encodeURIComponent(course.code)}`}
-                        className="btn btn-secondary btn-sm"
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                        title={`View roster and download pass/fail Excel rosters for ${course.code}`}
-                      >
-                        <BookOpen size={13} style={{ color: 'var(--primary)' }} />
-                        <span>View Roster & Export</span>
-                        <ArrowRight size={13} />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Showing {courses.length > 0 ? (page - 1) * pageSize + 1 : 0} to{' '}
-              {Math.min(page * pageSize, total)} of {total.toLocaleString()} courses
+        /* Failures Ranking Tab */
+        failuresLoading ? (
+          <GlassCard variant="glass-2" padding="xl">
+            <Skeleton height="320px" radius="var(--radius-card)" />
+          </GlassCard>
+        ) : failuresSummary.length === 0 ? (
+          <EmptyState
+            title="No Failure Records"
+            description="All students have cleared their enrolled subjects without active backlogs."
+          />
+        ) : (
+          <GlassCard variant="glass-2" padding="lg">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: 'var(--space-3)',
+              }}
+            >
+              {failuresSummary.map((sub) => (
+                <FailureRateBar
+                  key={sub.course_code}
+                  subjectCode={sub.course_code}
+                  subjectName={sub.course_name}
+                  failureRate={sub.failure_rate_percent}
+                  failedStudents={sub.confirmed_failures_count}
+                  totalStudents={sub.total_enrolled}
+                  onClick={() => navigate(`/subjects/${sub.course_code}`)}
+                />
+              ))}
             </div>
-            <Pagination
-              currentPage={page}
-              totalItems={total}
-              pageSize={pageSize}
-              onPageChange={(p) => setPage(p)}
-            />
-          </div>
-        </div>
+          </GlassCard>
+        )
       )}
     </div>
   )
 }
+
+export default SubjectsCatalogPage

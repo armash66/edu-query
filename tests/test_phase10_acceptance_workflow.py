@@ -116,26 +116,10 @@ def test_phase10_full_end_to_end_acceptance_workflow(tmp_path: Path, monkeypatch
     assert live_resp.status_code == 200
     assert live_resp.json()["status"] == "alive"
 
-    # Step 2: Upload security - Reject missing auth credentials
+    # Step 2: Upload valid workbook directly without requiring auth credentials
     wb_bio = _build_test_workbook(20)
-    up_no_auth = client.post(
-        "/api/v1/imports/preview",
-        files={"file": ("test.xlsx", wb_bio.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
-    )
-    assert up_no_auth.status_code == 401
-
-    # Step 3: Upload security - Reject invalid auth credentials
-    up_bad_auth = client.post(
-        "/api/v1/imports/preview",
-        headers={"X-EduQuery-Import-Key": "wrong-key"},
-        files={"file": ("test.xlsx", wb_bio.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
-    )
-    assert up_bad_auth.status_code in (401, 403)
-
-    # Step 4: Upload valid workbook and inspect preview
     preview_resp = client.post(
         "/api/v1/imports/preview",
-        headers=auth_headers,
         files={"file": ("semester_results.xlsx", wb_bio.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")},
     )
     assert preview_resp.status_code == 200

@@ -91,8 +91,10 @@ describe('SubjectFailuresPage', () => {
       expect(screen.getByText('Analysis of Algorithms')).toBeInTheDocument()
     })
 
-    const select = screen.getByLabelText(/filter courses by division/i)
-    fireEvent.change(select, { target: { value: 'A' } })
+    const trigger = screen.getByLabelText(/filter courses by division/i)
+    fireEvent.click(trigger)
+    const option = screen.getByRole('option', { name: /Division A/i })
+    fireEvent.click(option)
 
     await waitFor(() => {
       expect(summarySpy).toHaveBeenCalledWith('A')

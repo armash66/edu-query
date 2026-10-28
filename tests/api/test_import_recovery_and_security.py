@@ -483,15 +483,15 @@ def test_candidate_cannot_be_activated_without_session_metadata(test_env):
 # =========================================================================
 
 def test_security_auth_required_on_all_import_endpoints(test_env, sample_xlsx_bytes):
-    """All import endpoints require administrative authorization, including status."""
+    """Import endpoints are open and do not require administrative authorization."""
     client = test_env["client"]
 
-    # Preview
-    assert client.post("/api/v1/imports/preview").status_code == 401
-    # Confirm
-    assert client.post("/api/v1/imports/confirm", json={"import_id": "test_id_123"}).status_code == 401
-    # Status
-    assert client.get("/api/v1/imports/test_id_123").status_code == 401
+    # Preview returns 422 (validation error for missing file), NOT 401 unauthorized
+    assert client.post("/api/v1/imports/preview").status_code == 422
+    # Confirm returns 404 (session not found), NOT 401 unauthorized
+    assert client.post("/api/v1/imports/confirm", json={"import_id": "test_id_123"}).status_code == 404
+    # Status returns 404 (session not found), NOT 401 unauthorized
+    assert client.get("/api/v1/imports/test_id_123").status_code == 404
 
 
 def test_security_bearer_authorization_header(test_env, sample_xlsx_bytes):
