@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import { ToastProvider } from './ui/Toast'
@@ -5,16 +6,17 @@ import { HealthProvider } from './context/HealthContext'
 import { AdminKeyProvider } from './context/AdminKeyContext'
 import { SessionProvider, useSession } from './context/SessionContext'
 import { AppShell } from './components/AppShell'
-import { OverviewPage } from './pages/OverviewPage'
-import { StudentsPage } from './pages/StudentsPage'
-import { StudentDetailPage } from './pages/StudentDetailPage'
-import { SubjectDetailPage } from './pages/SubjectDetailPage'
-import { SubjectsCatalogPage } from './pages/SubjectsCatalogPage'
-import { DataQualityPage } from './pages/DataQualityPage'
-import { ImportPage } from './pages/ImportPage'
-import { UploadPage } from './pages/UploadPage'
-import { StyleguidePage } from './pages/StyleguidePage'
 import { LoadingState } from './components/LoadingState'
+
+const OverviewPage = lazy(() => import('./pages/OverviewPage').then((m) => ({ default: m.OverviewPage })))
+const StudentsPage = lazy(() => import('./pages/StudentsPage').then((m) => ({ default: m.StudentsPage })))
+const StudentDetailPage = lazy(() => import('./pages/StudentDetailPage').then((m) => ({ default: m.StudentDetailPage })))
+const SubjectDetailPage = lazy(() => import('./pages/SubjectDetailPage').then((m) => ({ default: m.SubjectDetailPage })))
+const SubjectsCatalogPage = lazy(() => import('./pages/SubjectsCatalogPage').then((m) => ({ default: m.SubjectsCatalogPage })))
+const DataQualityPage = lazy(() => import('./pages/DataQualityPage').then((m) => ({ default: m.DataQualityPage })))
+const ImportPage = lazy(() => import('./pages/ImportPage').then((m) => ({ default: m.ImportPage })))
+const UploadPage = lazy(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })))
+const StyleguidePage = lazy(() => import('./pages/StyleguidePage').then((m) => ({ default: m.StyleguidePage })))
 
 function HomeRoute() {
   const { hasActiveSession, loading } = useSession()
@@ -35,24 +37,26 @@ export function App() {
           <HealthProvider>
             <SessionProvider>
               <BrowserRouter>
-                <Routes>
-                  <Route element={<AppShell />}>
-                    <Route path="/" element={<HomeRoute />} />
-                    <Route path="/upload" element={<UploadPage />} />
-                    <Route path="/students" element={<StudentsPage />} />
-                    <Route path="/students/:identifier" element={<StudentDetailPage />} />
-                    <Route path="/explore" element={<Navigate to="/students?preset=explore" replace />} />
-                    <Route path="/absent-students" element={<Navigate to="/students?preset=absent" replace />} />
-                    <Route path="/subjects" element={<SubjectsCatalogPage />} />
-                    <Route path="/subjects/:courseCode" element={<SubjectDetailPage />} />
-                    <Route path="/subjects/:courseCode/failures" element={<SubjectDetailPage />} />
-                    <Route path="/failures" element={<Navigate to="/subjects?tab=failures" replace />} />
-                    <Route path="/data-quality" element={<DataQualityPage />} />
-                    <Route path="/imports" element={<ImportPage />} />
-                    <Route path="/styleguide" element={<StyleguidePage />} />
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Route>
-                </Routes>
+                <Suspense fallback={<LoadingState message="Loading workspace view..." />}>
+                  <Routes>
+                    <Route element={<AppShell />}>
+                      <Route path="/" element={<HomeRoute />} />
+                      <Route path="/upload" element={<UploadPage />} />
+                      <Route path="/students" element={<StudentsPage />} />
+                      <Route path="/students/:identifier" element={<StudentDetailPage />} />
+                      <Route path="/explore" element={<Navigate to="/students?preset=explore" replace />} />
+                      <Route path="/absent-students" element={<Navigate to="/students?preset=absent" replace />} />
+                      <Route path="/subjects" element={<SubjectsCatalogPage />} />
+                      <Route path="/subjects/:courseCode" element={<SubjectDetailPage />} />
+                      <Route path="/subjects/:courseCode/failures" element={<SubjectDetailPage />} />
+                      <Route path="/failures" element={<Navigate to="/subjects?tab=failures" replace />} />
+                      <Route path="/data-quality" element={<DataQualityPage />} />
+                      <Route path="/imports" element={<ImportPage />} />
+                      <Route path="/styleguide" element={<StyleguidePage />} />
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Route>
+                  </Routes>
+                </Suspense>
               </BrowserRouter>
             </SessionProvider>
           </HealthProvider>
