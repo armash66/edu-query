@@ -250,9 +250,9 @@ export const SubjectsCatalogPage: React.FC = () => {
   return (
     <div
       style={{
-        maxWidth: '1200px',
+        maxWidth: '1280px',
         margin: '0 auto',
-        padding: 'var(--space-6) var(--space-4) var(--space-12)',
+        width: '100%',
         display: 'flex',
         flexDirection: 'column',
         gap: 'var(--space-6)',

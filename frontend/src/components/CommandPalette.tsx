@@ -369,13 +369,13 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
         right: 0,
         bottom: 0,
         zIndex: 10000,
-        background: 'rgba(0, 0, 0, 0.55)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
+        background: 'rgba(0, 0, 0, 0.65)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'center',
-        paddingTop: '10vh',
+        paddingTop: '12vh',
         paddingLeft: 'var(--space-4)',
         paddingRight: 'var(--space-4)',
       }}
@@ -390,12 +390,13 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
         className="glass-3"
         style={{
           width: '100%',
-          maxWidth: '640px',
-          borderRadius: 'var(--radius-panel)',
+          maxWidth: '580px',
+          borderRadius: '16px',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: 'var(--shadow-lg), 0 25px 60px -15px rgba(0, 0, 0, 0.4)',
+          boxShadow: '0 25px 70px -10px rgba(0, 0, 0, 0.55), 0 0 0 1px var(--glass-border)',
+          background: 'var(--surface-card)',
           border: '1px solid var(--glass-border)',
         }}
       >
@@ -405,9 +406,9 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
-            padding: '14px 18px',
+            padding: '16px 20px',
             borderBottom: '1px solid var(--border)',
-            background: 'transparent',
+            background: 'var(--surface-hover)',
           }}
         >
           <Search size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
@@ -430,6 +431,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
               boxShadow: 'none',
               color: 'var(--text)',
               fontSize: '15px',
+              fontWeight: 500,
               fontFamily: 'var(--font-sans)',
             }}
           />
@@ -438,12 +440,12 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
               fontSize: '11px',
               fontFamily: 'var(--font-mono)',
               fontWeight: 600,
-              padding: '3px 7px',
+              padding: '3px 8px',
               background: 'var(--surface-active)',
               color: 'var(--text-muted)',
-              borderRadius: 'var(--radius-xs)',
+              borderRadius: '6px',
               border: '1px solid var(--border)',
-              lineHeight: 1,
+              lineHeight: 1.2,
               flexShrink: 0,
             }}
           >
@@ -457,9 +459,9 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
           role="listbox"
           className="glass-scrollbar"
           style={{
-            maxHeight: '380px',
+            maxHeight: '400px',
             overflowY: 'auto',
-            padding: '8px',
+            padding: '10px 8px',
           }}
         >
           {allFilteredItems.length === 0 ? (
@@ -475,21 +477,21 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
             </div>
           ) : (
             categories.map((group) => (
-              <div key={group.name} style={{ marginBottom: '8px' }}>
+              <div key={group.name} style={{ marginBottom: '10px' }}>
                 <div
                   style={{
-                    padding: '8px 12px 4px 12px',
+                    padding: '6px 12px 6px 12px',
                     fontSize: '11px',
                     fontWeight: 700,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
+                    letterSpacing: '0.08em',
                     color: 'var(--text-muted)',
                   }}
                 >
                   {group.name}
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                   {group.items.map((cmd) => {
                     const currentIndex = runningItemIndex++
                     const isSelected = currentIndex === selectedIndex
@@ -505,14 +507,14 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '9px 12px',
-                          borderRadius: 'var(--radius-sm)',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
                           background: isSelected ? 'var(--surface-hover)' : 'transparent',
                           border: isSelected
-                            ? '1px solid var(--border)'
+                            ? '1px solid var(--border-strong)'
                             : '1px solid transparent',
                           cursor: 'pointer',
-                          transition: 'all var(--transition-fast)',
+                          transition: 'background var(--transition-fast), border-color var(--transition-fast)',
                         }}
                       >
                         <div
@@ -528,9 +530,9 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
                               display: 'inline-flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              width: '30px',
-                              height: '30px',
-                              borderRadius: 'var(--radius-sm)',
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '8px',
                               background: isSelected
                                 ? 'var(--action-primary-bg)'
                                 : 'var(--surface-active)',
@@ -547,7 +549,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
                           <div style={{ minWidth: 0 }}>
                             <div
                               style={{
-                                fontSize: 'var(--text-sm)',
+                                fontSize: '13.5px',
                                 fontWeight: 600,
                                 color: 'var(--text)',
                                 overflow: 'hidden',
@@ -560,11 +562,12 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
                             {cmd.subtitle && (
                               <div
                                 style={{
-                                  fontSize: 'var(--text-xs)',
+                                  fontSize: '11.5px',
                                   color: 'var(--text-muted)',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
+                                  marginTop: '1px',
                                 }}
                               >
                                 {cmd.subtitle}
@@ -610,18 +613,18 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '3px',
+                                gap: '4px',
                                 fontSize: '11px',
                                 fontWeight: 600,
-                                color: 'var(--text-muted)',
+                                color: 'var(--text)',
                                 background: 'var(--surface-active)',
-                                padding: '2px 6px',
-                                borderRadius: 'var(--radius-xs)',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
                                 border: '1px solid var(--border)',
                               }}
                             >
                               <span>Open</span>
-                              <ArrowRight size={10} />
+                              <ArrowRight size={11} />
                             </span>
                           )}
                         </div>
@@ -648,9 +651,18 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
           }}
         >
           <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-            <span>↑↓ Navigate</span>
-            <span>↵ Select</span>
-            <span>ESC Close</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <kbd style={{ padding: '2px 5px', borderRadius: '4px', background: 'var(--surface-active)', border: '1px solid var(--border)', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>↑↓</kbd>
+              Navigate
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <kbd style={{ padding: '2px 5px', borderRadius: '4px', background: 'var(--surface-active)', border: '1px solid var(--border)', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>↵</kbd>
+              Select
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <kbd style={{ padding: '2px 5px', borderRadius: '4px', background: 'var(--surface-active)', border: '1px solid var(--border)', fontSize: '10px', fontFamily: 'var(--font-mono)' }}>esc</kbd>
+              Close
+            </span>
           </div>
           <span
             style={{
@@ -658,6 +670,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
               maxWidth: '220px',
+              fontSize: '11px',
             }}
           >
             {hasActiveSession ? (session?.filename ? `Active: ${session.filename}` : 'Active Session') : 'Ready'}

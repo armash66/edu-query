@@ -374,26 +374,56 @@ body::after {
 }
 
 /* Custom Glass Scrollbar for sleek monochrome glass overflow areas and global viewport */
+:root,
+[data-theme="light"] {
+  --scrollbar-thumb: rgba(0, 0, 0, 0.20);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.38);
+  --scrollbar-track: transparent;
+}
+
+[data-theme="dark"] {
+  --scrollbar-thumb: rgba(255, 255, 255, 0.20);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.38);
+  --scrollbar-track: transparent;
+}
+
 html,
 body,
 *,
 .glass-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
+
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
+  background: var(--scrollbar-thumb);
   border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 /* Command palette input resets to prevent browser focus-ring box-shadow rectangle */
@@ -534,7 +564,6 @@ button:disabled {
   max-width: 1280px;
   width: 100%;
   margin: 0 auto;
-  padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -571,6 +600,16 @@ button:disabled {
   flex: 1;
   min-width: 0;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px;
+}
+
+@media (max-width: 768px) {
+  .page-body {
+    padding: 16px;
+    padding-bottom: 76px; /* Space for bottom nav */
+  }
 }
 
 /* Floating Bottom Navigation for Mobile (< 768px) */

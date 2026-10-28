@@ -421,7 +421,7 @@ export const ExplorePage: React.FC = () => {
   const selectedFieldCap = availableFields.find((f) => f.field === newFilterField)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       {/* 1. Header & Quick Actions */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>

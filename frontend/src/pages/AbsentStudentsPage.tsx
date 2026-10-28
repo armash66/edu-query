@@ -265,7 +265,7 @@ export const AbsentStudentsPage: React.FC = () => {
   const uniqueCourseCount = new Set(records.map((r) => r.course_code)).size
 
   return (
-    <div>
+    <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%' }}>
       <style>{`
         @media screen {
           .print-absent-view {
