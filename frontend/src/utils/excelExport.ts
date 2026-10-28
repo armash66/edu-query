@@ -63,6 +63,24 @@ export function sanitizeFilename(filename: string, fallback = 'EduQuery_Export.c
  * Formula-safe CSV cell escaping (RFC 4180 compliant with formula injection protection).
  * Neutralizes leading '=', '+', '-', '@', '\t', '\r' by prefixing single-quote.
  */
+export function formatReason(reason?: string | null): string {
+  if (!reason) return ''
+  const upper = reason.trim().toUpperCase()
+  if (upper === 'PASSING_LETTER_GRADE' || upper === 'PASSING_GRADE_WITH_ABSENT_COMPONENT' || upper === 'PASS' || upper === 'PASSED') {
+    return 'Pass'
+  }
+  if (upper === 'FAILING_LETTER_GRADE' || upper === 'EXPLICIT_FAIL_FLAG' || upper === 'FAIL' || upper === 'FAILED') {
+    return 'Fail'
+  }
+  if (upper === 'ABSENT_IN_ASSESSMENT' || upper === 'ABSENT') {
+    return 'Absent'
+  }
+  if (upper === 'CONFLICTING_RESULT_INDICATORS') {
+    return 'Conflicting Indicators'
+  }
+  return reason
+}
+
 export function sanitizeCsvCell(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '""'
   let str = String(value)
@@ -342,7 +360,7 @@ export function exportSubjectRoster(
     { header: 'Grade', key: 'letter_grade', type: 'string', width: 10, getValue: (s) => s.letter_grade ?? '' },
     { header: 'Status', key: 'status', type: 'string', width: 12, getValue: (s) => s.status ?? '' },
     { header: 'Absent', type: 'string', width: 10, getValue: (s) => (s.is_absent ? 'Yes' : 'No') },
-    { header: 'Failure Reason', key: 'failure_reason', type: 'string', width: 25, getValue: (s) => s.failure_reason ?? '' },
+    { header: 'Failure Reason', key: 'failure_reason', type: 'string', width: 25, getValue: (s) => formatReason(s.failure_reason) },
   ]
 
   const divLabel = divisionFilter ? `Division: ${divisionFilter}` : 'All Divisions'

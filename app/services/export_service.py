@@ -129,6 +129,26 @@ def _apply_workbook_styles(ws: openpyxl.worksheet.worksheet.Worksheet, header_ro
         ws.column_dimensions[col_letter].width = min(max(max_len + 4, 12), 45)
 
 
+def format_classification_reason(reason: str | None) -> str:
+    """Format technical classification reason to user-facing pass/fail status."""
+    if not reason:
+        return ""
+    clean = str(reason).strip().upper()
+    if clean in ("PASSING_LETTER_GRADE", "PASSING_GRADE_WITH_ABSENT_COMPONENT", "PASS", "PASSED"):
+        return "Pass"
+    if clean in ("FAILING_LETTER_GRADE", "EXPLICIT_FAIL_FLAG", "FAIL", "FAILED"):
+        return "Fail"
+    if clean in ("ABSENT_IN_ASSESSMENT", "ABSENT"):
+        return "Absent"
+    if clean == "CONFLICTING_RESULT_INDICATORS":
+        return "Conflicting Indicators"
+    if clean == "UNRECOGNIZED_GRADE":
+        return "Unrecognized Grade"
+    if clean == "MISSING_GRADE_UNRESOLVED":
+        return "Missing Grade"
+    return reason
+
+
 def sanitize_filename(base: str) -> str:
     """Ensure filenames are deterministic, clean, and contain no filesystem paths."""
     clean = re.sub(r"[^a-zA-Z0-9_\-]+", "_", base).strip("_")
@@ -216,7 +236,7 @@ def export_student_breakdown_csv(
             sanitize_csv_cell("Match" if s.total_match is True else ("Mismatch" if s.total_match is False else "N/A")),
             sanitize_csv_cell(s.letter_grade),
             sanitize_csv_cell(s.recorded_result.upper()),
-            sanitize_csv_cell(s.classification_reason),
+            sanitize_csv_cell(format_classification_reason(s.classification_reason)),
             sanitize_csv_cell(", ".join(s.flags)),
             sanitize_csv_cell(s.source_sheet),
             sanitize_csv_cell(s.source_row),
@@ -301,7 +321,7 @@ def export_subject_failures_csv(
             sanitize_csv_cell(st.letter_grade),
             sanitize_csv_cell(", ".join(st.flags)),
             sanitize_csv_cell("Yes" if st.is_absent else "No"),
-            sanitize_csv_cell(st.failure_reason),
+            sanitize_csv_cell(format_classification_reason(st.failure_reason)),
             sanitize_csv_cell(comp_summary),
             sanitize_csv_cell(st.source_sheet),
             sanitize_csv_cell(st.source_row),
@@ -627,7 +647,7 @@ def export_subject_students_excel(
             sanitize_cell_text(st.letter_grade if st.letter_grade is not None else ""),
             sanitize_cell_text(str(st.status).upper()),
             sanitize_cell_text(", ".join(st.flags)),
-            sanitize_cell_text(st.classification_reason),
+            sanitize_cell_text(format_classification_reason(st.classification_reason)),
             sanitize_cell_text(st.source_sheet),
             src_row if src_row is not None else "",
         ]
@@ -712,7 +732,7 @@ def export_student_breakdown_excel(
             "Match" if s.total_match is True else ("Mismatch" if s.total_match is False else "N/A"),
             str(s.letter_grade) if s.letter_grade is not None else "",
             str(s.recorded_result).upper(),
-            str(s.classification_reason or ""),
+            str(format_classification_reason(s.classification_reason)),
             ", ".join(s.flags),
             str(s.source_sheet),
             int(s.source_row),

@@ -795,11 +795,6 @@ export const StudentDetailPage: React.FC = () => {
 
                     <td style={{ padding: 'var(--space-3) var(--space-4)' }}>
                       <StatusBadge tone={statusTone} label={outcome.toUpperCase()} size="sm" />
-                      {sub.classification_reason && (
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {sub.classification_reason}
-                        </div>
-                      )}
                     </td>
                   </tr>
                 )
