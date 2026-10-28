@@ -100,6 +100,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'code',
       header: 'Course Code',
+      width: '120px',
       sticky: true,
       sortable: true,
       render: (row) => (
@@ -111,6 +112,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'name',
       header: 'Course Title',
+      width: '260px',
       sortable: true,
       render: (row) => (
         <div>
@@ -124,6 +126,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'kind',
       header: 'Modality',
+      width: '100px',
       sortable: true,
       render: (row) => (
         <span
@@ -143,6 +146,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'credits',
       header: 'Credits',
+      width: '85px',
       sortable: true,
       align: 'right',
       render: (row) => (
@@ -154,6 +158,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'enrolled_students_count',
       header: 'Headcount',
+      width: '105px',
       sortable: true,
       align: 'right',
       render: (row) => (
@@ -165,6 +170,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'passed_students_count',
       header: 'Passed',
+      width: '95px',
       sortable: true,
       align: 'right',
       render: (row) => (
@@ -178,6 +184,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'failed_students_count',
       header: 'Failed',
+      width: '95px',
       sortable: true,
       align: 'right',
       render: (row) => {
@@ -212,6 +219,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'actions',
       header: '',
+      width: '140px',
       align: 'right',
       render: (row) => (
         <Link
@@ -219,14 +227,17 @@ export const SubjectsCatalogPage: React.FC = () => {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 'var(--space-1)',
+            gap: '6px',
             fontSize: 'var(--text-xs)',
             fontWeight: 600,
             color: 'var(--text)',
             textDecoration: 'none',
-            padding: '4px 10px',
+            padding: '5px 12px',
             borderRadius: 'var(--radius-sm)',
             background: 'var(--surface-hover)',
+            border: '1px solid var(--border)',
+            transition: 'all var(--transition-fast)',
+            whiteSpace: 'nowrap',
           }}
         >
           <span>View Roster</span>

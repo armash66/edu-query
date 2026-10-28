@@ -117,9 +117,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
               paddingLeft: prefixIcon ? '38px' : sizeStyles[size].padding.split(' ')[1],
               paddingRight:
                 clearable && hasValue
-                  ? 'var(--space-12)'
+                  ? '44px'
                   : suffixIcon
-                  ? 'var(--space-8)'
+                  ? '64px'
                   : sizeStyles[size].padding.split(' ')[1],
               ...style,
             }}

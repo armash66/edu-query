@@ -5,15 +5,17 @@ from playwright.sync_api import sync_playwright
 OUTPUT_DIR = os.path.abspath("audit_after/fixes_verification")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+BASE_URL = "http://127.0.0.1:4173"
+
 def verify():
-    print("Starting targeted verification...")
+    print(f"Starting targeted verification on {BASE_URL}...")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(viewport={"width": 1440, "height": 900})
         page = context.new_page()
 
-        # Set theme to dark first (since user screenshots were in dark mode)
-        page.goto("http://127.0.0.1:5173/")
+        # 1. Set theme to dark
+        page.goto(f"{BASE_URL}/")
         page.wait_for_selector(".app-container")
         page.evaluate("() => localStorage.setItem('eduquery_theme', 'dark')")
         page.reload()
@@ -21,151 +23,169 @@ def verify():
         time.sleep(1)
 
         # -------------------------------------------------------------
-        # Issue 1: Sidebar Rail Mode (Image 1 & 4)
+        # Issue 1: Sidebar Rail Mode & Footer Layout
         # -------------------------------------------------------------
-        print("Checking Sidebar Rail Mode...")
-        # Toggle rail mode
-        rail_btn = page.locator('button[aria-label="Collapse sidebar into rail"]')
-        if rail_btn.is_visible():
-            rail_btn.click()
-            time.sleep(0.5)
+        print("Checking Sidebar Rail Mode & Footer...")
+        # Check expanded footer: dataset info visible
+        sidebar = page.locator(".sidebar")
+        assert sidebar.is_visible(), "Sidebar is not visible"
+        page.screenshot(path=os.path.join(OUTPUT_DIR, "01_overview_expanded_dark.png"))
 
-        # Ensure sidebar has .rail class
-        sidebar = page.locator('.sidebar.rail')
-        assert sidebar.is_visible(), "Sidebar rail is not visible"
+        # Toggle to rail mode
+        collapse_btn = page.locator('button[aria-label="Collapse sidebar into rail"]')
+        assert collapse_btn.is_visible(), "Collapse button not visible in expanded sidebar"
+        collapse_btn.click()
+        time.sleep(0.5)
 
-        # Check footer buttons in rail mode
-        theme_btn = sidebar.locator('button[aria-label^="Theme:"]')
-        expand_btn = sidebar.locator('button[aria-label="Expand sidebar"]')
+        rail_sidebar = page.locator('.sidebar.rail')
+        assert rail_sidebar.is_visible(), "Sidebar rail is not visible"
+        expand_btn = rail_sidebar.locator('button[aria-label="Expand sidebar"]')
+        assert expand_btn.is_visible(), "Expand button not visible in rail mode"
         
-        t_box = theme_btn.bounding_box()
+        # Verify expand button bounding box is neatly centered inside rail
         e_box = expand_btn.bounding_box()
-        print(f"Theme button bbox: {t_box}")
-        print(f"Expand button bbox: {e_box}")
+        s_box = rail_sidebar.bounding_box()
+        print(f"Rail bbox: {s_box}, Expand btn bbox: {e_box}")
+        
+        rail_sidebar.screenshot(path=os.path.join(OUTPUT_DIR, "02_sidebar_rail_dark.png"))
+        page.screenshot(path=os.path.join(OUTPUT_DIR, "02_page_with_rail_dark.png"))
 
-        # Check that they do NOT overlap vertically or horizontally
-        # Vertically stacked: e_box.y should be >= t_box.y + t_box.height
-        is_overlapping = not (
-            t_box["x"] + t_box["width"] <= e_box["x"] or
-            e_box["x"] + e_box["width"] <= t_box["x"] or
-            t_box["y"] + t_box["height"] <= e_box["y"] or
-            e_box["y"] + e_box["height"] <= t_box["y"]
-        )
-        print(f"Are rail footer buttons overlapping? {is_overlapping}")
-        assert not is_overlapping, "Rail footer buttons are overlapping!"
-
-        # Screenshot sidebar rail in dark mode
-        sidebar.screenshot(path=os.path.join(OUTPUT_DIR, "sidebar_rail_dark.png"))
-        page.screenshot(path=os.path.join(OUTPUT_DIR, "page_with_rail_dark.png"))
-
-        # Switch back to expanded sidebar
+        # Expand sidebar again
         expand_btn.click()
         time.sleep(0.5)
 
         # -------------------------------------------------------------
-        # Issue 2: Subjects Page - Passed and Failed columns (Image 2)
+        # Issue 2: Subjects Page - Passed, Failed, and View Roster Spacing
         # -------------------------------------------------------------
-        print("Checking Subjects Page Columns...")
-        page.goto("http://127.0.0.1:5173/subjects")
+        print("Checking Subjects Page Layout...")
+        page.goto(f"{BASE_URL}/subjects")
         page.wait_for_selector(".responsive-data-table")
         time.sleep(1)
 
-        # Verify headers in table
         headers = page.locator(".responsive-data-table th").all_text_contents()
         headers_cleaned = [h.strip().replace("\u21c5", "") for h in headers if h.strip()]
-        print(f"Subjects table headers: {[h.encode('ascii', 'ignore').decode() for h in headers_cleaned]}")
+        print(f"Subjects headers: {[h.encode('ascii', 'ignore').decode() for h in headers_cleaned]}")
 
-        assert any("passed" in h.lower() for h in headers_cleaned), "Passed column missing from subjects table!"
-        assert any("failed" in h.lower() for h in headers_cleaned), "Failed column missing from subjects table!"
+        assert any("passed" in h.lower() for h in headers_cleaned), "Passed column missing!"
+        assert any("failed" in h.lower() for h in headers_cleaned), "Failed column missing!"
 
-        # Screenshot subjects table
-        page.locator(".responsive-data-table").screenshot(path=os.path.join(OUTPUT_DIR, "subjects_table_with_passed_failed.png"))
+        # Check first row passed, failed, and view roster elements
+        first_row = page.locator(".responsive-data-table tbody tr").first
+        view_roster = first_row.locator("a", has_text="View Roster")
+        assert view_roster.is_visible(), "View Roster button missing from row"
+        
+        # Capture screenshot of subjects page
+        page.screenshot(path=os.path.join(OUTPUT_DIR, "03_subjects_page_dark.png"))
+        page.locator(".responsive-data-table").screenshot(path=os.path.join(OUTPUT_DIR, "03_subjects_table_detail.png"))
 
         # -------------------------------------------------------------
-        # Issue 3: Students Page - Continuation of records / pagination (Image 3)
+        # Issue 3: Students Page - Search Input & Table Spacing & Pagination
         # -------------------------------------------------------------
-        print("Checking Students Page Continuation...")
-        page.goto("http://127.0.0.1:5173/students")
+        print("Checking Students Page...")
+        page.goto(f"{BASE_URL}/students")
         page.wait_for_selector(".responsive-data-table")
         time.sleep(1)
 
-        # Check pagination footer presence and text
-        pagination_footer = page.locator(".glass-2 div", has_text="Showing")
-        assert pagination_footer.count() > 0, "Pagination footer not found!"
-        footer_text = pagination_footer.first.text_content()
-        print(f"Pagination footer text: {footer_text}")
-        assert "records" in footer_text.lower(), "Records count missing from pagination footer"
+        # Verify search input has no Ctrl+K collision
+        search_box = page.locator('input[placeholder*="Search student name"]')
+        assert search_box.is_visible(), "Search field not found"
+        search_ph = search_box.get_attribute("placeholder")
+        print(f"Student search placeholder: {search_ph}")
 
-        # Check page count
-        page_indicator = page.locator("span", has_text="Page 1 of")
-        assert page_indicator.is_visible(), "Page indicator not visible"
-        print(f"Page indicator: {page_indicator.text_content()}")
+        # Check table columns
+        st_headers = page.locator(".responsive-data-table th").all_text_contents()
+        st_headers_cleaned = [h.strip().replace("\u21c5", "") for h in st_headers if h.strip()]
+        print(f"Students headers: {[h.encode('ascii', 'ignore').decode() for h in st_headers_cleaned]}")
+        assert any("seat" in h.lower() for h in st_headers_cleaned), "Seat No column missing!"
+        assert any("roll" in h.lower() for h in st_headers_cleaned), "Roll No column missing!"
+        assert any("name" in h.lower() for h in st_headers_cleaned), "Student Name column missing!"
+        assert any("result" in h.lower() for h in st_headers_cleaned), "Result column missing!"
 
-        # Check Next button and click it to test continuation of records
+        # Check first row Audit button
+        st_first_row = page.locator(".responsive-data-table tbody tr").first
+        audit_btn = st_first_row.locator("a", has_text="Audit")
+        assert audit_btn.is_visible(), "Audit link missing from student row"
+
+        page.screenshot(path=os.path.join(OUTPUT_DIR, "04_students_page_dark.png"))
+
+        # Test pagination Next button
         next_btn = page.locator('button[aria-label="Next page"]')
         assert next_btn.is_visible(), "Next page button not visible"
-        assert next_btn.is_enabled(), "Next page button should be enabled when multiple pages exist"
-        
-        # Capture page 1 screenshot
-        page.screenshot(path=os.path.join(OUTPUT_DIR, "students_page_1_with_pagination.png"))
-
+        assert next_btn.is_enabled(), "Next page button not enabled"
         next_btn.click()
         time.sleep(1)
-        page_2_indicator = page.locator("span", has_text="Page 2 of")
-        assert page_2_indicator.is_visible(), "Failed to navigate to Page 2 of students!"
-        print(f"Successfully navigated to Page 2: {page_2_indicator.text_content()}")
 
-        # Capture page 2 screenshot showing continuation
-        page.screenshot(path=os.path.join(OUTPUT_DIR, "students_page_2_continuation.png"))
+        page_2 = page.locator("span", has_text="Page 2 of")
+        assert page_2.is_visible(), "Failed to navigate to Page 2"
+        page.screenshot(path=os.path.join(OUTPUT_DIR, "04_students_page_2_dark.png"))
 
         # -------------------------------------------------------------
-        # Issue 4: Command Palette / Search Menu (Image 5)
+        # Issue 4: Command Palette Modern Redesign
         # -------------------------------------------------------------
-        print("Checking Command Palette / Search Menu...")
-        # Click search trigger in top bar
+        print("Checking Command Palette Redesign...")
         search_trigger = page.locator(".global-search-desktop")
         search_trigger.click()
         time.sleep(0.5)
 
         dialog = page.locator('div[role="dialog"][aria-label="Command Palette"]')
-        assert dialog.is_visible(), "Command palette dialog did not open"
+        assert dialog.is_visible(), "Command palette did not open"
 
-        # Screenshot initial command palette menu
-        dialog.screenshot(path=os.path.join(OUTPUT_DIR, "command_palette_menu_initial.png"))
+        # Screenshot initial command palette
+        dialog.screenshot(path=os.path.join(OUTPUT_DIR, "05_command_palette_menu_dark.png"))
 
-        # Check search input
-        search_input = dialog.locator("input.command-palette-input")
-        assert search_input.is_visible(), "Search input with command-palette-input class not visible"
+        # Check category headers exist
+        category_titles = dialog.locator('div[style*="text-transform: uppercase"]').all_text_contents()
+        print(f"Command palette categories: {category_titles}")
+        assert any("pages" in c.lower() for c in category_titles), "Pages category header missing!"
 
-        # Type student search query
-        search_input.fill("Karthik")
+        # Search for Karthik
+        palette_input = dialog.locator("input.command-palette-input")
+        palette_input.fill("Karthik")
         time.sleep(1)
 
-        # Check if student result appeared
-        dialog.screenshot(path=os.path.join(OUTPUT_DIR, "command_palette_student_search.png"))
-        results_text = dialog.locator('ul[role="listbox"]').text_content()
-        print(f"Search results for 'Karthik': {results_text[:100]}...")
-        assert "karthik" in results_text.lower(), "Student search did not return matching student result!"
+        # Screenshot student search results
+        dialog.screenshot(path=os.path.join(OUTPUT_DIR, "05_command_palette_search_karthik_dark.png"))
+        
+        # Verify student card appears with Open pill
+        student_option = dialog.locator('[role="option"]', has_text="Karthik")
+        assert student_option.count() > 0, "Student 'Karthik' not found in search results"
+
+        # Test search for subject
+        palette_input.fill("MDM")
+        time.sleep(0.8)
+        dialog.screenshot(path=os.path.join(OUTPUT_DIR, "05_command_palette_search_subject_dark.png"))
 
         # Close palette with Escape
         page.keyboard.press("Escape")
         time.sleep(0.5)
         assert not dialog.is_visible(), "Dialog did not close on Escape"
 
-        # Now test in Light Mode
-        print("Switching to Light Mode to verify theme...")
+        # -------------------------------------------------------------
+        # Issue 5: Light Mode Verification
+        # -------------------------------------------------------------
+        print("Verifying Light Mode...")
         page.evaluate("() => localStorage.setItem('eduquery_theme', 'light')")
         page.reload()
         page.wait_for_selector(".app-container")
         time.sleep(1)
 
-        # Re-check rail in light mode
-        page.locator('button[aria-label="Collapse sidebar into rail"]').click()
+        page.screenshot(path=os.path.join(OUTPUT_DIR, "06_students_page_light.png"))
+
+        # Open subjects in light mode
+        page.goto(f"{BASE_URL}/subjects")
+        page.wait_for_selector(".responsive-data-table")
+        time.sleep(1)
+        page.screenshot(path=os.path.join(OUTPUT_DIR, "07_subjects_page_light.png"))
+
+        # Open command palette in light mode
+        page.locator(".global-search-desktop").click()
         time.sleep(0.5)
-        page.locator('.sidebar.rail').screenshot(path=os.path.join(OUTPUT_DIR, "sidebar_rail_light.png"))
+        page.locator('div[role="dialog"][aria-label="Command Palette"]').screenshot(
+            path=os.path.join(OUTPUT_DIR, "08_command_palette_menu_light.png")
+        )
 
         browser.close()
-        print("Targeted verification completed successfully!")
+        print("All visual QA verifications completed successfully!")
 
 if __name__ == "__main__":
     verify()

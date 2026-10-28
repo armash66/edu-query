@@ -340,24 +340,22 @@ export const AppShell: React.FC = () => {
             </div>
           )}
 
-          {/* Theme Control and Collapse Toggle */}
+          {/* Sidebar Collapse / Expand Toggle */}
           <div
             style={{
               display: 'flex',
-              flexDirection: isRail ? 'column' : 'row',
               alignItems: 'center',
-              justifyContent: isRail ? 'center' : 'space-between',
-              gap: isRail ? '12px' : '8px',
+              justifyContent: isRail ? 'center' : 'flex-end',
               width: '100%',
+              paddingTop: isRail ? '4px' : '0',
             }}
           >
-            <ThemeMenu direction="up" align={isRail ? 'left' : 'right'} shape="square" />
             <IconButton
               aria-label={isRail ? 'Expand sidebar' : 'Collapse sidebar into rail'}
               variant="ghost"
-              size="sm"
+              size={isRail ? 'md' : 'sm'}
               onClick={toggleRail}
-              icon={isRail ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+              icon={isRail ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={16} />}
             />
           </div>
         </div>

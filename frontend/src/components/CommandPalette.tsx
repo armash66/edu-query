@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 import { useSession } from '../context/SessionContext'
 import { getStudents, getSubjects } from '../api/client'
-import type { CourseItem } from '../api/types'
+import type { CourseItem, StudentSummaryItem } from '../api/types'
 import {
   BarChart3,
   Users,
@@ -18,15 +18,18 @@ import {
   Search,
   UserX,
   AlertOctagon,
+  ArrowRight,
+  GraduationCap,
 } from 'lucide-react'
 
-interface CommandItem {
+export interface CommandItem {
   id: string
   title: string
   subtitle?: string
   icon: React.ReactNode
-  category: 'Navigation' | 'Theme' | 'Actions' | 'Students' | 'Subjects'
+  category: 'Pages' | 'Actions' | 'Theme' | 'Students' | 'Courses'
   action: () => void
+  badge?: string
 }
 
 export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> = ({
@@ -35,20 +38,22 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
 }) => {
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [dynamicResults, setDynamicResults] = useState<CommandItem[]>([])
+  const [studentResults, setStudentResults] = useState<StudentSummaryItem[]>([])
   const [cachedSubjects, setCachedSubjects] = useState<CourseItem[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLUListElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
   const { setTheme } = useTheme()
-  const { hasActiveSession } = useSession()
+  const { session, hasActiveSession } = useSession()
 
   // Preload subjects when palette opens to allow instant code & title search
   useEffect(() => {
     if (isOpen && cachedSubjects.length === 0) {
-      getSubjects({ limit: 50 }).then((res) => {
-        setCachedSubjects(res.items || [])
-      }).catch(() => {})
+      getSubjects({ limit: 100 })
+        .then((res) => {
+          setCachedSubjects(res.items || [])
+        })
+        .catch(() => {})
     }
   }, [isOpen, cachedSubjects.length])
 
@@ -56,58 +61,19 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
   useEffect(() => {
     const q = query.trim()
     if (!q || q.length < 2) {
-      setDynamicResults([])
+      setStudentResults([])
       return
     }
 
     let active = true
     const timer = setTimeout(async () => {
-      const items: CommandItem[] = []
-
-      // Matching courses from preloaded cache
-      const qLower = q.toLowerCase()
-      const matchingCourses = cachedSubjects.filter(
-        (c) => c.code.toLowerCase().includes(qLower) || c.name.toLowerCase().includes(qLower)
-      ).slice(0, 3)
-
-      matchingCourses.forEach((c) => {
-        items.push({
-          id: `subject-${c.code}`,
-          title: `${c.code} — ${c.name}`,
-          subtitle: `${c.kind || 'Course'} • ${c.credits ?? 0} Credits • ${c.enrolled_students_count ?? 0} Students`,
-          icon: <BookOpen size={16} />,
-          category: 'Subjects',
-          action: () => {
-            navigate(`/subjects/${c.code}`)
-            onClose()
-          },
-        })
-      })
-
-      // Search matching students from API
       try {
-        const studentRes = await getStudents({ query: q, limit: 3 })
+        const studentRes = await getStudents({ query: q, limit: 4 })
         if (active && studentRes.items) {
-          studentRes.items.forEach((s) => {
-            items.push({
-              id: `student-${s.student_id}`,
-              title: s.name,
-              subtitle: `Seat: ${s.seat_no || '—'} • Roll: ${s.roll_no || '—'} • Div: ${s.division || '—'} (${s.overall_result || 'Result'})`,
-              icon: <Users size={16} />,
-              category: 'Students',
-              action: () => {
-                navigate(`/students/${s.student_id}`)
-                onClose()
-              },
-            })
-          })
+          setStudentResults(studentRes.items)
         }
       } catch {
         // Fallback gracefully
-      }
-
-      if (active) {
-        setDynamicResults(items)
       }
     }, 120)
 
@@ -115,15 +81,16 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       active = false
       clearTimeout(timer)
     }
-  }, [query, cachedSubjects, navigate, onClose])
+  }, [query])
 
-  const commands: CommandItem[] = [
+  // Static navigation and actions commands
+  const staticCommands: CommandItem[] = [
     {
       id: 'nav-overview',
       title: 'Overview',
       subtitle: 'Academic Analysis & Key Metrics',
       icon: <BarChart3 size={16} />,
-      category: 'Navigation',
+      category: 'Pages',
       action: () => {
         navigate('/')
         onClose()
@@ -134,7 +101,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       title: 'Students Roster',
       subtitle: 'Complete student directory with scores',
       icon: <Users size={16} />,
-      category: 'Navigation',
+      category: 'Pages',
       action: () => {
         navigate('/students')
         onClose()
@@ -145,7 +112,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       title: 'Absent Students Audit',
       subtitle: 'Identify and print absenteeism records',
       icon: <UserX size={16} />,
-      category: 'Navigation',
+      category: 'Pages',
       action: () => {
         navigate('/students?preset=absent')
         onClose()
@@ -156,7 +123,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       title: 'Explore Academic Data',
       subtitle: 'Interactive multi-condition filter builder',
       icon: <Search size={16} />,
-      category: 'Navigation',
+      category: 'Pages',
       action: () => {
         navigate('/explore')
         onClose()
@@ -167,7 +134,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       title: 'Curriculum & Subjects',
       subtitle: 'Course catalog & enrollment statistics',
       icon: <BookOpen size={16} />,
-      category: 'Navigation',
+      category: 'Pages',
       action: () => {
         navigate('/subjects')
         onClose()
@@ -178,7 +145,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       title: 'Subject Failures Analysis',
       subtitle: 'Prioritized failure ranking across courses',
       icon: <AlertOctagon size={16} />,
-      category: 'Navigation',
+      category: 'Pages',
       action: () => {
         navigate('/subjects?tab=failures')
         onClose()
@@ -189,7 +156,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       title: 'Data Quality & Anomalies',
       subtitle: 'Missing records, bounds violations & moderation audits',
       icon: <ShieldCheck size={16} />,
-      category: 'Navigation',
+      category: 'Pages',
       action: () => {
         navigate('/data-quality')
         onClose()
@@ -200,14 +167,14 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       title: 'Dataset Management & Imports',
       subtitle: 'Manage workbook versions and active dataset',
       icon: <Database size={16} />,
-      category: 'Navigation',
+      category: 'Pages',
       action: () => {
         navigate('/imports')
         onClose()
       },
     },
     {
-      id: 'nav-upload',
+      id: 'act-upload',
       title: 'Upload Marksheet',
       subtitle: 'Import new Excel (.xlsx) file into session',
       icon: <UploadCloud size={16} />,
@@ -250,7 +217,10 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
         onClose()
       },
     },
-    {
+  ]
+
+  if (import.meta.env.DEV) {
+    staticCommands.push({
       id: 'nav-styleguide',
       title: 'Design System & Styleguide',
       subtitle: 'Interactive tokens, surfaces & component testbed',
@@ -260,11 +230,52 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
         navigate('/styleguide')
         onClose()
       },
-    },
-  ]
+    })
+  }
 
-  const filteredStatic = commands.filter((cmd) => {
-    const q = query.toLowerCase().trim()
+  // Filter commands by search query
+  const q = query.trim().toLowerCase()
+
+  // Matching dynamic courses
+  const matchingCourses: CommandItem[] = q
+    ? cachedSubjects
+        .filter(
+          (c) =>
+            c.code.toLowerCase().includes(q) ||
+            c.name.toLowerCase().includes(q) ||
+            (c.kind && c.kind.toLowerCase().includes(q))
+        )
+        .slice(0, 4)
+        .map((c) => ({
+          id: `course-${c.code}`,
+          title: `${c.code} — ${c.name}`,
+          subtitle: `${c.kind || 'Course'} • ${c.credits ?? 0} Credits • ${c.enrolled_students_count ?? 0} Students`,
+          icon: <BookOpen size={16} />,
+          category: 'Courses',
+          action: () => {
+            navigate(`/subjects/${c.code}`)
+            onClose()
+          },
+        }))
+    : []
+
+  // Matching dynamic students
+  const matchingStudents: CommandItem[] = studentResults.map((s) => ({
+    id: `student-${s.student_id}`,
+    title: s.name,
+    subtitle: `Seat: ${s.seat_no || '—'} • Roll: ${s.roll_no || '—'} • Div: ${s.division || '—'}${
+      s.sgpi ? ` • SGPI: ${Number(s.sgpi).toFixed(2)}` : ''
+    }`,
+    icon: <GraduationCap size={16} />,
+    category: 'Students',
+    badge: s.overall_result || undefined,
+    action: () => {
+      navigate(`/students/${s.student_id}`)
+      onClose()
+    },
+  }))
+
+  const matchingStatic = staticCommands.filter((cmd) => {
     if (!q) return true
     return (
       cmd.title.toLowerCase().includes(q) ||
@@ -273,8 +284,12 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
     )
   })
 
-  // Dynamic results (matching students and subjects) appear first when searching
-  const filteredCommands = [...dynamicResults, ...filteredStatic]
+  // Build flattened list for keyboard index selection
+  const allFilteredItems: CommandItem[] = [
+    ...matchingStudents,
+    ...matchingCourses,
+    ...matchingStatic,
+  ]
 
   // Focus input on open
   useEffect(() => {
@@ -292,21 +307,57 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
       onClose()
     } else if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setSelectedIndex((prev) => (prev + 1) % (filteredCommands.length || 1))
+      setSelectedIndex((prev) => (prev + 1) % (allFilteredItems.length || 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setSelectedIndex(
-        (prev) => (prev - 1 + filteredCommands.length) % (filteredCommands.length || 1)
+        (prev) => (prev - 1 + allFilteredItems.length) % (allFilteredItems.length || 1)
       )
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      if (filteredCommands[selectedIndex]) {
-        filteredCommands[selectedIndex].action()
+      if (allFilteredItems[selectedIndex]) {
+        allFilteredItems[selectedIndex].action()
       }
     }
   }
 
+  // Scroll active item into view
+  useEffect(() => {
+    if (!listRef.current) return
+    const activeEl = listRef.current.querySelector<HTMLElement>('[aria-selected="true"]')
+    if (activeEl) {
+      activeEl.scrollIntoView({ block: 'nearest' })
+    }
+  }, [selectedIndex])
+
   if (!isOpen) return null
+
+  // Categorize for grouped display
+  const categories: Array<{ name: string; items: CommandItem[] }> = []
+
+  if (matchingStudents.length > 0) {
+    categories.push({ name: 'Students', items: matchingStudents })
+  }
+  if (matchingCourses.length > 0) {
+    categories.push({ name: 'Courses & Curriculum', items: matchingCourses })
+  }
+
+  const pagesItems = matchingStatic.filter((c) => c.category === 'Pages')
+  if (pagesItems.length > 0) {
+    categories.push({ name: 'Pages & Views', items: pagesItems })
+  }
+
+  const actionsItems = matchingStatic.filter((c) => c.category === 'Actions')
+  if (actionsItems.length > 0) {
+    categories.push({ name: 'Actions', items: actionsItems })
+  }
+
+  const themeItems = matchingStatic.filter((c) => c.category === 'Theme')
+  if (themeItems.length > 0) {
+    categories.push({ name: 'Theme & Appearance', items: themeItems })
+  }
+
+  let runningItemIndex = 0
 
   return (
     <div
@@ -318,13 +369,13 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
         right: 0,
         bottom: 0,
         zIndex: 10000,
-        background: 'rgba(0, 0, 0, 0.45)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
+        background: 'rgba(0, 0, 0, 0.55)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
         display: 'flex',
         alignItems: 'flex-start',
         justifyContent: 'center',
-        paddingTop: '12vh',
+        paddingTop: '10vh',
         paddingLeft: 'var(--space-4)',
         paddingRight: 'var(--space-4)',
       }}
@@ -339,23 +390,24 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
         className="glass-3"
         style={{
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '640px',
           borderRadius: 'var(--radius-panel)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: 'var(--shadow-lg)',
+          boxShadow: 'var(--shadow-lg), 0 25px 60px -15px rgba(0, 0, 0, 0.4)',
           border: '1px solid var(--glass-border)',
         }}
       >
-        {/* Search Input */}
+        {/* Search Input Bar */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 'var(--space-3)',
-            padding: 'var(--space-4) var(--space-5)',
+            gap: '12px',
+            padding: '14px 18px',
             borderBottom: '1px solid var(--border)',
+            background: 'transparent',
           }}
         >
           <Search size={18} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
@@ -369,7 +421,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
               setSelectedIndex(0)
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Search students, subjects, or jump to page..."
+            placeholder="Type a student name, course code, or jump to page..."
             style={{
               width: '100%',
               background: 'transparent',
@@ -377,7 +429,7 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
               outline: 'none',
               boxShadow: 'none',
               color: 'var(--text)',
-              fontSize: 'var(--text-base)',
+              fontSize: '15px',
               fontFamily: 'var(--font-sans)',
             }}
           />
@@ -385,126 +437,207 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
             style={{
               fontSize: '11px',
               fontFamily: 'var(--font-mono)',
-              padding: '2px 6px',
+              fontWeight: 600,
+              padding: '3px 7px',
               background: 'var(--surface-active)',
               color: 'var(--text-muted)',
               borderRadius: 'var(--radius-xs)',
               border: '1px solid var(--border)',
+              lineHeight: 1,
+              flexShrink: 0,
             }}
           >
             ESC
           </kbd>
         </div>
 
-        {/* Command list with custom glass scrollbar */}
-        <ul
+        {/* Grouped Command list with Custom Glass Scrollbar */}
+        <div
           ref={listRef}
           role="listbox"
           className="glass-scrollbar"
           style={{
-            listStyle: 'none',
-            margin: 0,
-            padding: 'var(--space-2)',
-            maxHeight: '360px',
+            maxHeight: '380px',
             overflowY: 'auto',
+            padding: '8px',
           }}
         >
-          {filteredCommands.length === 0 ? (
-            <li
+          {allFilteredItems.length === 0 ? (
+            <div
               style={{
-                padding: 'var(--space-6)',
+                padding: 'var(--space-8) var(--space-4)',
                 textAlign: 'center',
                 color: 'var(--text-muted)',
                 fontSize: 'var(--text-sm)',
               }}
             >
-              No commands matching "{query}"
-            </li>
+              No results found for "{query}"
+            </div>
           ) : (
-            filteredCommands.map((cmd, idx) => {
-              const isSelected = idx === selectedIndex
-
-              return (
-                <li
-                  key={cmd.id}
-                  role="option"
-                  aria-selected={isSelected}
-                  onClick={cmd.action}
-                  onMouseEnter={() => setSelectedIndex(idx)}
+            categories.map((group) => (
+              <div key={group.name} style={{ marginBottom: '8px' }}>
+                <div
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: 'var(--space-3) var(--space-4)',
-                    borderRadius: 'var(--radius-sm)',
-                    background: isSelected ? 'var(--surface-hover)' : 'transparent',
-                    cursor: 'pointer',
-                    transition: 'background var(--transition-fast)',
+                    padding: '8px 12px 4px 12px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                    color: 'var(--text-muted)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: 'var(--radius-sm)',
-                        background: isSelected
-                          ? 'var(--action-primary-bg)'
-                          : 'var(--surface-hover)',
-                        color: isSelected
-                          ? 'var(--action-primary-text)'
-                          : 'var(--text-secondary)',
-                        transition: 'all var(--transition-fast)',
-                      }}
-                    >
-                      {cmd.icon}
-                    </span>
-                    <div>
+                  {group.name}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  {group.items.map((cmd) => {
+                    const currentIndex = runningItemIndex++
+                    const isSelected = currentIndex === selectedIndex
+
+                    return (
                       <div
+                        key={cmd.id}
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={cmd.action}
+                        onMouseEnter={() => setSelectedIndex(currentIndex)}
                         style={{
-                          fontSize: 'var(--text-sm)',
-                          fontWeight: 500,
-                          color: 'var(--text)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '9px 12px',
+                          borderRadius: 'var(--radius-sm)',
+                          background: isSelected ? 'var(--surface-hover)' : 'transparent',
+                          border: isSelected
+                            ? '1px solid var(--border)'
+                            : '1px solid transparent',
+                          cursor: 'pointer',
+                          transition: 'all var(--transition-fast)',
                         }}
                       >
-                        {cmd.title}
-                      </div>
-                      {cmd.subtitle && (
                         <div
                           style={{
-                            fontSize: 'var(--text-xs)',
-                            color: 'var(--text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            minWidth: 0,
                           }}
                         >
-                          {cmd.subtitle}
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: '30px',
+                              height: '30px',
+                              borderRadius: 'var(--radius-sm)',
+                              background: isSelected
+                                ? 'var(--action-primary-bg)'
+                                : 'var(--surface-active)',
+                              color: isSelected
+                                ? 'var(--action-primary-text)'
+                                : 'var(--text-secondary)',
+                              flexShrink: 0,
+                              transition: 'all var(--transition-fast)',
+                            }}
+                          >
+                            {cmd.icon}
+                          </span>
+
+                          <div style={{ minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: 'var(--text-sm)',
+                                fontWeight: 600,
+                                color: 'var(--text)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {cmd.title}
+                            </div>
+                            {cmd.subtitle && (
+                              <div
+                                style={{
+                                  fontSize: 'var(--text-xs)',
+                                  color: 'var(--text-muted)',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                {cmd.subtitle}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
 
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      textTransform: 'uppercase',
-                      color: 'var(--text-muted)',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    {cmd.category}
-                  </span>
-                </li>
-              )
-            })
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            flexShrink: 0,
+                            marginLeft: '12px',
+                          }}
+                        >
+                          {cmd.badge && (
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                padding: '2px 6px',
+                                borderRadius: 'var(--radius-xs)',
+                                background:
+                                  cmd.badge.toUpperCase() === 'PASS' ||
+                                  cmd.badge.toUpperCase() === 'PASSED'
+                                    ? 'var(--status-success-bg)'
+                                    : 'var(--status-danger-bg)',
+                                color:
+                                  cmd.badge.toUpperCase() === 'PASS' ||
+                                  cmd.badge.toUpperCase() === 'PASSED'
+                                    ? 'var(--status-success-text)'
+                                    : 'var(--status-danger-text)',
+                              }}
+                            >
+                              {cmd.badge}
+                            </span>
+                          )}
+
+                          {isSelected && (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                color: 'var(--text-muted)',
+                                background: 'var(--surface-active)',
+                                padding: '2px 6px',
+                                borderRadius: 'var(--radius-xs)',
+                                border: '1px solid var(--border)',
+                              }}
+                            >
+                              <span>Open</span>
+                              <ArrowRight size={10} />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))
           )}
-        </ul>
+        </div>
 
-        {/* Footer hints with generous insets from rounded corners */}
+        {/* Footer Hints with Clean Monochrome Styling */}
         <div
           style={{
-            padding: '12px 24px',
+            padding: '10px 18px',
             borderTop: '1px solid var(--border)',
             background: 'var(--surface-hover)',
             display: 'flex',
@@ -514,11 +647,21 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
             color: 'var(--text-muted)',
           }}
         >
-          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
             <span>↑↓ Navigate</span>
             <span>↵ Select</span>
+            <span>ESC Close</span>
           </div>
-          <span>{hasActiveSession ? 'Active Session' : 'Ready'}</span>
+          <span
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '220px',
+            }}
+          >
+            {hasActiveSession ? (session?.filename ? `Active: ${session.filename}` : 'Active Session') : 'Ready'}
+          </span>
         </div>
       </div>
     </div>

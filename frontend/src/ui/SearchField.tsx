@@ -9,7 +9,7 @@ export interface SearchFieldProps extends Omit<InputProps, 'prefixIcon'> {
 export const SearchField = React.forwardRef<HTMLInputElement, SearchFieldProps>(
   (
     {
-      shortcut = 'Ctrl+K',
+      shortcut,
       onShortcutTrigger,
       placeholder = 'Search...',
       value,

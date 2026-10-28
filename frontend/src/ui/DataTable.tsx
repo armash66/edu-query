@@ -132,7 +132,7 @@ export function DataTable<T>({
 
   const rowHeight = density === 'comfortable' ? '54px' : '38px'
   const cellPadding =
-    density === 'comfortable' ? 'var(--space-3) var(--space-4)' : 'var(--space-1) var(--space-3)'
+    density === 'comfortable' ? '12px 16px' : '8px 14px'
 
   return (
     <div
@@ -186,6 +186,7 @@ export function DataTable<T>({
 
       {/* Table Container */}
       <div
+        className="glass-scrollbar"
         style={{
           overflowX: 'auto',
           position: 'relative',
@@ -241,6 +242,7 @@ export function DataTable<T>({
                       userSelect: 'none',
                       whiteSpace: 'nowrap',
                       width: col.width,
+                      minWidth: col.width,
                       textAlign: col.align || 'left',
                       background: 'var(--surface-hover)',
                       boxShadow: isSticky ? '2px 0 4px var(--border)' : undefined,
@@ -327,6 +329,8 @@ export function DataTable<T>({
                           style={{
                             padding: cellPadding,
                             color: 'var(--text)',
+                            width: col.width,
+                            minWidth: col.width,
                             textAlign: col.align || 'left',
                             whiteSpace: 'nowrap',
                             position: isSticky ? 'sticky' : undefined,

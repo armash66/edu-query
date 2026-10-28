@@ -165,6 +165,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'seat_no',
       header: 'Seat No',
+      width: '110px',
       sticky: true,
       sortable: true,
       render: (row) => (
@@ -176,6 +177,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'roll_no',
       header: 'Roll No',
+      width: '120px',
       sortable: true,
       render: (row) => (
         <span className="tabular-nums font-mono" style={{ color: 'var(--text-secondary)' }}>
@@ -186,6 +188,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'name',
       header: 'Student Name',
+      width: '260px',
       sortable: true,
       render: (row) => (
         <div style={{ fontWeight: 600, color: 'var(--text)' }} title={row.name}>
@@ -196,6 +199,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'division',
       header: 'Div',
+      width: '75px',
       sortable: true,
       align: 'center',
       render: (row) => (
@@ -215,6 +219,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'total_marks',
       header: 'Total Marks',
+      width: '110px',
       sortable: true,
       align: 'right',
       render: (row) => (
@@ -226,6 +231,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'sgpi',
       header: 'SGPI',
+      width: '90px',
       sortable: true,
       align: 'right',
       render: (row) => (
@@ -237,6 +243,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'overall_result',
       header: 'Result',
+      width: '110px',
       sortable: true,
       align: 'center',
       render: (row) => {
@@ -253,6 +260,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'actions',
       header: '',
+      width: '110px',
       align: 'right',
       render: (row) => (
         <Link
@@ -260,14 +268,17 @@ export const StudentsPage: React.FC = () => {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '2px',
+            gap: '4px',
             fontSize: 'var(--text-xs)',
             fontWeight: 600,
             color: 'var(--text)',
             textDecoration: 'none',
-            padding: '4px 8px',
+            padding: '5px 12px',
             borderRadius: 'var(--radius-sm)',
             background: 'var(--surface-hover)',
+            border: '1px solid var(--border)',
+            transition: 'all var(--transition-fast)',
+            whiteSpace: 'nowrap',
           }}
         >
           <span>Audit</span>
@@ -384,7 +395,7 @@ export const StudentsPage: React.FC = () => {
           {/* Search Field */}
           <div style={{ flex: '1 1 280px', maxWidth: '420px' }}>
             <SearchField
-              placeholder="Search by student name, seat no, or roll no..."
+              placeholder="Search student name, seat no, roll no..."
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               onClear={() => handleSearchChange('')}
