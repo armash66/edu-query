@@ -124,8 +124,7 @@ export const AppShell: React.FC = () => {
         {/* Brand Block with Proper Padding (Never Flush to Edge) */}
         <div
           style={{
-            padding: isRail ? '12px 0' : '16px',
-            borderBottom: '1px solid var(--border)',
+            padding: isRail ? '14px 0 10px 0' : '16px 16px 12px 16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: isRail ? 'center' : 'space-between',

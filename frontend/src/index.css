@@ -516,7 +516,7 @@ button:disabled {
   height: calc(100vh - 32px);
   position: sticky;
   top: 16px;
-  margin: 16px 0 16px 16px;
+  margin: 16px;
   border-radius: 24px;
   display: flex;
   flex-direction: column;
