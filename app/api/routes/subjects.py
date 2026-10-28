@@ -19,6 +19,7 @@ from app.api.schemas.subject import (
     SubjectStudentsResponse,
 )
 from app.services.export_service import (
+    export_absent_students_excel,
     export_subject_failures_csv,
     export_subject_students_excel,
 )
@@ -162,6 +163,7 @@ def get_course_students_route(
     return payload  # type: ignore[return-value]
 
 
+@router.get("/{course_code}/export/xlsx", response_model=None)
 @router.get("/{course_code}/export-excel", response_model=None)
 @router.get("/{course_code}/export", response_model=None)
 def export_course_students_excel_route(
@@ -190,3 +192,25 @@ def export_course_students_excel_route(
     )
 
 
+
+@router.get("/absent/export/xlsx", response_model=None)
+@router.get("/absent/export", response_model=None)
+def export_absent_subjects_excel_route(
+    division: str | None = None,
+    course_code: str | None = None,
+    component: str | None = None,
+    query: str | None = None,
+    con = Depends(get_db),
+):
+    filename, excel_bytes = export_absent_students_excel(
+        con=con,
+        division=division,
+        course_code=course_code,
+        component=component,
+        query=query,
+    )
+    return Response(
+        content=excel_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

@@ -45,11 +45,13 @@ In this topology, a single Docker container runs FastAPI (Uvicorn) with non-root
    [Erased on delete/TTL]                [Persisted across restarts]
 ```
 
-### Architecture Option B: Decoupled Vercel Frontend + Render Backend
+### Architecture Option B: Decoupled Vercel Frontend + Render Backend (Current Live Setup)
 In this topology:
-- Frontend: Hosted as a static single-page application on Vercel. SPA routing is managed via `vercel.json` rewrites (`/(.*)` -> `/index.html`).
-- Backend: Hosted as a Docker container on Render.
-- Communication: HTTPS API requests with strict CORS allowlisting on the backend (`EDUQUERY_CORS_ORIGINS`).
+- Frontend: Hosted as a static single-page application on Vercel (`https://edu-query-hazel.vercel.app/`). SPA routing is managed via `vercel.json` rewrites (`/(.*)` -> `/index.html`).
+- Backend: Hosted as a Docker container on Render in the `singapore` region (`https://edu-query.onrender.com/`).
+- Cold-Start Mitigation: Render's free tier spins down idle containers after 15 minutes. The frontend implements `BootScreen.tsx`, which activates on cold starts, displays a ~50s container wake-up progress bar, and automatically polls `/health` every 4 seconds until the backend is warm.
+- Communication: HTTPS API requests with strict CORS allowlisting on the backend (`EDUQUERY_CORS_ORIGIN_REGEX="https://.*\\.vercel\\.app"`).
+- Additive Streaming Exports: Server-side streaming `.xlsx` exports powered by `openpyxl` are served at `/api/v1/students/export/xlsx`, `/api/v1/subjects/{course_code}/export/xlsx`, and `/api/v1/subjects/absent/export/xlsx`.
 
 ---
 
@@ -142,7 +144,7 @@ services:
     env: docker
     dockerfilePath: Dockerfile
     plan: starter
-    region: oregon
+    region: singapore
     numInstances: 1
     healthCheckPath: /livez
     disk:
