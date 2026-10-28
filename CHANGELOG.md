@@ -6,7 +6,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] - Redesign Phase 2: Design Tokens & Theme Foundation
+## [Unreleased] - Redesign Phase 3: Component Library & Data Visualizations
+
+### Added
+- Complete "Monochrome Glass" component library in `frontend/src/ui/`:
+  - `GlassCard.tsx`: Frosted glass cards (`glass-1`, `glass-2`, `glass-3`, `data-surface`) with header/footer slots.
+  - `Button.tsx`: High-contrast solid primary, frosted glass secondary, ghost, danger; sm/md/lg sizes; 44px min touch target; loading spinner with `aria-busy`.
+  - `IconButton.tsx`: 44px accessible icon buttons with required `aria-label`.
+  - `Chip.tsx`: Interactive filter chips with 44px touch-target remove button.
+  - `StatusBadge.tsx`: Dual-encoding (icon + text) status badges for `pass`, `fail`, `warn`, `info`.
+  - `Tabs.tsx`: WAI-ARIA tab pattern with Arrow/Home/End keyboard navigation.
+  - `SegmentedControl.tsx`: Keyboard accessible 2-4 item glass toggle.
+  - `Input.tsx` & `SearchField.tsx`: Floating labels, clearable button, error alert slots, `Ctrl+K` shortcut hint.
+  - `Listbox.tsx`: WAI-ARIA accessible custom select popover replacing native `<select>`.
+  - `Modal.tsx` & `Drawer.tsx`: Focus trap, Escape key listener, backdrop dismissal, mobile bottom-sheet transform.
+  - `Toast.tsx` & `ToastContext`: Stacking dismissible glass toasts with pause-on-hover.
+  - `Skeleton.tsx`: Shimmer placeholder pulse in neutral scale.
+  - `EmptyState.tsx` & `ErrorState.tsx`: Accessible fallback displays with retry and clear actions.
+  - `ProgressBar.tsx`: Determinate and indeterminate accessible progress bars.
+  - `Stat.tsx`: KPI cards with tabular display numbers, delta indicators, and sparklines.
+  - `DataTable.tsx`: Semantic table with sortable columns (`aria-sort`), sticky header/columns, density toggle, and pagination.
+  - SVG Visualizations: `OutcomeBar.tsx`, `DivisionComparison.tsx`, `FailureRateBar.tsx` (with tiered `<5%`, `5-15%`, `>15%` colors), and `Sparkline.tsx`.
+- 17 new Vitest unit tests in `frontend/src/ui/__tests__/components.test.tsx` verifying accessibility and keyboard interactions (94/94 total passing).
+- Updated `/styleguide` route with interactive live showcase of every component in both light and dark themes.
+
+---
+
+## [0.2.0] - Redesign Phase 2: Design Tokens & Theme Foundation
 
 ### Added
 - Implemented complete "Monochrome Glass" design token architecture in `frontend/src/index.css`:
