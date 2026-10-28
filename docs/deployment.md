@@ -248,3 +248,52 @@ Expected output of `/livez`:
 ```json
 {"status": "alive"}
 ```
+
+---
+
+## 9. Render Free-Tier Keep-Alive Ping Monitor Setup
+
+Render's free tier automatically suspends (spins down) Web Services after **15 minutes of zero inbound HTTP traffic**. When a user subsequently visits the site, the container takes 40–50 seconds to boot up (during which the frontend displays `BootScreen.tsx` with an auto-retrying progress bar).
+
+To completely prevent the container from sleeping and eliminate cold-start latency for faculty, set up a free automated keep-alive ping monitor.
+
+### Option A: UptimeRobot (Recommended — 100% Free)
+1. Sign up for a free account at [UptimeRobot.com](https://uptimerobot.com/).
+2. Click **+ Add New Monitor**.
+3. Configure monitor settings:
+   - **Monitor Type:** `HTTP(s)`
+   - **Friendly Name:** `EduQuery Backend Keep-Alive`
+   - **URL (or IP):** `https://edu-query.onrender.com/livez`
+   - **Monitoring Interval:** `Every 10 minutes` (Render sleeps after 15 minutes; a 10-minute cadence guarantees the container stays warm).
+   - **Monitor Timeout:** `30 seconds`
+   - **HTTP Method:** `HEAD` or `GET`
+4. Click **Create Monitor**.
+5. *Result:* UptimeRobot pings the lightweight `/livez` route (which bypasses database queries and returns `{"status":"alive"}` in <5ms), keeping the container warm 24/7 without consuming database resources.
+
+### Option B: cron-job.org (Alternative Free Cron Service)
+1. Sign up at [cron-job.org](https://cron-job.org/en/).
+2. Create a **New Cronjob**:
+   - **Title:** `EduQuery Keep-Alive`
+   - **URL:** `https://edu-query.onrender.com/livez`
+   - **Execution Schedule:** `Every 10 minutes` (`*/10 * * * *`)
+   - **Request Method:** `GET`
+3. Save the job.
+
+### Option C: GitHub Actions Scheduled Keep-Alive (Zero Third-Party Accounts)
+If you prefer managing the ping in your repository without third-party services, add `.github/workflows/keepalive.yml`:
+
+```yaml
+name: Backend Keep-Alive
+on:
+  schedule:
+    - cron: '*/14 * * * *' # Every 14 minutes
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Livez Endpoint
+        run: |
+          curl -s -f --max-time 15 "https://edu-query.onrender.com/livez" || true
+```

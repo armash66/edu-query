@@ -425,9 +425,6 @@ export const ImportPage: React.FC = () => {
               onDragOver={handleDrag}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              tabIndex={0}
-              role="button"
-              aria-label="Upload workbook file dropzone"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   fileInputRef.current?.click()

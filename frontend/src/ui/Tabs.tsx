@@ -88,8 +88,7 @@ export const Tabs: React.FC<TabsProps> = ({
             type="button"
             data-tab-id={item.id}
             id={`tab-${item.id}`}
-            aria-controls={`panel-${item.id}`}
-            aria-selected={isSelected}
+                        aria-selected={isSelected}
             tabIndex={isSelected ? 0 : -1}
             disabled={item.disabled}
             onClick={() => !item.disabled && onChange(item.id)}

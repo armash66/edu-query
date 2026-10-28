@@ -1176,9 +1176,9 @@ export const UploadPage: React.FC = () => {
                 lineHeight: 1.5,
               }}
             >
-              Your file is uploaded to the EduQuery server for processing and stored in a temporary
-              session in memory/on the server. It is not processed client-side in the browser. You
-              can review the data-handling details before proceeding.
+              Uploaded Excel workbooks are processed on the server and immediately deleted from disk after
+              ingestion into an isolated temporary DuckDB workspace. Data is never shared or retained beyond
+              your session lifetime.
             </p>
 
             <div
@@ -1201,8 +1201,8 @@ export const UploadPage: React.FC = () => {
                   }}
                 />
                 <span>
-                  <strong>Isolated temporary workspace:</strong> Marksheet data is scoped to an
-                  ephemeral session with zero cross-session leakage.
+                  <strong>Isolated temporary workspace:</strong> Raw .xlsx files are unlinked from disk immediately
+                  after parsing. Only relational tables in an isolated session DuckDB are retained.
                 </span>
               </div>
 
@@ -1216,8 +1216,8 @@ export const UploadPage: React.FC = () => {
                   }}
                 />
                 <span>
-                  <strong>Instant full deletion:</strong> Use the &quot;Delete session and
-                  data&quot; action anytime to permanently erase all records from the server.
+                  <strong>Instant full deletion:</strong> Sessions automatically expire and purge after 1 hour (3,600s),
+                  or instantly when clicking &quot;Delete session and data&quot;.
                 </span>
               </div>
 
@@ -1231,8 +1231,8 @@ export const UploadPage: React.FC = () => {
                   }}
                 />
                 <span>
-                  <strong>No external AI services:</strong> Analysis runs deterministic academic
-                  classification rules with full provenance tracking.
+                  <strong>Deterministic & Offline:</strong> Zero external AI/LLM APIs. Classification, reconciliation,
+                  and anomaly detection run entirely deterministically within your container.
                 </span>
               </div>
             </div>

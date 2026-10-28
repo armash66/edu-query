@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
@@ -21,12 +21,13 @@ import {
 import { useHealth } from '../context/HealthContext'
 import { useSession } from '../context/SessionContext'
 import { useTheme } from '../context/ThemeContext'
-import { CommandPalette } from './CommandPalette'
-import { AdminKeyModal } from './AdminKeyModal'
-import { ConfirmDialog } from './ConfirmDialog'
 import { BootScreen } from './BootScreen'
 import { IconButton } from '../ui/IconButton'
 import { StatusBadge } from '../ui/StatusBadge'
+
+const CommandPalette = lazy(() => import('./CommandPalette').then((m) => ({ default: m.CommandPalette })))
+const AdminKeyModal = lazy(() => import('./AdminKeyModal').then((m) => ({ default: m.AdminKeyModal })))
+const ConfirmDialog = lazy(() => import('./ConfirmDialog').then((m) => ({ default: m.ConfirmDialog })))
 
 export const AppShell: React.FC = () => {
   const { health, loading: healthLoading, error: healthError, refreshHealth } = useHealth()
@@ -121,7 +122,7 @@ export const AppShell: React.FC = () => {
   return (
     <div className="app-container">
       {/* Skip to Content for Screen Readers */}
-      <a href="#main-content-region" className="skip-link">
+      <a href="#main-content-region" className="skip-link skip-to-content">
         Skip to main content
       </a>
 
@@ -411,7 +412,7 @@ export const AppShell: React.FC = () => {
                 fontSize: 'var(--text-xs)',
                 cursor: 'pointer',
               }}
-              aria-label="Open Command Palette"
+              aria-label="Quick Jump... ⌘K (Open Command Palette)"
             >
               <Search size={14} />
               <span style={{ display: 'none' }} className="d-md-inline">
@@ -511,7 +512,7 @@ export const AppShell: React.FC = () => {
         </header>
 
         {/* Page Body */}
-        <main id="main-content-region" className="page-body">
+        <main id="main-content-region" className="page-body" role="main">
           {isColdStart ? (
             <BootScreen
               onRetry={refreshHealth}
@@ -538,25 +539,35 @@ export const AppShell: React.FC = () => {
         ))}
       </nav>
 
-      {/* Modals & Dialogs */}
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-      />
+      {/* Modals & Dialogs (Lazy-loaded on demand) */}
+      {isCommandPaletteOpen && (
+        <Suspense fallback={null}>
+          <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            onClose={() => setIsCommandPaletteOpen(false)}
+          />
+        </Suspense>
+      )}
 
-      <AdminKeyModal isOpen={isAdminKeyOpen} onClose={() => setIsAdminKeyOpen(false)} />
+      {isAdminKeyOpen && (
+        <Suspense fallback={null}>
+          <AdminKeyModal isOpen={isAdminKeyOpen} onClose={() => setIsAdminKeyOpen(false)} />
+        </Suspense>
+      )}
 
       {isDeleteDialogOpen && (
-        <ConfirmDialog
-          title="Delete Analysis Session & Data"
-          message="Are you sure you want to permanently delete this analysis session? All temporary marksheet files, extracted student records, and moderation reviews will be erased from the server immediately. This cannot be undone."
-          confirmLabel="Delete session and data"
-          cancelLabel="Keep analysis"
-          danger={true}
-          loading={deleting}
-          onConfirm={handleDeleteSessionConfirm}
-          onCancel={() => setIsDeleteDialogOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <ConfirmDialog
+            title="Delete Analysis Session & Data"
+            message="Are you sure you want to permanently delete this analysis session? All temporary marksheet files, extracted student records, and moderation reviews will be erased from the server immediately. This cannot be undone."
+            confirmLabel="Delete session and data"
+            cancelLabel="Keep analysis"
+            danger={true}
+            loading={deleting}
+            onConfirm={handleDeleteSessionConfirm}
+            onCancel={() => setIsDeleteDialogOpen(false)}
+          />
+        </Suspense>
       )}
     </div>
   )

@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import * as XLSX from 'xlsx'
 import {
   createWorksheet,
   exportToExcel,
@@ -11,7 +10,7 @@ import {
 } from './excelExport'
 import type { AbsentStudentItem, StudentSummaryItem, SubjectStudentItem } from '../api/types'
 
-describe('Shared SheetJS Excel Export Utility', () => {
+describe('Shared Lightweight Excel Export Utility', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
   })
@@ -103,9 +102,10 @@ describe('Shared SheetJS Excel Export Utility', () => {
 
     const ws = result.workbook.Sheets['Student Roster']
     expect(ws).toBeDefined()
-    // Convert to JSON array to inspect rows
-    const rows = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][]
-    expect(rows.length).toBeGreaterThan(3) // metadata + header + data
+    expect(ws['A1'].v).toContain('EduQuery — Academic Student Roster')
+    expect(ws['A4'].v).toBe('Roll No')
+    expect(ws['C4'].v).toBe('Student Name')
+    expect(ws['C5'].v).toBe('Student One')
   })
 
   it('exports subject roster with status-aware filename and sheet name', () => {
