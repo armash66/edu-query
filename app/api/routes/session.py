@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.config import Settings, get_settings
 from app.services.session_manager import (
     confirm_temporary_session,
+    create_sample_session,
     create_temporary_session,
     delete_temporary_session,
     get_session_status,
@@ -83,6 +84,42 @@ async def upload_temporary_marksheet(
         "preview": meta["preview"],
     }
 
+
+
+
+@router.post("/sample", summary="Load anonymized sample dataset for instant analysis exploration")
+def load_sample_session_route(
+    request: Request,
+    response: Response,
+) -> dict[str, Any]:
+    """Load bundled anonymized sample marksheet (Result_anonymized.xlsx) into an isolated session."""
+    settings: Settings = getattr(request.app.state, "settings", None) or get_settings()
+    session_id, meta = create_sample_session(settings=settings)
+
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=session_id,
+        httponly=True,
+        samesite="lax",
+        secure=is_request_secure(request, settings),
+        max_age=settings.import_session_ttl_seconds,
+        path="/",
+    )
+    response.headers["X-EduQuery-Session-Token"] = session_id
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+
+    return {
+        "status": "success",
+        "session_id": session_id,
+        "mode": "temporary",
+        "state": meta["state"],
+        "filename": meta["filename"],
+        "students_count": meta["students_count"],
+        "courses_count": meta["courses_count"],
+        "can_confirm": meta["can_confirm"],
+        "blocking_errors": meta["blocking_errors"],
+        "preview": meta["preview"],
+    }
 
 @router.post("/confirm", summary="Confirm preview and activate the temporary session for analysis")
 def confirm_session(
@@ -194,6 +231,7 @@ def delete_session(
     # Invalidate cookie
     response.delete_cookie(key=COOKIE_NAME, path="/")
     response.headers["X-EduQuery-Session-Deleted"] = "true"
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
 
     return {
         "status": "deleted",

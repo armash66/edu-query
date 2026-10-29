@@ -16,7 +16,8 @@ const SubjectFailuresPage = lazy(() => import('./pages/SubjectFailuresPage').the
 const SubjectDetailPage = lazy(() => import('./pages/SubjectDetailPage').then((m) => ({ default: m.SubjectDetailPage })))
 const SubjectsCatalogPage = lazy(() => import('./pages/SubjectsCatalogPage').then((m) => ({ default: m.SubjectsCatalogPage })))
 const DataQualityPage = lazy(() => import('./pages/DataQualityPage').then((m) => ({ default: m.DataQualityPage })))
-const ImportPage = lazy(() => import('./pages/ImportPage').then((m) => ({ default: m.ImportPage })))
+const FollowUpsPage = lazy(() => import('./pages/FollowUpsPage').then((m) => ({ default: m.FollowUpsPage })))
+const ReportsPage = lazy(() => import('./pages/ReportsPage').then((m) => ({ default: m.ReportsPage })))
 const UploadPage = lazy(() => import('./pages/UploadPage').then((m) => ({ default: m.UploadPage })))
 const StyleguidePage = lazy(() => import('./pages/StyleguidePage').then((m) => ({ default: m.StyleguidePage })))
 
@@ -52,9 +53,11 @@ export function App() {
                       <Route path="/subjects/:courseCode" element={<SubjectDetailPage />} />
                       <Route path="/subjects/:courseCode/failures" element={<SubjectDetailPage />} />
                       <Route path="/failures" element={<SubjectFailuresPage />} />
+                      <Route path="/follow-ups" element={<FollowUpsPage />} />
                       <Route path="/data-quality" element={<DataQualityPage />} />
                       <Route path="/quality" element={<DataQualityPage />} />
-                      <Route path="/imports" element={<ImportPage />} />
+                      <Route path="/reports" element={<ReportsPage />} />
+                      <Route path="/imports" element={<Navigate to="/" replace />} />
                       <Route path="/styleguide" element={<StyleguidePage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Route>

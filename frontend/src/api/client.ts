@@ -842,6 +842,16 @@ export async function reviewStudentAnomalies(
 // Privacy-First Temporary Analysis Session Lifecycle
 // =========================================================================
 
+export async function createSampleSession(): Promise<SessionUploadResponse> {
+  const res = await request<SessionUploadResponse>('/api/v1/session/sample', {
+    method: 'POST',
+  })
+  if (res?.session_id) {
+    setSessionToken(res.session_id)
+  }
+  return res
+}
+
 export async function uploadSession(file: File): Promise<SessionUploadResponse> {
   const formData = new FormData()
   formData.append('file', file)

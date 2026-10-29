@@ -222,7 +222,7 @@ export const SubjectsCatalogPage: React.FC = () => {
     {
       key: 'actions',
       header: '',
-      width: '120px',
+      width: '145px',
       align: 'right',
       render: (row) => (
         <Link

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react'
+import React, { useState, useEffect, lazy, Suspense, useRef } from 'react'
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
@@ -6,13 +6,14 @@ import {
   UserX,
   Compass,
   BookOpen,
-  ShieldCheck,
-  Database,
-  UploadCloud,
-  Palette,
-  Trash2,
+  UserCheck,
+  ShieldAlert,
+  FileText,
   PanelLeftClose,
   PanelLeftOpen,
+  MoreHorizontal,
+  RefreshCw,
+  Trash2,
 } from 'lucide-react'
 import { useHealth } from '../context/HealthContext'
 import { useSession } from '../context/SessionContext'
@@ -32,6 +33,8 @@ export const AppShell: React.FC = () => {
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [isFooterMenuOpen, setIsFooterMenuOpen] = useState(false)
+  const footerMenuRef = useRef<HTMLDivElement>(null)
 
   const handleDeleteSessionConfirm = async () => {
     setDeleting(true)
@@ -39,6 +42,7 @@ export const AppShell: React.FC = () => {
       await deleteSession()
       await refreshHealth()
       setIsDeleteDialogOpen(false)
+      setIsFooterMenuOpen(false)
       navigate('/upload')
     } catch (err) {
       console.error('Failed to delete session:', err)
@@ -69,6 +73,19 @@ export const AppShell: React.FC = () => {
     })
   }
 
+  // Close footer menu when clicking outside
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (footerMenuRef.current && !footerMenuRef.current.contains(e.target as Node)) {
+        setIsFooterMenuOpen(false)
+      }
+    }
+    if (isFooterMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick)
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick)
+  }, [isFooterMenuOpen])
+
   // Global Ctrl+K / Cmd+K handler
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -83,54 +100,95 @@ export const AppShell: React.FC = () => {
 
   // Dynamic Page Title & Muted Subtitle
   const getPageTitle = (pathname: string): { title: string; subtitle?: string } => {
-    if (pathname === '/upload') return { title: 'Upload Marksheet', subtitle: 'Analyze student workbook' }
+    if (pathname === '/upload') return { title: 'Analyze Marksheet', subtitle: 'Upload a marksheet to begin' }
     if (pathname === '/') {
       return hasActiveSession
-        ? { title: 'Academic Analysis Overview', subtitle: 'Executive cohort performance summary' }
-        : { title: 'EduQuery Academic Portal', subtitle: 'Upload a marksheet to begin' }
+        ? { title: 'Overview', subtitle: 'Command center & cohort performance' }
+        : { title: 'EduQuery', subtitle: 'Result Management Assistant' }
     }
-    if (pathname === '/students') return { title: 'Student Directory', subtitle: 'Search & individual breakdown' }
-    if (pathname.startsWith('/students/')) return { title: 'Student Breakdown', subtitle: 'Detailed marks & evaluation' }
-    if (pathname === '/explore') return { title: 'Explore Academic Data', subtitle: 'Multi-condition filter builder' }
-    if (pathname === '/absent' || pathname === '/absent-students') return { title: 'Absentee Roster', subtitle: 'Unattempted evaluations & missing marks' }
-    if (pathname === '/failures') return { title: 'Curriculum Failure Summary', subtitle: 'Subject-wise failure distribution' }
-    if (pathname === '/subjects') return { title: 'Curriculum & Subjects', subtitle: 'Course performance & failure rates' }
+    if (pathname === '/students') return { title: 'Students', subtitle: 'Cohort roster, merit list & result slips' }
+    if (pathname.startsWith('/students/')) return { title: 'Student Breakdown', subtitle: 'Component evaluation & result slip' }
+    if (pathname === '/subjects') return { title: 'Subjects', subtitle: 'Curriculum catalog, electives & failure ranking' }
     if (pathname.startsWith('/subjects/')) return { title: 'Subject Roster', subtitle: 'Student evaluations & pass marks' }
-    if (pathname === '/quality' || pathname === '/data-quality') return { title: 'Data Quality & Anomalies', subtitle: 'Integrity checks & review audits' }
-    if (pathname === '/imports') return { title: 'Dataset Management', subtitle: 'Active records & versions' }
-    if (pathname === '/styleguide') return { title: 'Design System', subtitle: 'Monochrome Glass tokens & components' }
-    return { title: 'EduQuery Academic Portal' }
+    if (pathname === '/explore') return { title: 'Explore', subtitle: 'Interactive criteria builder & saved views' }
+    if (pathname === '/absent' || pathname === '/absent-students') return { title: 'Absent Students', subtitle: 'Grouped absentee analysis & notices' }
+    if (pathname === '/follow-ups') return { title: 'Follow-ups', subtitle: 'Remedial groups, peer mentoring & notices' }
+    if (pathname === '/data-quality' || pathname === '/quality') return { title: 'Data Quality', subtitle: 'Pre-declaration verification & anomaly review' }
+    if (pathname === '/reports') return { title: 'Reports', subtitle: 'Print-ready institutional documents & exports' }
+    return { title: 'EduQuery' }
   }
 
   const { title, subtitle } = getPageTitle(location.pathname)
 
-  // Canonical Nav Items
-  const mainNavItems = [
-    { to: '/', label: 'Overview', icon: <BarChart3 size={18} />, end: true },
-    { to: '/students', label: 'Students', icon: <Users size={18} /> },
-    { to: '/absent', label: 'Absent Students', icon: <UserX size={18} /> },
-    { to: '/explore', label: 'Explore', icon: <Compass size={18} /> },
-    { to: '/subjects', label: 'Subjects', icon: <BookOpen size={18} /> },
-    { to: '/data-quality', label: 'Data Quality', icon: <ShieldCheck size={18} /> },
-    { to: '/imports', label: 'Datasets', icon: <Database size={18} /> },
+  // 8 Canonical Nav Items in 3 Labeled Groups
+  interface NavItem {
+    to: string
+    label: string
+    icon: React.ReactNode
+    end?: boolean
+    badge?: string
+    badgeTone?: 'neutral' | 'amber'
+  }
+
+  interface NavGroup {
+    label: string
+    items: NavItem[]
+  }
+
+  const navGroups: NavGroup[] = [
+    {
+      label: 'Analyze',
+      items: [
+        { to: '/', label: 'Overview', icon: <BarChart3 size={18} />, end: true },
+        { to: '/students', label: 'Students', icon: <Users size={18} /> },
+        { to: '/subjects', label: 'Subjects', icon: <BookOpen size={18} /> },
+      ],
+    },
+    {
+      label: 'Investigate',
+      items: [
+        { to: '/explore', label: 'Explore', icon: <Compass size={18} /> },
+        { to: '/absent', label: 'Absent Students', icon: <UserX size={18} />, badge: '7', badgeTone: 'neutral' },
+      ],
+    },
+    {
+      label: 'Act',
+      items: [
+        { to: '/follow-ups', label: 'Follow-ups', icon: <UserCheck size={18} /> },
+        { to: '/data-quality', label: 'Data Quality', icon: <ShieldAlert size={18} />, badge: '3', badgeTone: 'amber' },
+        { to: '/reports', label: 'Reports', icon: <FileText size={18} /> },
+      ],
+    },
   ]
 
   // Dataset status details
   const studentCount = session?.students_count ?? health?.database?.students_count ?? 145
   const courseCount = session?.courses_count ?? health?.database?.courses_count ?? 27
-  const datasetName = session?.filename || 'Uploaded Marksheet'
+  const datasetName = session?.filename || 'Result_anonymized.xlsx'
 
-  // Compute status: strictly "Saved dataset" or "Temporary session · expires in N min" (never "Persistent")
+  // Compute status: strictly "Temporary session · expires in N min"
   const isTemporary = session?.mode === 'temporary' || (!session?.mode && Boolean(session?.expires_at))
-  let datasetStatusLabel = 'Saved dataset'
-  if (isTemporary) {
-    if (session?.expires_at) {
-      const msLeft = new Date(session.expires_at).getTime() - Date.now()
-      const minLeft = Math.max(1, Math.round(msLeft / 60000))
-      datasetStatusLabel = `Temporary session · expires in ${minLeft} min`
-    } else {
-      datasetStatusLabel = 'Temporary session'
-    }
+  let datasetStatusLabel = 'Temporary session'
+  if (session?.expires_at) {
+    const msLeft = new Date(session.expires_at).getTime() - Date.now()
+    const minLeft = Math.max(1, Math.round(msLeft / 60000))
+    datasetStatusLabel = `Temporary session · expires in ${minLeft} min`
+  } else if (!isTemporary && session?.active) {
+    datasetStatusLabel = 'Active session'
+  }
+
+  // Opening page flow: if no active session or currently on /upload, render without sidebar and header!
+  if (!hasActiveSession || location.pathname === '/upload') {
+    return (
+      <div className="opening-flow-container" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <a href="#main-content-region" className="skip-link skip-to-content">
+          Skip to main content
+        </a>
+        <main id="main-content-region" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <Outlet />
+        </main>
+      </div>
+    )
   }
 
   // If backend is waking up and no local session/data is loaded, show polite BootScreen
@@ -143,9 +201,9 @@ export const AppShell: React.FC = () => {
         Skip to main content
       </a>
 
-      {/* Floating Inset Sidebar (16px margin from viewport edges, 24px radius, glass-2, padded 16px inside) */}
+      {/* Floating Inset Sidebar (16px margin from viewport edges, 24px radius, glass-2, padded inside) */}
       <aside className={`sidebar glass-2 ${isRail ? 'rail' : ''}`} aria-label="Main Navigation">
-        {/* Brand Block with Proper Padding (Never Flush to Edge) */}
+        {/* Brand Block */}
         <div
           style={{
             padding: isRail ? '14px 0 10px 0' : '16px 16px 12px 16px',
@@ -193,7 +251,7 @@ export const AppShell: React.FC = () => {
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  Academic Intelligence
+                  Result Management
                 </div>
               </div>
             </div>
@@ -211,182 +269,257 @@ export const AppShell: React.FC = () => {
                 fontSize: '14px',
                 fontWeight: 800,
               }}
-              title="EduQuery"
+              title="EduQuery Result Management"
             >
               EQ
             </div>
           )}
         </div>
 
-        {/* 5 Canonical Nav Items */}
+        {/* 8 Items in 3 Labeled Groups */}
         <nav
           style={{
             flex: 1,
-            padding: isRail ? '12px 6px' : '16px 12px',
+            padding: isRail ? '12px 6px' : '12px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '4px',
+            gap: '12px',
             overflowY: 'auto',
           }}
         >
-          {mainNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              title={isRail ? item.label : undefined}
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: isRail ? 'center' : 'flex-start',
-                gap: '12px',
-                padding: isRail ? '12px 0' : '10px 14px',
-                borderRadius: 'var(--radius-sm)',
-                textDecoration: 'none',
-                fontSize: 'var(--text-sm)',
-                fontWeight: isActive ? 600 : 500,
-                color: isActive ? 'var(--action-primary-text)' : 'var(--text-secondary)',
-                background: isActive ? 'var(--action-primary-bg)' : 'transparent',
-                boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
-                transition: 'all var(--transition-fast)',
-                minHeight: '44px',
-              })}
-            >
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                aria-hidden="true"
-              >
-                {item.icon}
-              </span>
-              {!isRail && <span>{item.label}</span>}
-            </NavLink>
+          {navGroups.map((group) => (
+            <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              {!isRail && (
+                <div
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    color: 'var(--text-muted)',
+                    padding: '4px 10px',
+                  }}
+                >
+                  {group.label}
+                </div>
+              )}
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  title={isRail ? item.label : undefined}
+                  style={({ isActive }) => ({
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: isRail ? 'center' : 'space-between',
+                    padding: isRail ? '10px 0' : '8px 12px',
+                    borderRadius: 'var(--radius-sm)',
+                    textDecoration: 'none',
+                    fontSize: 'var(--text-sm)',
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? 'var(--action-primary-text)' : 'var(--text-secondary)',
+                    background: isActive ? 'var(--action-primary-bg)' : 'transparent',
+                    boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                    transition: 'all var(--transition-fast)',
+                    minHeight: '38px',
+                    position: 'relative',
+                  })}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      aria-hidden="true"
+                    >
+                      {item.icon}
+                    </span>
+                    {!isRail && <span>{item.label}</span>}
+                  </div>
+
+                  {!isRail && item.badge && (
+                    <span
+                      className="font-mono tabular-nums"
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        borderRadius: 'var(--radius-pill)',
+                        background:
+                          item.badgeTone === 'amber'
+                            ? 'var(--status-warning-bg)'
+                            : 'var(--surface-hover)',
+                        color:
+                          item.badgeTone === 'amber'
+                            ? 'var(--status-warning-text)'
+                            : 'var(--text-secondary)',
+                        border:
+                          item.badgeTone === 'amber'
+                            ? '1px solid var(--status-warning-border)'
+                            : '1px solid var(--border)',
+                      }}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </div>
           ))}
-
-          <div
-            style={{
-              margin: '8px 4px',
-              borderTop: '1px solid var(--border)',
-            }}
-          />
-
-          {/* Secondary Action: Upload Marksheet */}
-          <NavLink
-            to="/upload"
-            title={isRail ? 'Upload Marksheet' : undefined}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isRail ? 'center' : 'flex-start',
-              gap: '12px',
-              padding: isRail ? '12px 0' : '10px 14px',
-              borderRadius: 'var(--radius-sm)',
-              textDecoration: 'none',
-              fontSize: 'var(--text-sm)',
-              fontWeight: isActive ? 600 : 500,
-              color: isActive ? 'var(--action-primary-text)' : 'var(--text-secondary)',
-              background: isActive ? 'var(--action-primary-bg)' : 'transparent',
-              transition: 'all var(--transition-fast)',
-              minHeight: '44px',
-            })}
-          >
-            <span style={{ display: 'inline-flex' }} aria-hidden="true">
-              <UploadCloud size={18} />
-            </span>
-            {!isRail && <span>Upload Marksheet</span>}
-          </NavLink>
-
-          {/* Design System link: Only in development builds */}
-          {import.meta.env.DEV && (
-            <NavLink
-              to="/styleguide"
-              title={isRail ? 'Design System' : undefined}
-              style={({ isActive }) => ({
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: isRail ? 'center' : 'flex-start',
-                gap: '12px',
-                padding: isRail ? '12px 0' : '10px 14px',
-                borderRadius: 'var(--radius-sm)',
-                textDecoration: 'none',
-                fontSize: 'var(--text-xs)',
-                fontWeight: 500,
-                color: isActive ? 'var(--text)' : 'var(--text-muted)',
-                background: isActive ? 'var(--surface-active)' : 'transparent',
-                transition: 'all var(--transition-fast)',
-                minHeight: '44px',
-              })}
-            >
-              <span style={{ display: 'inline-flex' }} aria-hidden="true">
-                <Palette size={16} />
-              </span>
-              {!isRail && <span>Design System</span>}
-            </NavLink>
-          )}
         </nav>
 
         {/* Sidebar Footer Block */}
         <div
+          ref={footerMenuRef}
           style={{
-            padding: isRail ? '12px 6px' : '16px',
+            position: 'relative',
+            padding: isRail ? '12px 6px' : '14px 16px',
             borderTop: '1px solid var(--border)',
             background: 'var(--surface-hover)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px',
+            gap: '8px',
           }}
         >
-          {/* Dataset Status Line */}
-          {!isRail && (
-            <div style={{ fontSize: 'var(--text-xs)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              <div
-                style={{
-                  fontWeight: 600,
-                  color: 'var(--text)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+          {/* Footer Popover Menu */}
+          {isFooterMenuOpen && !isRail && (
+            <div
+              className="glass-3"
+              style={{
+                position: 'absolute',
+                bottom: '100%',
+                left: '12px',
+                right: '12px',
+                marginBottom: '8px',
+                borderRadius: 'var(--radius-md)',
+                padding: '6px',
+                boxShadow: 'var(--shadow-lg)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+                zIndex: 20,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFooterMenuOpen(false)
+                  navigate('/upload')
                 }}
-                title={datasetName}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  borderRadius: 'var(--radius-xs)',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  width: '100%',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--surface-hover)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
               >
-                {datasetName}
-              </div>
-              <div className="tabular-nums" style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
-                {studentCount} students &bull; {courseCount} courses
-              </div>
-              <div style={{ color: 'var(--text-muted)', fontSize: '11px', marginTop: '2px' }}>
-                {datasetStatusLabel}
-              </div>
+                <RefreshCw size={14} />
+                <span>Replace dataset</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setIsFooterMenuOpen(false)
+                  setIsDeleteDialogOpen(true)
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  borderRadius: 'var(--radius-xs)',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--status-danger-text)',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  width: '100%',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--status-danger-bg)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              >
+                <Trash2 size={14} />
+                <span>Delete data</span>
+              </button>
             </div>
           )}
 
-          {/* Sidebar Collapse / Expand Toggle */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: isRail ? 'center' : 'flex-end',
-              width: '100%',
-              paddingTop: isRail ? '4px' : '0',
-            }}
-          >
-            <IconButton
-              aria-label={isRail ? 'Expand sidebar' : 'Collapse sidebar into rail'}
-              variant="ghost"
-              size={isRail ? 'md' : 'sm'}
-              onClick={toggleRail}
-              icon={isRail ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={16} />}
-            />
-          </div>
+          {/* Dataset Status Line & Actions */}
+          {!isRail ? (
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+              <div style={{ fontSize: 'var(--text-xs)', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    color: 'var(--text)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title={datasetName}
+                >
+                  {datasetName}
+                </div>
+                <div className="tabular-nums" style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                  {studentCount} students &bull; {courseCount} courses
+                </div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginTop: '1px' }}>
+                  {datasetStatusLabel}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                <IconButton
+                  aria-label="Dataset options menu"
+                  title="Dataset options"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsFooterMenuOpen((prev) => !prev)}
+                  icon={<MoreHorizontal size={16} />}
+                />
+                <IconButton
+                  aria-label={isRail ? 'Expand sidebar' : 'Collapse sidebar'}
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleRail}
+                  icon={<PanelLeftClose size={15} />}
+                />
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+              <IconButton
+                aria-label="Expand sidebar"
+                variant="ghost"
+                size="md"
+                onClick={toggleRail}
+                icon={<PanelLeftOpen size={18} />}
+              />
+            </div>
+          )}
         </div>
       </aside>
 
       {/* Main Content Area */}
       <div className="main-content">
-        {/* Sticky Glass-3 Top Bar with 1px Hairline */}
+        {/* Sticky Glass-3 Top Bar */}
         <header className="top-bar">
           {/* Left: Page Title & Muted Desktop Subtitle */}
           <div
@@ -430,21 +563,10 @@ export const AppShell: React.FC = () => {
             )}
           </div>
 
-          {/* Right: (a) Search Field, (b) Single Theme Menu Button, (c) Delete Session Button */}
+          {/* Right: AI Search + Theme Icon Only */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <GlobalSearchTrigger onClick={() => setIsCommandPaletteOpen(true)} />
             <ThemeMenu align="right" direction="down" shape="circle" />
-            {hasActiveSession && (
-              <IconButton
-                aria-label="Delete analysis session and reset data"
-                title="Delete Session"
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsDeleteDialogOpen(true)}
-                icon={<Trash2 size={16} />}
-                style={{ color: 'var(--status-danger-text)' }}
-              />
-            )}
           </div>
         </header>
 
@@ -460,31 +582,61 @@ export const AppShell: React.FC = () => {
 
       {/* Mobile Floating Bottom Navigation (< 768px) */}
       <nav className="bottom-nav" aria-label="Mobile Navigation">
-        {mainNavItems.slice(0, 4).map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className="bottom-nav-item"
-            style={({ isActive }) => ({
-              color: isActive ? 'var(--text)' : 'var(--text-muted)',
-              fontWeight: isActive ? 700 : 500,
-            })}
-          >
-            <span aria-hidden="true">{item.icon}</span>
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
         <NavLink
-          to="/imports"
+          to="/"
+          end
           className="bottom-nav-item"
           style={({ isActive }) => ({
             color: isActive ? 'var(--text)' : 'var(--text-muted)',
             fontWeight: isActive ? 700 : 500,
           })}
         >
-          <Database size={18} />
-          <span>Datasets</span>
+          <BarChart3 size={18} />
+          <span>Overview</span>
+        </NavLink>
+        <NavLink
+          to="/students"
+          className="bottom-nav-item"
+          style={({ isActive }) => ({
+            color: isActive ? 'var(--text)' : 'var(--text-muted)',
+            fontWeight: isActive ? 700 : 500,
+          })}
+        >
+          <Users size={18} />
+          <span>Students</span>
+        </NavLink>
+        <NavLink
+          to="/subjects"
+          className="bottom-nav-item"
+          style={({ isActive }) => ({
+            color: isActive ? 'var(--text)' : 'var(--text-muted)',
+            fontWeight: isActive ? 700 : 500,
+          })}
+        >
+          <BookOpen size={18} />
+          <span>Subjects</span>
+        </NavLink>
+        <NavLink
+          to="/explore"
+          className="bottom-nav-item"
+          style={({ isActive }) => ({
+            color: isActive ? 'var(--text)' : 'var(--text-muted)',
+            fontWeight: isActive ? 700 : 500,
+          })}
+        >
+          <Compass size={18} />
+          <span>Explore</span>
+        </NavLink>
+        <NavLink
+          to="/follow-ups"
+          className="bottom-nav-item"
+          style={({ isActive }) => ({
+            color: isActive ? 'var(--text)' : 'var(--text-muted)',
+            fontWeight: isActive ? 700 : 500,
+          })}
+        >
+          <UserCheck size={18} />
+          <span>Follow-ups</span>
         </NavLink>
       </nav>
 
@@ -501,8 +653,8 @@ export const AppShell: React.FC = () => {
       <Suspense fallback={null}>
         {isDeleteDialogOpen && (
           <ConfirmDialog
-            title="Delete Analysis Session & Data"
-            message="Are you sure you want to permanently delete this analysis session? All temporary marksheet records, extracted student evaluations, and analytics cache will be cleared immediately. This cannot be undone."
+            title="Delete Session Data"
+            message="Are you sure you want to delete this dataset? All student data will be purged from session memory and client caches will be cleared. You will return to the opening upload screen."
             confirmLabel="Delete session and data"
             cancelLabel="Keep analysis"
             danger={true}
@@ -515,3 +667,4 @@ export const AppShell: React.FC = () => {
     </div>
   )
 }
+export default AppShell

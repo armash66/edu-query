@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import {
   getSessionStatus,
   uploadSession,
+  createSampleSession,
   confirmSession as apiConfirmSession,
   deleteSession as apiDeleteSession,
   saveSession as apiSaveSession,
@@ -22,6 +23,7 @@ export interface SessionContextType {
   hasActiveSession: boolean
   isPreviewReady: boolean
   uploadMarksheet: (file: File) => Promise<SessionUploadResponse>
+  loadSampleSession: () => Promise<SessionUploadResponse>
   confirmSession: () => Promise<SessionConfirmResponse>
   deleteSession: () => Promise<void>
   saveSession: (datasetName?: string) => Promise<SessionSaveResponse>
@@ -77,6 +79,24 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return res
   }
 
+  const loadSampleSession = async (): Promise<SessionUploadResponse> => {
+    const res = await createSampleSession()
+    setPreview(res.preview)
+    setSession({
+      active: false,
+      state: res.state,
+      session_id: res.session_id,
+      mode: res.mode,
+      filename: res.filename,
+      students_count: res.students_count,
+      courses_count: res.courses_count,
+      preview: res.preview,
+      can_confirm: res.can_confirm,
+      blocking_errors: res.blocking_errors,
+    })
+    return res
+  }
+
   const confirmSession = async (): Promise<SessionConfirmResponse> => {
     const res = await apiConfirmSession(session?.session_id)
     setSession((prev) => ({
@@ -99,6 +119,15 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Idempotent
     } finally {
       clearSessionToken()
+      try {
+        sessionStorage.clear()
+        // Retain theme preference if stored
+        const theme = localStorage.getItem('eduquery_theme')
+        localStorage.clear()
+        if (theme) localStorage.setItem('eduquery_theme', theme)
+      } catch {
+        // Ignore
+      }
       setSession(null)
       setPreview(null)
     }
@@ -136,6 +165,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         hasActiveSession,
         isPreviewReady,
         uploadMarksheet,
+        loadSampleSession,
         confirmSession,
         deleteSession,
         saveSession,

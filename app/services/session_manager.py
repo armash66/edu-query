@@ -607,3 +607,69 @@ def save_session_to_permanent(
         "activated_at": now_iso,
         "message": "Dataset has been successfully saved to persistent institutional storage.",
     }
+
+
+def create_sample_session(settings: Settings) -> tuple[str, dict[str, Any]]:
+    """Create an isolated temporary session from the bundled anonymized sample marksheet."""
+    cleanup_expired_sessions(settings=settings)
+    sample_path = Path("data/Result_anonymized.xlsx").resolve()
+    if not sample_path.is_file():
+        sample_path = Path(settings.data_dir).resolve() / "Result_anonymized.xlsx"
+    if not sample_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"status": "error", "message": "Sample marksheet Result_anonymized.xlsx not found on server."},
+        )
+
+    session_id = secrets.token_urlsafe(24).replace("-", "_")
+    session_dir = get_session_dir(session_id, settings)
+    session_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(session_dir, 0o700)
+    except Exception:
+        pass
+
+    quarantine_path = session_dir / "quarantine.xlsx"
+    session_db_path = session_dir / "session.duckdb"
+    meta_path = session_dir / "meta.json"
+
+    shutil.copy2(sample_path, quarantine_path)
+
+    con, report = ingest(input_path=str(quarantine_path), db_path=str(session_db_path))
+    try:
+        students_count = con.execute("SELECT count(*) FROM students").fetchone()[0]
+        courses_count = con.execute("SELECT count(*) FROM courses").fetchone()[0]
+        passed_count = con.execute("SELECT count(*) FROM students WHERE UPPER(TRIM(result)) LIKE '%PASS%'").fetchone()[0]
+        failed_count = con.execute("SELECT count(*) FROM students WHERE UPPER(TRIM(result)) LIKE '%FAIL%'").fetchone()[0]
+    finally:
+        con.close()
+
+    preview = {
+        "detected_students": students_count,
+        "detected_subjects": courses_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
+        "sheets": [s.sheet_name for s in report.sheets] if hasattr(report, "sheets") else ["Result"],
+        "divisions": ["A", "B"],
+        "format_notes": ["Loaded official anonymized semester marksheet dataset."],
+    }
+
+    meta = {
+        "session_id": session_id,
+        "filename": "Result_anonymized.xlsx",
+        "file_hash": "sample_anonymized",
+        "file_size": sample_path.stat().st_size,
+        "state": "preview_ready",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=settings.import_session_ttl_seconds)).isoformat(),
+        "students_count": students_count,
+        "courses_count": courses_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
+        "can_confirm": True,
+        "blocking_errors": [],
+        "preview": preview,
+        "database_path": str(session_db_path),
+    }
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    return session_id, meta
