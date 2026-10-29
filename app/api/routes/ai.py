@@ -56,3 +56,4 @@ def get_notice_draft_endpoint(
 ) -> NoticeDraftResponse:
     """Draft official notice template for failed, absent, or merit students."""
     return draft_notice_template(req.template_type, req.custom_instructions)
+

@@ -847,3 +847,18 @@ button:disabled {
   }
 }
 
+
+
+.data-quality-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  min-width: 0;
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .data-quality-grid {
+    grid-template-columns: 5fr 7fr;
+  }
+}

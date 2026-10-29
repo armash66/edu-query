@@ -38,6 +38,7 @@ import type {
   AskAiResponse,
   HodBriefResponse,
   NoticeDraftResponse,
+  EarlyWarningResponse,
 } from './types'
 
 export { ApiError }
@@ -960,4 +961,8 @@ export async function draftNotice(
     body: JSON.stringify(req),
     signal,
   })
+}
+
+export async function getEarlyWarningStudents(signal?: AbortSignal): Promise<EarlyWarningResponse> {
+  return request<EarlyWarningResponse>('/api/v1/students/early-warning', { signal })
 }

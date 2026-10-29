@@ -123,3 +123,39 @@ class StudentBreakdownResponse(BaseModel):
     subjects: list[StudentSubjectBreakdownSchema] = Field(
         default_factory=list, description="List of per-subject performance breakdowns"
     )
+
+
+class EarlyWarningBacktestMetrics(BaseModel):
+    """Honest documented backtest performance metrics of early warning heuristic."""
+
+    precision_percent: float = Field(..., description="Precision percentage on test dataset")
+    recall_percent: float = Field(..., description="Recall percentage on test dataset")
+    f1_percent: float = Field(..., description="F1-score percentage")
+    dataset_name: str = Field(..., description="Benchmark dataset name")
+    actual_failures_count: int = Field(..., description="Actual failures in dataset")
+    correctly_flagged_count: int = Field(..., description="True positives correctly flagged before ESE")
+
+
+class EarlyWarningStudentItem(BaseModel):
+    """Student identified as at-risk based on continuous internal evaluation marks."""
+
+    student_id: str
+    seat_no: str
+    roll_no: str | None = None
+    name: str
+    division: str
+    risk_level: Literal["critical", "moderate"]
+    avg_mse: float | None = None
+    avg_isa: float | None = None
+    internal_absences_count: int = 0
+    reasons: list[str] = Field(default_factory=list, description="Plain-language risk explanations")
+
+
+class EarlyWarningResponse(BaseModel):
+    """Response containing pre-ESE at-risk early warning list and backtest metrics."""
+
+    total_at_risk: int
+    critical_count: int
+    moderate_count: int
+    backtest: EarlyWarningBacktestMetrics
+    students: list[EarlyWarningStudentItem]

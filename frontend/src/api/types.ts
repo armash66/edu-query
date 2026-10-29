@@ -990,3 +990,33 @@ export interface NoticeDraftResponse {
   body_template: string;
   placeholders: string[];
 }
+
+export interface EarlyWarningBacktestMetrics {
+  precision_percent: number;
+  recall_percent: number;
+  f1_percent: number;
+  dataset_name: string;
+  actual_failures_count: number;
+  correctly_flagged_count: number;
+}
+
+export interface EarlyWarningStudentItem {
+  student_id: string;
+  seat_no: string;
+  roll_no?: string | null;
+  name: string;
+  division: string;
+  risk_level: 'critical' | 'moderate';
+  avg_mse?: number | null;
+  avg_isa?: number | null;
+  internal_absences_count: number;
+  reasons: string[];
+}
+
+export interface EarlyWarningResponse {
+  total_at_risk: number;
+  critical_count: number;
+  moderate_count: number;
+  backtest: EarlyWarningBacktestMetrics;
+  students: EarlyWarningStudentItem[];
+}

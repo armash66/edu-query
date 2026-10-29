@@ -70,3 +70,4 @@ class NoticeDraftResponse(BaseModel):
         default=["{name}", "{seat_no}", "{roll_no}", "{division}", "{subjects}", "{sgpi}"],
         description="List of detected placeholders to be filled locally",
     )
+

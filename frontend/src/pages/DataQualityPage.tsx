@@ -277,15 +277,9 @@ export const DataQualityPage: React.FC = () => {
       </div>
 
       {/* 3. Master-Detail Layout */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(12, 1fr)',
-          gap: '24px',
-        }}
-      >
-        {/* LEFT COLUMN: Master List (5 cols) */}
-        <div style={{ gridColumn: 'span 5' }}>
+      <div className="data-quality-grid">
+        {/* LEFT COLUMN: Master List */}
+        <div>
           <GlassCard
             variant="glass-2"
             padding="md"
@@ -499,8 +493,8 @@ export const DataQualityPage: React.FC = () => {
           </GlassCard>
         </div>
 
-        {/* RIGHT COLUMN: Evidence & Verification Panel (7 cols) */}
-        <div style={{ gridColumn: 'span 7' }}>
+        {/* RIGHT COLUMN: Evidence & Verification Panel */}
+        <div>
           {activeFinding ? (
             <GlassCard variant="glass-2" padding="lg">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>

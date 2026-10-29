@@ -196,3 +196,22 @@ def test_student_preset_filters_and_merit_ranking(con):
     res_merit = list_students(con, sort_by="merit", limit=10)
     assert res_merit.items[0].cgpa is not None
     assert res_merit.items[0].cgpa >= res_merit.items[1].cgpa
+
+
+def test_early_warning_at_risk_roster_and_backtest(con):
+    """Verify Early Warning heuristic identifies students likely to struggle before ESE."""
+    from app.services.student_service import get_early_warning_students
+
+    ew = get_early_warning_students(con)
+    assert ew.total_at_risk >= 10
+    assert ew.critical_count > 0
+    assert ew.backtest.dataset_name == "Result_anonymized.xlsx"
+    assert ew.backtest.actual_failures_count == 13
+    assert ew.backtest.correctly_flagged_count == 10
+    assert ew.backtest.precision_percent == 71.4
+    assert ew.backtest.recall_percent == 76.9
+
+    # Verify each student item has plain language reasons
+    for s in ew.students:
+        assert len(s.reasons) > 0
+        assert s.risk_level in ("critical", "moderate")

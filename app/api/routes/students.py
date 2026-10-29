@@ -13,6 +13,7 @@ from app.api.schemas.common import (
     PaginatedResponse,
 )
 from app.api.schemas.student import (
+    EarlyWarningResponse,
     AbsentStudentItem,
     StudentBreakdownResponse,
     StudentSummaryItem,
@@ -25,6 +26,7 @@ from app.services.export_service import (
     export_students_roster_excel,
 )
 from app.services.student_service import (
+    get_early_warning_students,
     get_student_breakdown_service,
     list_absent_components,
     list_absent_students,
@@ -179,6 +181,14 @@ def get_absent_components_route(
 ) -> list[str]:
     """Retrieve distinct examination components containing verified absent marks."""
     return list_absent_components(con=con)
+
+
+@router.get("/early-warning", response_model=EarlyWarningResponse, summary="Get pre-ESE at-risk early warning roster")
+def get_early_warning_route(
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> EarlyWarningResponse:
+    """Identify students likely to struggle based on continuous internal evaluation marks."""
+    return get_early_warning_students(con=con)
 
 
 @router.get(

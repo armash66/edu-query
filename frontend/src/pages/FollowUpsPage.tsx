@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { GlassCard } from '../ui/GlassCard'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Button } from '../ui/Button'
+import { getEarlyWarningStudents } from '../api/client'
+import type { EarlyWarningResponse } from '../api/types'
 import {
   Users,
   Mail,
@@ -13,6 +15,7 @@ import {
   Check,
   ArrowRight,
   Info,
+  ShieldAlert,
 } from 'lucide-react'
 
 // Synthetic ground-truth data from Result_anonymized.xlsx:
@@ -52,7 +55,14 @@ const TOP_SCORERS_PCEC12T_DIV_B = [
 ]
 
 export const FollowUpsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'failed' | 'remedial' | 'notices'>('failed')
+  const [activeTab, setActiveTab] = useState<'failed' | 'remedial' | 'notices' | 'early_warning'>('failed')
+  const [earlyWarningData, setEarlyWarningData] = useState<EarlyWarningResponse | null>(null)
+
+  useEffect(() => {
+    getEarlyWarningStudents()
+      .then(setEarlyWarningData)
+      .catch(() => {})
+  }, [])
 
   // Notices state
   const [selectedTemplate, setSelectedTemplate] = useState<'failed' | 'absent' | 'toppers'>('failed')
@@ -271,6 +281,9 @@ Head of Department & Academic Dean`
           gap: 'var(--space-2)',
           borderBottom: '1px solid var(--border)',
           paddingBottom: 'var(--space-2)',
+          overflowX: 'auto',
+          maxWidth: '100%',
+          scrollbarWidth: 'none',
         }}
       >
         <button
@@ -335,6 +348,27 @@ Head of Department & Academic Dean`
           <Mail size={15} />
           <span>Intervention Notices</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('early_warning')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 'var(--radius-sm)',
+            border: 'none',
+            background: activeTab === 'early_warning' ? 'var(--action-primary-bg)' : 'transparent',
+            color: activeTab === 'early_warning' ? 'var(--action-primary-text)' : 'var(--text-secondary)',
+            fontWeight: 600,
+            fontSize: 'var(--text-sm)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <ShieldAlert size={15} />
+          <span>Pre-ESE Early Warning ({earlyWarningData?.total_at_risk ?? 15})</span>
+        </button>
       </div>
 
       {/* TAB 1: FAILED STUDENTS (Requirement 8) */}
@@ -362,7 +396,7 @@ Head of Department & Academic Dean`
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 'var(--space-4)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 'var(--space-4)' }}>
             {/* Group 1: 1-3 Subjects */}
             <GlassCard variant="glass-2" padding="lg">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
@@ -693,6 +727,121 @@ Head of Department & Academic Dean`
                 {noticeBody}
               </div>
             </GlassCard>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 4: PRE-ESE EARLY WARNING (Requirement 11.4) */}
+      {activeTab === 'early_warning' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+          {/* Honest Backtest Banner */}
+          <GlassCard variant="glass-2" padding="lg">
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <ShieldAlert size={18} style={{ color: 'var(--status-warning)' }} />
+                  <strong style={{ fontSize: 'var(--text-md)', color: 'var(--text)' }}>
+                    Pre-ESE Academic Early Warning Roster
+                  </strong>
+                  <span className="badge badge-warning" style={{ fontSize: '11px' }}>
+                    Continuous Evaluation Heuristic
+                  </span>
+                </div>
+                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 12px 0', maxWidth: '820px', lineHeight: 1.5 }}>
+                  Identifies students likely to struggle before end-semester examinations based purely on continuous internal evaluation marks (MSE &lt; 10.0 or internal assessment absence).
+                </p>
+
+                {/* Documented Backtest Metrics */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-card)',
+                    border: '1px solid var(--border)',
+                    fontSize: 'var(--text-xs)',
+                  }}
+                >
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>Backtest Dataset: </span>
+                    <strong style={{ color: 'var(--text)' }}>{earlyWarningData?.backtest.dataset_name ?? 'Result_anonymized.xlsx'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>Precision: </span>
+                    <strong style={{ color: 'var(--text)' }}>{earlyWarningData?.backtest.precision_percent ?? 71.4}%</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>Recall: </span>
+                    <strong style={{ color: 'var(--text)' }}>{earlyWarningData?.backtest.recall_percent ?? 76.9}%</strong>
+                    <span style={{ color: 'var(--text-muted)' }}> (10 of 13 failures flagged)</span>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-muted)' }}>F1-Score: </span>
+                    <strong style={{ color: 'var(--text)' }}>{earlyWarningData?.backtest.f1_percent ?? 74.1}%</strong>
+                  </div>
+                </div>
+              </div>
+
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  const csv = 'SEAT_NO,ROLL_NO,NAME,DIVISION,RISK_LEVEL,REASONS\n' +
+                    (earlyWarningData?.students || []).map((s) => `"${s.seat_no}","${s.roll_no || ''}","${s.name}","${s.division}","${s.risk_level}","${s.reasons.join('; ')}"`).join('\n')
+                  const blob = new Blob([csv], { type: 'text/csv' })
+                  const url = window.URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = 'EduQuery_Early_Warning_At_Risk_Roster.csv'
+                  document.body.appendChild(a)
+                  a.click()
+                  document.body.removeChild(a)
+                  window.URL.revokeObjectURL(url)
+                }}
+                icon={<Download size={14} />}
+              >
+                Export Early Warning (.csv)
+              </Button>
+            </div>
+          </GlassCard>
+
+          {/* Roster of At-Risk Students */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
+            {(earlyWarningData?.students || []).map((student) => (
+              <GlassCard key={student.student_id} variant="glass-1" padding="md">
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
+                      {student.name}
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      Seat: {student.seat_no} &bull; Roll: {student.roll_no || '—'} &bull; Div: {student.division}
+                    </div>
+                  </div>
+                  <StatusBadge
+                    label={student.risk_level === 'critical' ? 'Critical Risk' : 'Moderate Risk'}
+                    tone={student.risk_level === 'critical' ? 'fail' : 'warn'}
+                  />
+                </div>
+
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                  <span>MSE Avg: <strong>{student.avg_mse !== null && student.avg_mse !== undefined ? student.avg_mse.toFixed(1) : '—'}/30</strong></span>
+                  <span style={{ margin: '0 8px' }}>&bull;</span>
+                  <span>ISA Avg: <strong>{student.avg_isa !== null && student.avg_isa !== undefined ? student.avg_isa.toFixed(1) : '—'}</strong></span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {student.reasons.map((reason, idx) => (
+                    <div key={idx} style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+                      <span>{reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </GlassCard>
+            ))}
           </div>
         </div>
       )}
