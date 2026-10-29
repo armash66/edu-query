@@ -34,7 +34,7 @@ export const GlassCard: React.FC<GlassCardProps> = ({
       className={`${resolvedVariant} ${className}`.trim()}
       style={{
         borderRadius: 'var(--radius-card)',
-        overflow: 'hidden',
+        overflow: style?.overflow || 'visible',
         transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
         ...style,
       }}

@@ -298,10 +298,11 @@ export const Listbox = <T extends string = string>({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  gap: 'var(--space-2)',
-                  padding: 'var(--space-2) var(--space-3)',
+                  gap: 'var(--space-3)',
+                  padding: size === 'sm' ? '6px 10px' : '8px 12px',
                   borderRadius: 'var(--radius-sm)',
-                  fontSize: 'var(--text-sm)',
+                  fontSize: sizeStyles[size].fontSize,
+                  whiteSpace: 'nowrap',
                   cursor: option.disabled ? 'not-allowed' : 'pointer',
                   opacity: option.disabled ? 0.4 : 1,
                   background: isHighlighted
@@ -314,19 +315,20 @@ export const Listbox = <T extends string = string>({
                   transition: 'background var(--transition-fast)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: 0, flex: 1 }}>
                   {option.icon && (
-                    <span style={{ display: 'inline-flex' }} aria-hidden="true">
+                    <span style={{ display: 'inline-flex', flexShrink: 0 }} aria-hidden="true">
                       {option.icon}
                     </span>
                   )}
-                  <div>
-                    <div>{option.label}</div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ whiteSpace: 'nowrap' }}>{option.label}</div>
                     {option.sublabel && (
                       <div
                         style={{
                           fontSize: 'var(--text-xs)',
                           color: 'var(--text-muted)',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {option.sublabel}
