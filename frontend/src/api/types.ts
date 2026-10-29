@@ -27,6 +27,8 @@ export interface PaginatedResponse<T> {
   limit: number;
   offset: number;
   items: T[];
+  total_students?: number;
+  total_courses?: number;
 }
 
 export interface StudentSummaryItem {

@@ -37,6 +37,8 @@ import { toTitleCase } from '../utils/text'
 export const AbsentStudentsPage: React.FC = () => {
   const [records, setRecords] = useState<AbsentStudentItem[]>([])
   const [total, setTotal] = useState<number>(0)
+  const [totalStudents, setTotalStudents] = useState<number>(0)
+  const [totalCourses, setTotalCourses] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<ApiError | null>(null)
 
@@ -102,6 +104,8 @@ export const AbsentStudentsPage: React.FC = () => {
       const data: PaginatedResponse<AbsentStudentItem> = await getAbsentStudents(params, controller.signal)
       setRecords(data.items || [])
       setTotal(data.total || 0)
+      setTotalStudents(data.total_students ?? new Set((data.items || []).map((r) => r.student_id)).size)
+      setTotalCourses(data.total_courses ?? new Set((data.items || []).map((r) => r.course_code)).size)
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         return
@@ -208,8 +212,8 @@ export const AbsentStudentsPage: React.FC = () => {
   }
 
   // Summary counts
-  const uniqueStudentCount = new Set(records.map((r) => r.student_id)).size
-  const uniqueCourseCount = new Set(records.map((r) => r.course_code)).size
+  const distinctStudents = totalStudents || new Set(records.map((r) => r.student_id)).size
+  const distinctCourses = totalCourses || new Set(records.map((r) => r.course_code)).size
   const recordsToPrint = printRecords && printRecords.length > 0 ? printRecords : records
 
   const columns: Column<AbsentStudentItem>[] = [
@@ -313,7 +317,8 @@ export const AbsentStudentsPage: React.FC = () => {
     {
       key: 'component',
       header: 'Component',
-      width: '80px',
+      width: '90px',
+      align: 'center',
       render: (row) => (
         <span
           className="font-mono"
@@ -333,7 +338,7 @@ export const AbsentStudentsPage: React.FC = () => {
     {
       key: 'raw_text',
       header: 'Marker',
-      width: '65px',
+      width: '75px',
       align: 'center',
       render: (row) => (
         <span
@@ -354,63 +359,10 @@ export const AbsentStudentsPage: React.FC = () => {
       ),
     },
     {
-      key: 'counts',
-      header: 'Status (P/F/AB)',
-      width: '125px',
-      render: (row) => (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-          <span
-            className="font-mono tabular-nums"
-            style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              padding: '2px 4px',
-              borderRadius: 'var(--radius-xs)',
-              background: 'var(--status-success-bg)',
-              color: 'var(--status-success-text)',
-            }}
-          >
-            {row.passed_subject_count ?? 0} P
-          </span>
-          <span
-            className="font-mono tabular-nums"
-            style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              padding: '2px 4px',
-              borderRadius: 'var(--radius-xs)',
-              background:
-                (row.failed_subject_count ?? 0) > 0
-                  ? 'var(--status-danger-bg)'
-                  : 'var(--surface-hover)',
-              color:
-                (row.failed_subject_count ?? 0) > 0
-                  ? 'var(--status-danger-text)'
-                  : 'var(--text-muted)',
-            }}
-          >
-            {row.failed_subject_count ?? 0} F
-          </span>
-          <span
-            className="font-mono tabular-nums"
-            style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              padding: '2px 4px',
-              borderRadius: 'var(--radius-xs)',
-              background: 'var(--status-warning-bg)',
-              color: 'var(--status-warning-text)',
-            }}
-          >
-            {row.absent_subject_count ?? 1} AB
-          </span>
-        </div>
-      ),
-    },
-    {
       key: 'overall_result',
       header: 'Result',
-      width: '90px',
+      width: '100px',
+      align: 'center',
       render: (row) => {
         const outcome = (row.overall_result || '').toUpperCase()
         const tone: 'pass' | 'fail' | 'warn' = outcome.includes('PASS')
@@ -667,7 +619,7 @@ export const AbsentStudentsPage: React.FC = () => {
               }}
             >
               <Users size={14} style={{ color: 'var(--text-secondary)' }} />
-              <span>Students on Page</span>
+              <span>Absent Students</span>
             </div>
             <div
               className="tabular-nums font-mono"
@@ -679,10 +631,10 @@ export const AbsentStudentsPage: React.FC = () => {
                 lineHeight: 1.2,
               }}
             >
-              {uniqueStudentCount}
+              {distinctStudents}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Unique students with absences
+              Distinct students with absences
             </div>
           </GlassCard>
 
@@ -700,7 +652,7 @@ export const AbsentStudentsPage: React.FC = () => {
               }}
             >
               <BookOpen size={14} style={{ color: 'var(--text-secondary)' }} />
-              <span>Subjects on Page</span>
+              <span>Affected Courses</span>
             </div>
             <div
               className="tabular-nums font-mono"
@@ -712,10 +664,10 @@ export const AbsentStudentsPage: React.FC = () => {
                 lineHeight: 1.2,
               }}
             >
-              {uniqueCourseCount}
+              {distinctCourses}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-              Courses with absent markers
+              Courses with absent evaluations
             </div>
           </GlassCard>
         </div>
