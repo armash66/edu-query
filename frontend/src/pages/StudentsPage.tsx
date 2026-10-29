@@ -301,7 +301,6 @@ export const StudentsPage: React.FC = () => {
     { value: '', label: 'All Results' },
     { value: 'PASS', label: 'Pass Only' },
     { value: 'FAIL', label: 'Fail / Backlog' },
-    { value: 'ABSENT', label: 'Absenteeism' },
   ]
 
   return (
