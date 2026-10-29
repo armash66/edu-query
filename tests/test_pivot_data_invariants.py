@@ -168,3 +168,31 @@ def test_mark_suffix_parser_treatment():
     assert flag_ab == "AB"
     assert state_ab == "flagged"
 
+
+
+def test_student_preset_filters_and_merit_ranking(con):
+    """Verify list_students preset filters and merit ranking invariants."""
+    from app.services.student_service import list_students
+
+    # 1. Has absences preset returns exactly 7 students
+    res_absent = list_students(con, has_absences=True, limit=200)
+    assert res_absent.total == 7
+    assert len(res_absent.items) == 7
+
+    # 2. Failed preset returns exactly 13 students
+    res_failed = list_students(con, result="FAIL", limit=200)
+    assert res_failed.total == 13
+    assert len(res_failed.items) == 13
+
+    # 3. Regular UG preset returns exactly 127 students
+    res_ug = list_students(con, level="UG", limit=200)
+    assert res_ug.total == 127
+
+    # 4. DSY preset returns exactly 18 students
+    res_dsy = list_students(con, level="DSY", limit=200)
+    assert res_dsy.total == 18
+
+    # 5. Merit sort returns highest CGPA / SGPI first
+    res_merit = list_students(con, sort_by="merit", limit=10)
+    assert res_merit.items[0].cgpa is not None
+    assert res_merit.items[0].cgpa >= res_merit.items[1].cgpa

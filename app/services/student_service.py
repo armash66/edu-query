@@ -32,6 +32,9 @@ def list_students(
     result: str | None = None,
     course_code: str | None = None,
     multi_fails: bool | None = None,
+    has_absences: bool | None = None,
+    level: str | None = None,
+    sort_by: str | None = None,
     limit: int = 50,
     offset: int = 0,
 ) -> PaginatedResponse[StudentSummaryItem]:
@@ -71,6 +74,21 @@ def list_students(
             )"""
         )
 
+    if has_absences is True:
+        where_clauses.append(
+            """student_id IN (
+                SELECT DISTINCT student_id
+                FROM scores
+                WHERE component != 'TOT1'
+                  AND (UPPER(TRIM(flag)) IN ('A', 'AB', 'ABS', 'ABSENT')
+                       OR UPPER(TRIM(raw_text)) IN ('A', 'AB', 'ABS', 'ABSENT'))
+            )"""
+        )
+
+    if level and level.strip():
+        where_clauses.append("UPPER(TRIM(level)) = UPPER(TRIM(?))")
+        params.append(level.strip())
+
     if query and query.strip():
         clean_q = query.strip()
         escaped = escape_like_pattern(clean_q).lower()
@@ -90,12 +108,17 @@ def list_students(
     total_count = int(count_row[0]) if count_row else 0
 
     # 2. Query page items with deterministic ordering
+    if sort_by in ('merit', 'toppers'):
+        order_by_sql = "cgpa DESC NULLS LAST, sgpi DESC NULLS LAST, total_marks DESC NULLS LAST, seat_no ASC NULLS LAST"
+    else:
+        order_by_sql = "division ASC NULLS LAST, roll_no ASC NULLS LAST, student_id ASC"
+
     select_sql = f"""
         SELECT student_id, seat_no, roll_no, name, division, level,
                total_marks, result, sgpi, cgpa
         FROM students
         WHERE {where_sql}
-        ORDER BY division ASC NULLS LAST, roll_no ASC NULLS LAST, student_id ASC
+        ORDER BY {order_by_sql}
         LIMIT ? OFFSET ?
     """
     query_params = list(params) + [limit, offset]

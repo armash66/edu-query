@@ -88,4 +88,43 @@ describe('SubjectsCatalogPage', () => {
       )
     })
   })
+
+  it('renders catalog summary cards and switches to Electives tab', async () => {
+    vi.spyOn(client, 'getSubjects').mockResolvedValue({
+      total: 1,
+      limit: 25,
+      offset: 0,
+      items: [
+        {
+          code: 'CSC601',
+          name: 'Cryptography and System Security',
+          kind: 'theory',
+          credits: 4,
+          components: ['TH', 'IA'],
+          enrolled_students_count: 68,
+        },
+      ],
+    })
+
+    render(
+      <MemoryRouter>
+        <SubjectsCatalogPage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('27 Courses')).toBeInTheDocument()
+      expect(screen.getByText('91.0%')).toBeInTheDocument()
+      expect(screen.getByText('PCEC12T (12)')).toBeInTheDocument()
+    })
+
+    // Click Electives tab
+    const electivesTab = screen.getByRole('tab', { name: /Electives/i })
+    fireEvent.click(electivesTab)
+
+    expect(screen.getByText(/Multidisciplinary Minor Electives/i)).toBeInTheDocument()
+    expect(screen.getByText('Financial Basics for Engineers and Technopreneurs')).toBeInTheDocument()
+    expect(screen.getAllByText(/Small Cohort/i).length).toBeGreaterThanOrEqual(1)
+  })
+
 })

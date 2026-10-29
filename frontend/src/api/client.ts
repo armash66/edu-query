@@ -333,6 +333,9 @@ export interface StudentListParams {
   result?: string
   course_code?: string
   multi_fails?: boolean
+  has_absences?: boolean
+  level?: string
+  sort_by?: string
   limit?: number
   offset?: number
 }
@@ -349,6 +352,11 @@ export async function getStudents(
   if (params.multi_fails !== undefined && params.multi_fails !== null) {
     searchParams.set('multi_fails', String(params.multi_fails))
   }
+  if (params.has_absences !== undefined && params.has_absences !== null) {
+    searchParams.set('has_absences', String(params.has_absences))
+  }
+  if (params.level?.trim()) searchParams.set('level', params.level.trim())
+  if (params.sort_by?.trim()) searchParams.set('sort_by', params.sort_by.trim())
   if (params.limit !== undefined) searchParams.set('limit', String(params.limit))
   if (params.offset !== undefined) searchParams.set('offset', String(params.offset))
 
