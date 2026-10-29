@@ -113,6 +113,26 @@ class OverviewHighlight(BaseModel):
     url: str = Field(..., description="Target drill-down URL")
 
 
+class OverviewTopperStudent(BaseModel):
+    """Top-performing student by CGPA."""
+
+    rank: int = Field(..., description="Cohort rank with tie handling")
+    student_id: str = Field(..., description="Student identifier")
+    name: str = Field(..., description="Student name")
+    division: str = Field(..., description="Division code")
+    cgpa: float = Field(..., description="Cumulative GPA score")
+    sgpi: float | None = Field(default=None, description="Semester SGPI score")
+
+
+class ClassDistributionItem(BaseModel):
+    """Student count across university grade classification bands."""
+
+    band: str = Field(..., description="University classification band")
+    count: int = Field(..., description="Number of students in this band")
+    percentage: float = Field(..., description="Percentage of cohort")
+    min_cgpa: float | None = Field(default=None, description="Minimum CGPA boundary")
+
+
 class OverviewSummaryResponse(BaseModel):
     """Unified payload for the Overview page."""
 
@@ -123,4 +143,7 @@ class OverviewSummaryResponse(BaseModel):
     sgpi_distribution: OverviewSgpiDistribution
     hardest_subjects: list[OverviewHardestSubject] = Field(default_factory=list)
     highlights: list[OverviewHighlight] = Field(default_factory=list)
+    toppers: list[OverviewTopperStudent] = Field(default_factory=list)
+    class_distribution: list[ClassDistributionItem] = Field(default_factory=list)
+    level_breakdown: list[DivisionResultRow] = Field(default_factory=list)
 

@@ -6,6 +6,7 @@ from typing import Any
 import duckdb
 
 from app.api.schemas.overview import (
+    ClassDistributionItem,
     DivisionResultRow,
     OutcomeCountPercent,
     OverviewDatasetMeta,
@@ -16,6 +17,7 @@ from app.api.schemas.overview import (
     OverviewResults,
     OverviewSgpiDistribution,
     OverviewSummaryResponse,
+    OverviewTopperStudent,
     SgpiHistogramBin,
 )
 from app.services.anomaly_detection import _get_dataset_id_from_con, detect_all_anomalies
@@ -271,6 +273,103 @@ def get_overview_summary(
             )
         )
 
+    # 7. Cohort Toppers (top 5 by CGPA with dense tie handling)
+    top_rows = con.execute(
+        """
+        SELECT student_id, name, division, cgpa, sgpi
+        FROM students
+        WHERE UPPER(COALESCE(result, '')) LIKE '%PASS%' AND cgpa IS NOT NULL
+        ORDER BY cgpa DESC, sgpi DESC, name ASC
+        LIMIT 10
+        """
+    ).fetchall()
+    toppers: list[OverviewTopperStudent] = []
+    current_rank = 1
+    prev_cgpa: float | None = None
+    for idx, (sid, name, div, cgpa_val, sgpi_val) in enumerate(top_rows):
+        c_val = float(cgpa_val)
+        if prev_cgpa is not None and c_val < prev_cgpa:
+            current_rank = idx + 1
+        prev_cgpa = c_val
+        toppers.append(
+            OverviewTopperStudent(
+                rank=current_rank,
+                student_id=str(sid),
+                name=to_title_case(str(name)),
+                division=str(div or '—'),
+                cgpa=round(c_val, 2),
+                sgpi=round(float(sgpi_val), 2) if sgpi_val is not None else None,
+            )
+        )
+        if len(toppers) >= 5 and (idx + 1 < len(top_rows) and float(top_rows[idx + 1][3]) < c_val):
+            break
+
+    # 8. Class Distribution (Standard university bands with editable thresholds)
+    student_cgpas = con.execute(
+        "SELECT cgpa, result FROM students"
+    ).fetchall()
+    bands_def = [
+        ("Distinction", 7.5, None),
+        ("First Class", 6.5, 7.5),
+        ("Higher Second", 6.0, 6.5),
+        ("Second Class", 5.0, 6.0),
+        ("Pass Class", 4.0, 5.0),
+        ("Fail", None, 4.0),
+    ]
+    class_distribution: list[ClassDistributionItem] = []
+    for band_name, min_c, max_c in bands_def:
+        if band_name == "Fail":
+            cnt = failed_count
+        elif min_c is not None and max_c is not None:
+            cnt = sum(
+                1 for (v, res) in student_cgpas
+                if v is not None and "PASS" in str(res).upper() and min_c <= float(v) < max_c
+            )
+        elif min_c is not None:
+            cnt = sum(
+                1 for (v, res) in student_cgpas
+                if v is not None and "PASS" in str(res).upper() and float(v) >= min_c
+            )
+        else:
+            cnt = 0
+        pct = round((cnt / total_students) * 100.0, 1) if total_students > 0 else 0.0
+        class_distribution.append(
+            ClassDistributionItem(
+                band=band_name,
+                count=cnt,
+                percentage=pct,
+                min_cgpa=min_c,
+            )
+        )
+
+    # 9. UG vs DSY Breakdown
+    level_rows = con.execute(
+        """
+        SELECT 
+            COALESCE(level, 'UG') AS lvl,
+            COUNT(*) AS total,
+            SUM(CASE WHEN UPPER(COALESCE(result, '')) LIKE '%PASS%' THEN 1 ELSE 0 END) AS pass_cnt
+        FROM students
+        GROUP BY COALESCE(level, 'UG')
+        ORDER BY lvl ASC
+        """
+    ).fetchall()
+    level_breakdown: list[DivisionResultRow] = []
+    for lvl, tot, p_cnt in level_rows:
+        tot_i = int(tot)
+        p_i = int(p_cnt or 0)
+        rate = round((p_i / tot_i) * 100.0, 1) if tot_i > 0 else 0.0
+        label = "Regular UG" if str(lvl).upper() == "UG" else "Direct Second Year (DSY)"
+        level_breakdown.append(
+            DivisionResultRow(
+                division=label,
+                division_code=str(lvl),
+                passed=p_i,
+                enrolled=tot_i,
+                pass_rate_percent=rate,
+            )
+        )
+
     # Dataset metadata
     dataset_name = dataset_name_hint or "Uploaded Marksheet"
     is_temp = is_temporary_hint or dataset_id.startswith("session_")
@@ -318,6 +417,9 @@ def get_overview_summary(
         ),
         hardest_subjects=hardest_subjects,
         highlights=highlights,
+        toppers=toppers,
+        class_distribution=class_distribution,
+        level_breakdown=level_breakdown,
     )
 
     _OVERVIEW_CACHE[dataset_id] = response

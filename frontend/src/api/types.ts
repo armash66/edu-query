@@ -267,7 +267,7 @@ export interface AmbiguousCourseResponse {
 }
 
 export type SeverityLevel = 'error' | 'warning' | 'info';
-export type HealthStatusLevel = 'Good' | 'Needs Attention' | 'Critical';
+export type HealthStatusLevel = 'Good' | 'Needs Attention' | 'Critical' | 'Healthy';
 
 export interface DataQualityFindingItem {
   check_id: string;
@@ -283,7 +283,7 @@ export interface DataQualityFindingItem {
 export interface DataQualityResponse {
   session_id: string;
   health_status: HealthStatusLevel;
-  quality_score: number;
+  quality_score?: number | null;
   total_checks: number;
   error_count: number;
   warning_count: number;
@@ -935,6 +935,22 @@ export interface OverviewHighlight {
   url: string;
 }
 
+export interface OverviewTopperStudent {
+  rank: number;
+  student_id: string;
+  name: string;
+  division: string;
+  cgpa: number;
+  sgpi: number | null;
+}
+
+export interface ClassDistributionItem {
+  band: string;
+  count: number;
+  percentage: number;
+  min_cgpa: number | null;
+}
+
 export interface OverviewSummaryResponse {
   dataset: OverviewDatasetMeta;
   kpis: OverviewKpis;
@@ -943,4 +959,7 @@ export interface OverviewSummaryResponse {
   sgpi_distribution: OverviewSgpiDistribution;
   hardest_subjects: OverviewHardestSubject[];
   highlights: OverviewHighlight[];
+  toppers?: OverviewTopperStudent[];
+  class_distribution?: ClassDistributionItem[];
+  level_breakdown?: DivisionResultRow[];
 }

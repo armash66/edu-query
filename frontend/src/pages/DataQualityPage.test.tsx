@@ -7,13 +7,13 @@ import * as client from '../api/client'
 describe('DataQualityPage', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    localStorage.clear()
   })
 
-  it('renders quality metrics and findings with problem, impact, and action', async () => {
+  it('renders pre-declaration verification workflow and no quality score percentage', async () => {
     vi.spyOn(client, 'getDataQuality').mockResolvedValue({
       session_id: 'session_dq_1',
       health_status: 'Needs Attention',
-      quality_score: 92.5,
       total_checks: 10,
       error_count: 0,
       warning_count: 1,
@@ -49,45 +49,42 @@ describe('DataQualityPage', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('92.5%')).toBeInTheDocument()
-      expect(screen.getByText('Needs Attention')).toBeInTheDocument()
-      expect(screen.getByText('Component Total Mismatch')).toBeInTheDocument()
+      expect(screen.getByText(/Pre-Declaration Verification & Anomaly Review/i)).toBeInTheDocument()
+      expect(screen.getAllByText('Component Total Mismatch').length).toBeGreaterThanOrEqual(1)
       expect(screen.getByText('Absentee Marker Observed')).toBeInTheDocument()
     })
 
-    expect(screen.getByText(/Audit Scope Disclaimer:/i)).toBeInTheDocument()
+    // Progress bar check
+    expect(screen.getByText(/Review Progress: 0 of 2 reviewed/i)).toBeInTheDocument()
+
+    // Ensure NO invented quality score percentage is shown
+    expect(screen.queryByText(/92\.5%/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Quality Score/i)).not.toBeInTheDocument()
+
+    // Evidence panel should be visible for active selected finding
+    expect(screen.getByText(/What was noticed/i)).toBeInTheDocument()
+    expect(screen.getAllByText('Internal component mark sum differs from printed marksheet total').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('Audit student rows and verify physical marksheet')).toBeInTheDocument()
   })
 
-  it('filters findings by severity tabs', async () => {
+  it('records decisions and updates progress until Ready to Declare status flips', async () => {
     vi.spyOn(client, 'getDataQuality').mockResolvedValue({
       session_id: 'session_dq_2',
       health_status: 'Critical',
-      quality_score: 80.0,
       total_checks: 10,
       error_count: 1,
-      warning_count: 1,
+      warning_count: 0,
       info_count: 0,
       findings: [
         {
-          check_id: 'CHK_CRIT_ERR',
+          check_id: 'CHK_TOTAL_MISMATCH',
           severity: 'error',
-          title: 'Duplicate Student Seat Number',
+          title: 'Printed Total vs Component Sum',
           count: 1,
-          problem: 'Multiple rows share identical seat number',
-          impact: 'Records collision during ingest',
-          recommended_action: 'Correct row identifier in source Excel file',
-          details: [],
-        },
-        {
-          check_id: 'CHK_WARN_1',
-          severity: 'warning',
-          title: 'Missing Credit Assignment',
-          count: 1,
-          problem: 'Course has null credits',
-          impact: 'SGPI uncalculated',
-          recommended_action: 'Provide course scheme credits',
-          details: [],
+          problem: 'Printed total 54 does not equal component sum 58',
+          impact: 'Potential mark tabulation error',
+          recommended_action: 'Confirm marks with evaluator or source register',
+          details: ['Seat PCEC12T_001'],
         },
       ],
     })
@@ -99,15 +96,54 @@ describe('DataQualityPage', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Duplicate Student Seat Number')).toBeInTheDocument()
-      expect(screen.getByText('Missing Credit Assignment')).toBeInTheDocument()
+      expect(screen.getAllByText('Printed Total vs Component Sum').length).toBeGreaterThanOrEqual(1)
     })
 
-    // Click Errors tab
-    const errorsTab = screen.getByRole('button', { name: /errors \(1\)/i })
-    fireEvent.click(errorsTab)
+    // Initial state: action required
+    expect(screen.getByText(/Action Required/i)).toBeInTheDocument()
+    expect(screen.getByText(/Review Progress: 0 of 1 reviewed/i)).toBeInTheDocument()
 
-    expect(screen.getByText('Duplicate Student Seat Number')).toBeInTheDocument()
-    expect(screen.queryByText('Missing Credit Assignment')).not.toBeInTheDocument()
+    // Click "Confirm OK"
+    const confirmButton = screen.getByRole('button', { name: /confirm ok/i })
+    fireEvent.click(confirmButton)
+
+    // Status flips to "Ready to Declare" and progress shows 1 of 1
+    await waitFor(() => {
+      expect(screen.getByText(/Ready to Declare/i)).toBeInTheDocument()
+      expect(screen.getByText(/Review Progress: 1 of 1 reviewed/i)).toBeInTheDocument()
+    })
+  })
+
+  it('collapses and expands passed automated checks accordion', async () => {
+    vi.spyOn(client, 'getDataQuality').mockResolvedValue({
+      session_id: 'session_dq_3',
+      health_status: 'Healthy',
+      total_checks: 4,
+      error_count: 0,
+      warning_count: 0,
+      info_count: 0,
+      findings: [],
+    })
+
+    render(
+      <MemoryRouter>
+        <DataQualityPage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Passed Automated Checks/i)).toBeInTheDocument()
+    })
+
+    // Initially collapsed
+    expect(screen.queryByText('Duplicate Student Seat Identifiers')).not.toBeInTheDocument()
+
+    // Click to expand accordion
+    const toggleButton = screen.getByRole('button', { name: /passed automated checks/i })
+    fireEvent.click(toggleButton)
+
+    // Now expanded
+    expect(screen.getByText('Duplicate Student Seat Identifiers')).toBeInTheDocument()
+    expect(screen.getByText('Enrollment Schema Boundary Rules')).toBeInTheDocument()
   })
 })
