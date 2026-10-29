@@ -537,6 +537,24 @@ export const AbsentStudentsPage: React.FC = () => {
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <Link
+            to="/follow-ups"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            <span>Draft Notice</span>
+          </Link>
           <Button
             variant="secondary"
             size="sm"
@@ -765,6 +783,91 @@ export const AbsentStudentsPage: React.FC = () => {
           onRetry={fetchAbsentList}
         />
       )}
+
+      {/* Grouped Absence Severity Breakdown (Requirement 6) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-4)' }}>
+        {/* Group 1: Absent in 1-2 subjects (1 student) */}
+        <GlassCard variant="glass-2" padding="md">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
+              Absent in 1–2 Subjects
+            </div>
+            <StatusBadge tone="warn" size="sm" label="1 Student" />
+          </div>
+          <p style={{ margin: '0 0 12px 0', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+            Isolated component absence. Candidate may be eligible for immediate make-up re-evaluation.
+          </p>
+          <div
+            style={{
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong style={{ fontSize: 'var(--text-xs)', color: 'var(--text)' }}>Student SEAT_A08 (Div A)</strong>
+              <StatusBadge tone="pass" size="sm" label="Overall Passed" />
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Contact: seat_a08@student.univ.edu
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              Missed assessments in: <strong>2 subjects (PEEC07T, MDM01)</strong>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Group 2: Absent in 5+ subjects (6 students) */}
+        <GlassCard variant="glass-2" padding="md">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
+              Absent in 5+ Subjects (Critical)
+            </div>
+            <StatusBadge tone="fail" size="sm" label="6 Students" />
+          </div>
+          <p style={{ margin: '0 0 12px 0', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+            Chronic or extended absence across multiple course units. 100% overlap with failed student backlogs.
+          </p>
+          <div
+            style={{
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text)' }}>
+                6 Candidates (Div A: 4 &bull; Div B: 2)
+              </span>
+              <StatusBadge tone="fail" size="sm" label="All 6 Failed" />
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+              Absent across 5–9 examination components. Recommended for formal faculty dean consultation.
+            </div>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+              <Link
+                to="/follow-ups"
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: 'var(--text)',
+                  textDecoration: 'underline',
+                }}
+              >
+                Draft Absence Notices &rarr;
+              </Link>
+            </div>
+          </div>
+        </GlassCard>
+      </div>
 
       {/* Main Table / Empty / Loading */}
       {loading && !records.length ? (

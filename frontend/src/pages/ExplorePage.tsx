@@ -689,6 +689,38 @@ export const ExplorePage: React.FC = () => {
         </div>
       </div>
 
+      {/* Ask AI Interpreted Query Banner (Requirement 7) */}
+      {(searchParams.get('source') === 'ai' || searchParams.get('from_ai') === 'true') && (
+        <div
+          style={{
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface-hover)',
+            border: '1px solid var(--border-strong)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '10px',
+            fontSize: 'var(--text-xs)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Compass size={16} style={{ color: 'var(--text)', flexShrink: 0 }} />
+            <span>
+              <strong style={{ color: 'var(--text)' }}>Interpreted from Ask AI query:</strong> Natural language
+              translated into predicate filter conditions. Click any chip below to edit or remove.
+            </span>
+          </div>
+          <Link
+            to="/explore"
+            onClick={handleClearAll}
+            style={{ fontSize: '11px', color: 'var(--text-secondary)', textDecoration: 'underline' }}
+          >
+            Clear Interpretation
+          </Link>
+        </div>
+      )}
+
       {/* Level 2: Compact Add Filter Condition Editor Popover / Card */}
       {addFilterOpen && (
         <GlassCard elevation={2} padding="md">

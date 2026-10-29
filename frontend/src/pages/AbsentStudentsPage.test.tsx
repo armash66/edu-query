@@ -271,4 +271,24 @@ describe('AbsentStudentsPage', () => {
       expect(window.print).toHaveBeenCalled()
     })
   })
+
+  it('renders absence severity groups (1-2 subjects vs 5+ subjects) and Draft Notice action', async () => {
+    vi.spyOn(client, 'getAbsentStudents').mockResolvedValue({
+      total: 1,
+      limit: 25,
+      offset: 0,
+      items: [],
+    })
+
+    render(
+      <MemoryRouter>
+        <AbsentStudentsPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Absent in 1–2 Subjects')).toBeInTheDocument()
+    expect(screen.getByText('Absent in 5+ Subjects (Critical)')).toBeInTheDocument()
+    expect(screen.getByText('Draft Notice')).toBeInTheDocument()
+  })
+
 })
