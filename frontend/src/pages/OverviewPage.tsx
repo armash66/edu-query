@@ -17,13 +17,16 @@ import { useSession } from '../context/SessionContext'
 import { useHealth } from '../context/HealthContext'
 import {
   getOverviewSummary,
+  getHodBrief,
   reviewAnomalyFinding,
   ApiError,
 } from '../api/client'
 import type {
   OverviewSummaryResponse,
   OverviewFlaggedStudent,
+  HodBriefResponse,
 } from '../api/types'
+import { Copy, Check } from 'lucide-react'
 import { GlassCard } from '../ui/GlassCard'
 import { Button } from '../ui/Button'
 import { StatusBadge } from '../ui/StatusBadge'
@@ -103,15 +106,42 @@ export const OverviewPage: React.FC = () => {
     }
   }
 
+  const [hodBrief, setHodBrief] = useState<HodBriefResponse | null>(null)
+  const [hodBriefLoading, setHodBriefLoading] = useState<boolean>(false)
+  const [isHodBriefOpen, setIsHodBriefOpen] = useState<boolean>(false)
+  const [copiedBrief, setCopiedBrief] = useState<boolean>(false)
+
+  const handleOpenHodBrief = async () => {
+    setIsHodBriefOpen(true)
+    if (!hodBrief) {
+      setHodBriefLoading(true)
+      try {
+        const brief = await getHodBrief()
+        setHodBrief(brief)
+      } catch {
+        // Fallback
+      } finally {
+        setHodBriefLoading(false)
+      }
+    }
+  }
+
+  const handleCopyHodBrief = () => {
+    if (!hodBrief) return
+    navigator.clipboard.writeText(hodBrief.narrative)
+    setCopiedBrief(true)
+    setTimeout(() => setCopiedBrief(false), 2000)
+  }
+
   const handleAskSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     if (!askQuery.trim()) return
-    navigate(`/explore?search=${encodeURIComponent(askQuery.trim())}`)
+    navigate(`/explore?ai_query=${encodeURIComponent(askQuery.trim())}&source=ai`)
   }
 
   const handleChipClick = (queryText: string) => {
     setAskQuery(queryText)
-    navigate(`/explore?search=${encodeURIComponent(queryText)}`)
+    navigate(`/explore?ai_query=${encodeURIComponent(queryText)}&source=ai`)
   }
 
   // Handle empty state: redirect or prompt upload
@@ -246,7 +276,7 @@ export const OverviewPage: React.FC = () => {
           <Button
             variant="primary"
             size="md"
-            onClick={() => navigate('/reports')}
+            onClick={handleOpenHodBrief}
             icon={<Award size={16} />}
           >
             Generate HOD brief
@@ -1163,6 +1193,139 @@ export const OverviewPage: React.FC = () => {
           </div>
         </Modal>
       )}
+
+      {/* HOD Executive Brief Verified Modal (Requirement 11.3) */}
+      <Modal
+        isOpen={isHodBriefOpen}
+        onClose={() => setIsHodBriefOpen(false)}
+        title="HOD Executive Performance Brief"
+        description="Structured 1-page narrative strictly verified against marksheet ground truth facts."
+        size="lg"
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleCopyHodBrief}
+                icon={copiedBrief ? <Check size={14} /> : <Copy size={14} />}
+              >
+                {copiedBrief ? 'Copied Narrative' : 'Copy Narrative'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => window.print()}
+                icon={<Printer size={14} />}
+              >
+                Print Brief
+              </Button>
+            </div>
+            <Button variant="primary" size="sm" onClick={() => setIsHodBriefOpen(false)}>
+              Done
+            </Button>
+          </div>
+        }
+      >
+        {hodBriefLoading ? (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Generating and verifying HOD performance brief against database ground truth...
+          </div>
+        ) : hodBrief ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Verification Badge */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--surface-hover)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <StatusBadge
+                  label={hodBrief.verified ? 'Verified Ground Truth' : 'Institutional Standard'}
+                  tone={hodBrief.verified ? 'pass' : 'info'}
+                />
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  {hodBrief.validation_notes}
+                </span>
+              </div>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                {new Date(hodBrief.generated_at).toLocaleDateString()}
+              </span>
+            </div>
+
+            {/* Narrative Box */}
+            <div
+              style={{
+                padding: '16px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--surface-data)',
+                border: '1px solid var(--border-subtle)',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontSize: '12px',
+                lineHeight: 1.6,
+                color: 'var(--text)',
+                whiteSpace: 'pre-wrap',
+                maxHeight: '360px',
+                overflowY: 'auto',
+              }}
+            >
+              {hodBrief.narrative}
+            </div>
+
+            {/* Facts Used Section */}
+            <div>
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  color: 'var(--text-muted)',
+                  marginBottom: '8px',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Facts Used from Marksheet (100% Provenance)
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                <span className="badge badge-neutral" style={{ fontSize: '11px' }}>
+                  Evaluated: {String(hodBrief.facts_used.cohort_total)}
+                </span>
+                <span className="badge badge-success" style={{ fontSize: '11px' }}>
+                  Passed: {String(hodBrief.facts_used.total_passed)} ({String(hodBrief.facts_used.pass_percentage)}%)
+                </span>
+                <span className="badge badge-danger" style={{ fontSize: '11px' }}>
+                  Failed: {String(hodBrief.facts_used.total_failed)} ({String(hodBrief.facts_used.fail_percentage)}%)
+                </span>
+                <span className="badge badge-neutral" style={{ fontSize: '11px' }}>
+                  Div A: {String(hodBrief.facts_used.division_a_passed)}/{String(hodBrief.facts_used.division_a_total)} ({String(hodBrief.facts_used.division_a_pass_percent)}%)
+                </span>
+                <span className="badge badge-neutral" style={{ fontSize: '11px' }}>
+                  Div B: {String(hodBrief.facts_used.division_b_passed)}/{String(hodBrief.facts_used.division_b_total)} ({String(hodBrief.facts_used.division_b_pass_percent)}%)
+                </span>
+                <span className="badge badge-warning" style={{ fontSize: '11px' }}>
+                  Absentees: {String(hodBrief.facts_used.total_students_with_absent)}
+                </span>
+                <span className="badge badge-danger" style={{ fontSize: '11px' }}>
+                  Bottleneck: {String(hodBrief.facts_used.hardest_course_code)} ({String(hodBrief.facts_used.hardest_course_failures)} fails)
+                </span>
+                <span className="badge badge-neutral" style={{ fontSize: '11px' }}>
+                  Top CGPA: {String(hodBrief.facts_used.top_cgpa)} ({String(hodBrief.facts_used.top_student_seat)})
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-danger)' }}>
+            Failed to load HOD performance brief.
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

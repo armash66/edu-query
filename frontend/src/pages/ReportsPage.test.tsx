@@ -51,3 +51,4 @@ describe('ReportsPage', () => {
     expect(printSpy).toHaveBeenCalled()
   })
 })
+

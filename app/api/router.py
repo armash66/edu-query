@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from app.api.routes.ai import router as ai_router
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.anomaly import router as anomaly_router
 from app.api.routes.data_quality import router as data_quality_router
@@ -20,6 +21,7 @@ from app.api.routes.subjects import router as subjects_router
 api_v1_router = APIRouter()
 
 api_v1_router.include_router(session_router)
+api_v1_router.include_router(ai_router)
 api_v1_router.include_router(overview_router)
 api_v1_router.include_router(analytics_router)
 api_v1_router.include_router(investigation_router)

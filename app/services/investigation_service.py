@@ -224,6 +224,17 @@ def _build_condition_sql(
             return f"UPPER(TRIM(division)) IN ({placeholders})", params, f"Division in [{', '.join(params)}]"
 
     elif field == "result":
+        val_str = str(val).upper().strip()
+        if "FAIL" in val_str:
+            if op == "eq":
+                return "UPPER(TRIM(result)) LIKE '%FAIL%'", [], "Outcome is 'FAILED'"
+            elif op == "neq":
+                return "NOT (UPPER(TRIM(result)) LIKE '%FAIL%')", [], "Outcome is not 'FAILED'"
+        elif "PASS" in val_str:
+            if op == "eq":
+                return "UPPER(TRIM(result)) LIKE '%PASS%'", [], "Outcome is 'PASSED'"
+            elif op == "neq":
+                return "NOT (UPPER(TRIM(result)) LIKE '%PASS%')", [], "Outcome is not 'PASSED'"
         if op == "eq":
             return "UPPER(TRIM(result)) = UPPER(TRIM(?))", [str(val)], f"Outcome is '{val}'"
         elif op == "neq":

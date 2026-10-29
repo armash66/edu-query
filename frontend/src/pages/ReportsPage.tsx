@@ -12,15 +12,31 @@ import {
   Printer,
   Sparkles,
 } from 'lucide-react'
+import { getHodBrief } from '../api/client'
 
 export const ReportsPage: React.FC = () => {
   const [anonymized, setAnonymized] = useState(false)
   const [generating, setGenerating] = useState<string | null>(null)
 
-  const handleDownloadReport = (reportType: string, filename: string) => {
+  const handleDownloadReport = async (reportType: string, filename: string) => {
     setGenerating(reportType)
-    setTimeout(() => {
-      // Simulate file download trigger
+    try {
+      if (reportType === 'hod_brief') {
+        const brief = await getHodBrief()
+        const content = `${brief.title}\nStatus: ${brief.verified ? 'VERIFIED GROUND TRUTH' : 'UNVERIFIED'}\nGenerated: ${brief.generated_at}\n\n${brief.narrative}\n\nFACTS USED FROM MARKSHEET:\n${JSON.stringify(brief.facts_used, null, 2)}`
+        const blob = new Blob([content], { type: 'text/plain' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename.replace('.pdf', '.txt')
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        window.URL.revokeObjectURL(url)
+        return
+      }
+
+      await new Promise((r) => setTimeout(r, 400))
       const dummyContent = `EduQuery Academic Report: ${reportType}\nCohort: 145 Students\nAnonymized: ${anonymized ? 'Yes (Roll Numbers Only)' : 'No'}\nGenerated: ${new Date().toISOString()}`
       const blob = new Blob([dummyContent], { type: 'text/plain' })
       const url = window.URL.createObjectURL(blob)
@@ -31,8 +47,9 @@ export const ReportsPage: React.FC = () => {
       a.click()
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
+    } finally {
       setGenerating(null)
-    }, 400)
+    }
   }
 
   const handlePrintSlips = () => {

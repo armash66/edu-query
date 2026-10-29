@@ -963,3 +963,30 @@ export interface OverviewSummaryResponse {
   class_distribution?: ClassDistributionItem[];
   level_breakdown?: DivisionResultRow[];
 }
+
+export interface AskAiResponse {
+  query: string;
+  interpreted_query: string;
+  explanation: string;
+  refusal?: string | null;
+  is_refused: boolean;
+  predicate_ast?: InvestigationFilterGroup | null;
+  query_request?: InvestigationQueryRequest | null;
+  results?: InvestigationQueryResponse | null;
+}
+
+export interface HodBriefResponse {
+  title: string;
+  narrative: string;
+  facts_used: Record<string, string | number | boolean | null>;
+  verified: boolean;
+  validation_notes: string;
+  generated_at: string;
+}
+
+export interface NoticeDraftResponse {
+  template_type: 'failed' | 'absent' | 'merit';
+  title: string;
+  body_template: string;
+  placeholders: string[];
+}

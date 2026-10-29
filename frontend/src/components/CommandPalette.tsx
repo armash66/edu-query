@@ -21,6 +21,7 @@ import {
   AlertOctagon,
   ArrowRight,
   GraduationCap,
+  Sparkles,
 } from 'lucide-react'
 
 export interface CommandItem {
@@ -285,8 +286,23 @@ export const CommandPalette: React.FC<{ isOpen: boolean; onClose: () => void }> 
     )
   })
 
+  const aiSearchItem: CommandItem[] = q && q.length >= 2 ? [
+    {
+      id: 'ask-ai-explore',
+      title: `Ask AI: "${query.trim()}"`,
+      subtitle: 'Interpret natural language query into schema predicate AST',
+      icon: <Sparkles size={16} />,
+      category: 'Actions',
+      action: () => {
+        navigate(`/explore?ai_query=${encodeURIComponent(query.trim())}&source=ai`)
+        onClose()
+      },
+    }
+  ] : []
+
   // Build flattened list for keyboard index selection
   const allFilteredItems: CommandItem[] = [
+    ...aiSearchItem,
     ...matchingStudents,
     ...matchingCourses,
     ...matchingStatic,

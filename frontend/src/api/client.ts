@@ -35,6 +35,9 @@ import type {
   SessionDeleteResponse,
   SessionSaveResponse,
   OverviewSummaryResponse,
+  AskAiResponse,
+  HodBriefResponse,
+  NoticeDraftResponse,
 } from './types'
 
 export { ApiError }
@@ -925,4 +928,36 @@ export async function saveSession(datasetName?: string): Promise<SessionSaveResp
 
 export async function getOverviewSummary(signal?: AbortSignal): Promise<OverviewSummaryResponse> {
   return request<OverviewSummaryResponse>('/api/v1/overview/summary', { signal })
+}
+
+// =========================================================================
+// AI Features: Ask AI, HOD Brief, Notice Drafting
+// =========================================================================
+
+export async function askAi(
+  req: { query: string; limit?: number },
+  signal?: AbortSignal
+): Promise<AskAiResponse> {
+  return request<AskAiResponse>('/api/v1/ai/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+    signal,
+  })
+}
+
+export async function getHodBrief(signal?: AbortSignal): Promise<HodBriefResponse> {
+  return request<HodBriefResponse>('/api/v1/ai/hod-brief', { signal })
+}
+
+export async function draftNotice(
+  req: { template_type: 'failed' | 'absent' | 'merit'; custom_instructions?: string },
+  signal?: AbortSignal
+): Promise<NoticeDraftResponse> {
+  return request<NoticeDraftResponse>('/api/v1/ai/notice-draft', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+    signal,
+  })
 }
