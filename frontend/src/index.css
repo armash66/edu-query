@@ -862,3 +862,36 @@ button:disabled {
     grid-template-columns: 5fr 7fr;
   }
 }
+
+/* Welcome / Opening Page Grid */
+.welcome-workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+@media (min-width: 960px) {
+  .welcome-workspace-grid {
+    grid-template-columns: 1.25fr 1fr;
+  }
+}
+
+.welcome-trust-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .welcome-trust-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}

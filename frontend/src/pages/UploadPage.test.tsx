@@ -37,7 +37,7 @@ describe('UploadPage - Privacy-First Faculty Upload Experience', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /Analyze a marksheet/i })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: /Academic Result Management/i })).toBeInTheDocument()
       expect(screen.getByText(/Drop your Excel marksheet here, or browse/i)).toBeInTheDocument()
       expect(screen.getByText(/Privacy & Data Handling/i)).toBeInTheDocument()
       expect(screen.getByText(/Isolated temporary workspace/i)).toBeInTheDocument()
