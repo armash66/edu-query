@@ -274,10 +274,16 @@ async def create_temporary_session(
 
     # 5. Ingest into isolated session DuckDB
     divisions: list[str] = []
+    passed_count = 0
+    failed_count = 0
     try:
         con, report = ingest(input_path=quarantine_path, db_path=session_db_path)
         div_rows = con.execute("SELECT DISTINCT division FROM students WHERE division IS NOT NULL ORDER BY division").fetchall()
         divisions = [str(r[0]) for r in div_rows if r[0]]
+        p_row = con.execute("SELECT count(*) FROM students WHERE UPPER(TRIM(COALESCE(result, ''))) LIKE '%PASS%'").fetchone()
+        f_row = con.execute("SELECT count(*) FROM students WHERE UPPER(TRIM(COALESCE(result, ''))) LIKE '%FAIL%'").fetchone()
+        passed_count = int(p_row[0]) if p_row else 0
+        failed_count = int(f_row[0]) if f_row else 0
         con.close()
     except Exception as exc:
         shutil.rmtree(session_dir, ignore_errors=True)
@@ -317,6 +323,10 @@ async def create_temporary_session(
         "sheets_skipped": report.sheets_skipped,
         "students_count": report.students_count,
         "courses_count": report.courses_count,
+        "detected_students": report.students_count,
+        "detected_subjects": report.courses_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
         "divisions": divisions,
         "layout_profiles": report.layouts_by_sheet,
         "quality_health": dq_dict.get("health_status", "Good"),
@@ -343,6 +353,8 @@ async def create_temporary_session(
         "sha256": file_hash,
         "students_count": report.students_count,
         "courses_count": report.courses_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
         "can_confirm": can_confirm,
         "blocking_errors": blocking_errors,
         "preview": preview_payload,

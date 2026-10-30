@@ -92,8 +92,8 @@ describe('AbsentStudentsPage', () => {
     })
 
     // Check subjects and components
-    expect(screen.getByText('CS101')).toBeInTheDocument()
-    expect(screen.getByText('CS102')).toBeInTheDocument()
+    expect(screen.getAllByText('CS101').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('CS102').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('ESE').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('LAB').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('AB')).toBeInTheDocument()
@@ -102,8 +102,8 @@ describe('AbsentStudentsPage', () => {
     // Check KPI overview cards and results
     expect(screen.getByText('Absent Students')).toBeInTheDocument()
     expect(screen.getByText('Absence Incidents')).toBeInTheDocument()
-    expect(screen.getByText('FAIL')).toBeInTheDocument()
-    expect(screen.getByText('PASS')).toBeInTheDocument()
+    expect(screen.getAllByText('FAIL').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('PASS').length).toBeGreaterThanOrEqual(1)
   })
 
   it('filters absent records by division, subject, and search query', async () => {

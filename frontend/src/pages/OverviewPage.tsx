@@ -203,36 +203,21 @@ export const OverviewPage: React.FC = () => {
   const flaggedCount = kpis.needs_attention_count
   const isReadyToDeclare = flaggedCount === 0
 
-  // Standard Toppers fallback if not yet supplied by API
-  const toppers = summary.toppers && summary.toppers.length > 0 ? summary.toppers : [
-    { rank: 1, student_id: '23108A0150', name: 'Shaikh Kabir Hemant Neelam', division: 'A', cgpa: 9.85, sgpi: 9.91 },
-    { rank: 2, student_id: '23108B0104', name: 'Kapoor Aadhya Anil Padma', division: 'B', cgpa: 9.80, sgpi: 9.95 },
-    { rank: 3, student_id: '23108A0132', name: 'Chavan Sahil Prakash Meena', division: 'A', cgpa: 9.78, sgpi: 10.0 },
-    { rank: 4, student_id: '23108B0148', name: 'Fernandes Ishaan Anil Neelam', division: 'B', cgpa: 9.72, sgpi: 10.0 },
-    { rank: 5, student_id: '23108A0007', name: 'Mishra Pooja Mohan Usha', division: 'A', cgpa: 9.70, sgpi: 10.0 },
-  ]
+  // Cohort Toppers from API
+  const toppers = summary.toppers || []
 
-  // Class Distribution fallback
-  const classDistribution = summary.class_distribution && summary.class_distribution.length > 0 ? summary.class_distribution : [
-    { band: 'Distinction', count: 109, percentage: 75.2, min_cgpa: 7.5 },
-    { band: 'First Class', count: 22, percentage: 15.2, min_cgpa: 6.5 },
-    { band: 'Higher Second', count: 1, percentage: 0.7, min_cgpa: 6.0 },
-    { band: 'Second Class', count: 0, percentage: 0.0, min_cgpa: 5.0 },
-    { band: 'Pass Class', count: 0, percentage: 0.0, min_cgpa: 4.0 },
-    { band: 'Fail', count: 13, percentage: 9.0, min_cgpa: null },
-  ]
+  // Class Distribution from API
+  const classDistribution = summary.class_distribution || []
 
-  // Level Breakdown fallback
-  const levelBreakdown = summary.level_breakdown && summary.level_breakdown.length > 0 ? summary.level_breakdown : [
-    { division: 'Regular UG', division_code: 'UG', passed: 114, enrolled: 127, pass_rate_percent: 89.8 },
-    { division: 'Direct Second Year (DSY)', division_code: 'DSY', passed: 18, enrolled: 18, pass_rate_percent: 100.0 },
-  ]
+  // Level Breakdown from API
+  const levelBreakdown = summary.level_breakdown || []
 
+  const hardestCode = summary.hardest_subjects?.[0]?.course_code || 'curriculum subjects'
   const askExamples = [
-    'Who failed PCEC12T in Division A?',
-    'Students absent in more than 2 exams',
-    'Top 5 students in Division B',
-    'Students eligible for distinction',
+    `Who failed ${hardestCode}?`,
+    'Students absent in final examinations',
+    'Top ranking candidates by CGPA',
+    'Students eligible for distinction honors',
   ]
 
   return (
@@ -403,12 +388,12 @@ export const OverviewPage: React.FC = () => {
               {kpis.failed_students}
             </div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-              13 students with backlogs &bull; Review remedial groups &rarr;
+              {kpis.failed_students} students with backlogs &bull; Review remedial groups &rarr;
             </div>
           </GlassCard>
         </Link>
 
-        {/* Card 2: Absent (7) */}
+        {/* Card 2: Absent */}
         <Link to="/absent" style={{ textDecoration: 'none' }}>
           <GlassCard variant="glass-2" padding="md" style={{ height: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -427,10 +412,10 @@ export const OverviewPage: React.FC = () => {
                 margin: '6px 0 4px 0',
               }}
             >
-              {kpis.absent_students || 7}
+              {kpis.absent_students ?? 0}
             </div>
             <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-              7 students missed evaluations &bull; View roster &rarr;
+              {kpis.absent_students ?? 0} students missed evaluations &bull; View roster &rarr;
             </div>
           </GlassCard>
         </Link>
@@ -526,7 +511,7 @@ export const OverviewPage: React.FC = () => {
                   Result Summary
                 </h3>
                 <span className="tabular-nums font-mono" style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                  {kpis.passed_students} passed &bull; {kpis.failed_students} failed &bull; {kpis.absent_students || 7} absent
+                  {kpis.passed_students} passed &bull; {kpis.failed_students} failed &bull; {kpis.absent_students ?? 0} absent
                 </span>
               </div>
             }
@@ -534,58 +519,67 @@ export const OverviewPage: React.FC = () => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               {/* Passed / Failed / Absent Segmented Progress Track */}
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: 'var(--text-xs)' }}>
-                  <span>
-                    <strong>Passed:</strong> {results.passed.count} ({results.passed.percentage.toFixed(1)}%)
-                  </span>
-                  <span>
-                    <strong style={{ color: 'var(--status-danger-text)' }}>Failed:</strong> {results.failed.count} ({results.failed.percentage.toFixed(1)}%)
-                  </span>
-                  <span>
-                    <strong style={{ color: 'var(--text-muted)' }}>Absent:</strong> {results.absent.count || 7} (4.8%)
-                  </span>
-                </div>
+                {(() => {
+                  const absentCount = kpis.absent_students ?? results.absent?.count ?? 0
+                  const totalCount = kpis.total_students || 1
+                  const absentPct = totalCount > 0 ? (absentCount / totalCount) * 100 : 0
+                  return (
+                    <>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: 'var(--text-xs)' }}>
+                        <span>
+                          <strong>Passed:</strong> {results.passed.count} ({results.passed.percentage.toFixed(1)}%)
+                        </span>
+                        <span>
+                          <strong style={{ color: 'var(--status-danger-text)' }}>Failed:</strong> {results.failed.count} ({results.failed.percentage.toFixed(1)}%)
+                        </span>
+                        <span>
+                          <strong style={{ color: 'var(--text-muted)' }}>Absent:</strong> {absentCount} ({absentPct.toFixed(1)}%)
+                        </span>
+                      </div>
 
-                <div
-                  style={{
-                    height: '14px',
-                    width: '100%',
-                    borderRadius: 'var(--radius-full)',
-                    background: 'var(--surface-active)',
-                    overflow: 'hidden',
-                    display: 'flex',
-                  }}
-                  role="progressbar"
-                  aria-label="Cohort pass and fail outcomes"
-                  aria-valuenow={results.passed.percentage}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                >
-                  <div
-                    style={{
-                      width: `${results.passed.percentage}%`,
-                      background: 'var(--text)',
-                      height: '100%',
-                    }}
-                    title={`Passed: ${results.passed.percentage}%`}
-                  />
-                  <div
-                    style={{
-                      width: `${results.failed.percentage}%`,
-                      background: 'var(--status-danger-text)',
-                      height: '100%',
-                    }}
-                    title={`Failed: ${results.failed.percentage}%`}
-                  />
-                  <div
-                    style={{
-                      width: `4.8%`,
-                      background: 'var(--text-muted)',
-                      height: '100%',
-                    }}
-                    title="Absent: 4.8%"
-                  />
-                </div>
+                      <div
+                        style={{
+                          height: '14px',
+                          width: '100%',
+                          borderRadius: 'var(--radius-full)',
+                          background: 'var(--surface-active)',
+                          overflow: 'hidden',
+                          display: 'flex',
+                        }}
+                        role="progressbar"
+                        aria-label="Cohort pass and fail outcomes"
+                        aria-valuenow={results.passed.percentage}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
+                        <div
+                          style={{
+                            width: `${results.passed.percentage}%`,
+                            background: 'var(--text)',
+                            height: '100%',
+                          }}
+                          title={`Passed: ${results.passed.percentage}%`}
+                        />
+                        <div
+                          style={{
+                            width: `${results.failed.percentage}%`,
+                            background: 'var(--status-danger-text)',
+                            height: '100%',
+                          }}
+                          title={`Failed: ${results.failed.percentage}%`}
+                        />
+                        <div
+                          style={{
+                            width: `${absentPct}%`,
+                            background: 'var(--text-muted)',
+                            height: '100%',
+                          }}
+                          title={`Absent: ${absentPct.toFixed(1)}%`}
+                        />
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
 
               {/* By Division Breakdown Rows */}

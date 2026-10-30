@@ -995,4 +995,586 @@ def export_absent_students_excel(
     wb.save(buf)
     return filename, buf.getvalue()
 
+def export_merit_list_excel(con: duckdb.DuckDBPyConnection, anonymize: bool = False) -> tuple[str, bytes]:
+    """Export complete cohort merit list ordered by CGPA, SGPI, and total marks."""
+    sql = """
+        SELECT student_id, name, roll_no, seat_no, division, level, total_marks, result, sgpi, cgpa
+        FROM students
+        WHERE UPPER(COALESCE(result, '')) LIKE '%PASS%' AND cgpa IS NOT NULL
+        ORDER BY cgpa DESC, sgpi DESC NULLS LAST, total_marks DESC NULLS LAST, seat_no ASC NULLS LAST
+    """
+    rows = con.execute(sql).fetchall()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Cohort Merit List"
+
+    headers = [
+        "Rank", "Student ID", "Name", "Roll No", "Seat No",
+        "Division", "Level", "CGPA", "SGPI", "Total Marks", "Classification", "Result"
+    ]
+    ws.append(headers)
+
+    current_rank = 1
+    prev_cgpa: float | None = None
+    prev_sgpi: float | None = None
+
+    for idx, r in enumerate(rows):
+        cgpa_val = _safe_float(r[9])
+        sgpi_val = _safe_float(r[8])
+        tot_m = _safe_float(r[6])
+
+        if prev_cgpa is not None and (cgpa_val != prev_cgpa or sgpi_val != prev_sgpi):
+            current_rank = idx + 1
+        prev_cgpa = cgpa_val
+        prev_sgpi = sgpi_val
+
+        classification = "Pass Class"
+        if cgpa_val is not None:
+            if cgpa_val >= 7.5:
+                classification = "Distinction"
+            elif cgpa_val >= 6.5:
+                classification = "First Class"
+            elif cgpa_val >= 6.0:
+                classification = "Higher Second"
+            elif cgpa_val >= 5.0:
+                classification = "Second Class"
+
+        name_str = f"Candidate {r[3] or r[2] or r[0]}" if anonymize else str(r[1])
+
+        ws.append([
+            current_rank,
+            str(r[0]),
+            sanitize_cell_text(name_str),
+            str(r[2]) if r[2] is not None else "",
+            str(r[3]) if r[3] is not None else "",
+            sanitize_cell_text(r[4] if r[4] is not None else ""),
+            sanitize_cell_text(r[5] if r[5] is not None else ""),
+            cgpa_val if cgpa_val is not None else "",
+            sgpi_val if sgpi_val is not None else "",
+            tot_m if tot_m is not None else "",
+            classification,
+            sanitize_cell_text(r[7] if r[7] is not None else "Passed"),
+        ])
+        cur_row = ws.max_row
+        for col_idx in (2, 4, 5):
+            cell = ws.cell(row=cur_row, column=col_idx)
+            cell.data_type = "s"
+            cell.number_format = "@"
+
+    _apply_workbook_styles(ws, header_row_idx=1)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return "EduQuery_Merit_List.xlsx", buf.getvalue()
+
+
+def export_failed_absent_excel(con: duckdb.DuckDBPyConnection, anonymize: bool = False) -> tuple[str, bytes]:
+    """Export actionable list of all failed and absent students with contact info and failing subjects."""
+    sql = """
+        SELECT DISTINCT s.student_id, s.name, s.roll_no, s.seat_no, s.division, s.email, s.result, s.total_marks, s.sgpi, s.cgpa
+        FROM students s
+        WHERE UPPER(COALESCE(s.result, '')) LIKE '%FAIL%'
+           OR s.student_id IN (
+               SELECT DISTINCT student_id FROM scores 
+               WHERE component != 'TOT1' 
+                 AND (UPPER(TRIM(flag)) IN ('A', 'AB', 'ABS', 'ABSENT')
+                      OR UPPER(TRIM(raw_text)) IN ('A', 'AB', 'ABS', 'ABSENT'))
+           )
+        ORDER BY s.division ASC NULLS LAST, s.roll_no ASC NULLS LAST, s.student_id ASC
+    """
+    rows = con.execute(sql).fetchall()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Backlog and Absent Roster"
+
+    headers = [
+        "Student ID", "Name", "Roll No", "Seat No", "Division",
+        "Email", "Overall Result", "Failed Subjects Count", "Failed Courses",
+        "Absent Subjects Count", "Absent Components", "SGPI", "CGPA"
+    ]
+    ws.append(headers)
+
+    for r in rows:
+        sid = str(r[0])
+        name_str = f"Candidate {r[3] or r[2] or r[0]}" if anonymize else str(r[1])
+        email_str = f"candidate_{r[3] or r[2]}@student.univ.edu" if anonymize and r[5] else str(r[5] or "")
+
+        failed_courses_rows = con.execute("""
+            SELECT course_code, grade, flags
+            FROM reconciliation
+            WHERE student_id = ?
+              AND ((UPPER(TRIM(grade)) IN ('F', 'FAIL') OR UPPER(flags) LIKE '%F%')
+                   AND NOT (UPPER(TRIM(grade)) IN ('O', 'A+', 'A', 'B+', 'B', 'C', 'D', 'P', 'PASS') AND UPPER(flags) LIKE '%F%'))
+        """, [sid]).fetchall()
+        failed_courses = [str(fc[0]) for fc in failed_courses_rows]
+
+        absent_rows = con.execute("""
+            SELECT course_code, component, raw_text
+            FROM scores
+            WHERE student_id = ? AND component != 'TOT1'
+              AND (UPPER(TRIM(flag)) IN ('A', 'AB', 'ABS', 'ABSENT')
+                   OR UPPER(TRIM(raw_text)) IN ('A', 'AB', 'ABS', 'ABSENT'))
+        """, [sid]).fetchall()
+        absent_courses = list({str(ar[0]) for ar in absent_rows})
+        absent_details = ", ".join([f"{ar[0]} ({ar[1]})" for ar in absent_rows])
+
+        ws.append([
+            sid,
+            sanitize_cell_text(name_str),
+            str(r[2]) if r[2] is not None else "",
+            str(r[3]) if r[3] is not None else "",
+            sanitize_cell_text(r[4] if r[4] is not None else ""),
+            sanitize_cell_text(email_str),
+            sanitize_cell_text(r[6] if r[6] is not None else ""),
+            len(failed_courses),
+            ", ".join(failed_courses) if failed_courses else "None",
+            len(absent_courses),
+            absent_details if absent_details else "None",
+            _safe_float(r[8]) if r[8] is not None else "",
+            _safe_float(r[9]) if r[9] is not None else "",
+        ])
+        cur_row = ws.max_row
+        for col_idx in (1, 3, 4):
+            cell = ws.cell(row=cur_row, column=col_idx)
+            cell.data_type = "s"
+            cell.number_format = "@"
+
+    _apply_workbook_styles(ws, header_row_idx=1)
+    buf = io.BytesIO()
+    wb.save(buf)
+    return "EduQuery_Failed_Absent_Roster.xlsx", buf.getvalue()
+
+
+def export_mail_merge_csv(con: duckdb.DuckDBPyConnection, anonymize: bool = False) -> tuple[str, bytes]:
+    """Export pre-formatted RFC 4180 CSV with UTF-8 BOM for notice mail-merge."""
+    sql = """
+        SELECT DISTINCT s.student_id, s.name, s.roll_no, s.seat_no, s.division, s.email, s.result
+        FROM students s
+        WHERE UPPER(COALESCE(s.result, '')) LIKE '%FAIL%'
+           OR s.student_id IN (
+               SELECT DISTINCT student_id FROM scores 
+               WHERE component != 'TOT1' 
+                 AND (UPPER(TRIM(flag)) IN ('A', 'AB', 'ABS', 'ABSENT')
+                      OR UPPER(TRIM(raw_text)) IN ('A', 'AB', 'ABS', 'ABSENT'))
+           )
+        ORDER BY s.division ASC NULLS LAST, s.roll_no ASC NULLS LAST, s.student_id ASC
+    """
+    rows = con.execute(sql).fetchall()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\r\n")
+    headers = [
+        "Notice_Type", "Student_ID", "Student_Name", "Seat_No", "Roll_No",
+        "Division", "Email", "Failed_Count", "Failed_Subjects", "Absent_Count", "Absent_Subjects", "Overall_Result"
+    ]
+    writer.writerow(headers)
+
+    for r in rows:
+        sid = str(r[0])
+        name_str = f"Candidate {r[3] or r[2] or r[0]}" if anonymize else str(r[1])
+        email_str = f"candidate_{r[3] or r[2]}@student.univ.edu" if anonymize and r[5] else str(r[5] or "")
+
+        fc_rows = con.execute("""
+            SELECT course_code FROM reconciliation
+            WHERE student_id = ?
+              AND ((UPPER(TRIM(grade)) IN ('F', 'FAIL') OR UPPER(flags) LIKE '%F%')
+                   AND NOT (UPPER(TRIM(grade)) IN ('O', 'A+', 'A', 'B+', 'B', 'C', 'D', 'P', 'PASS') AND UPPER(flags) LIKE '%F%'))
+        """, [sid]).fetchall()
+        failed_courses = [str(fc[0]) for fc in fc_rows]
+
+        ab_rows = con.execute("""
+            SELECT DISTINCT course_code FROM scores
+            WHERE student_id = ? AND component != 'TOT1'
+              AND (UPPER(TRIM(flag)) IN ('A', 'AB', 'ABS', 'ABSENT')
+                   OR UPPER(TRIM(raw_text)) IN ('A', 'AB', 'ABS', 'ABSENT'))
+        """, [sid]).fetchall()
+        absent_courses = [str(ab[0]) for ab in ab_rows]
+
+        notice_type = "Backlog Notice" if failed_courses else "Absence Notice"
+
+        writer.writerow([
+            sanitize_csv_cell(notice_type),
+            sanitize_csv_cell(sid),
+            sanitize_csv_cell(name_str),
+            sanitize_csv_cell(r[3] if r[3] is not None else ""),
+            sanitize_csv_cell(r[2] if r[2] is not None else ""),
+            sanitize_csv_cell(r[4] if r[4] is not None else ""),
+            sanitize_csv_cell(email_str),
+            len(failed_courses),
+            sanitize_csv_cell(", ".join(failed_courses)),
+            len(absent_courses),
+            sanitize_csv_cell(", ".join(absent_courses)),
+            sanitize_csv_cell(r[6] if r[6] is not None else ""),
+        ])
+
+    content_bytes = ("\ufeff" + buf.getvalue()).encode("utf-8")
+    return "EduQuery_Notice_MailMerge.csv", content_bytes
+
+
+def get_division_student_slips(
+    con: duckdb.DuckDBPyConnection,
+    division: str | None = None,
+    anonymize: bool = False,
+) -> list[dict[str, Any]]:
+    """Retrieve complete traceable subject breakdowns for all students in a division (or entire cohort)."""
+    where_sql = ""
+    params: list[Any] = []
+    if division and division.strip().lower() not in ("all", ""):
+        where_sql = "WHERE UPPER(TRIM(division)) = UPPER(TRIM(?))"
+        params.append(division.strip())
+
+    students_rows = con.execute(f"""
+        SELECT student_id, name, roll_no, seat_no, division, level, total_marks, total_credits, result, sgpi, cgpa
+        FROM students
+        {where_sql}
+        ORDER BY division ASC NULLS LAST, roll_no ASC NULLS LAST, student_id ASC
+    """, params).fetchall()
+
+    slips = []
+    for s_row in students_rows:
+        sid = str(s_row[0])
+        name_str = f"Candidate {s_row[3] or s_row[2] or s_row[0]}" if anonymize else str(s_row[1])
+
+        enrolled_courses = con.execute("""
+            SELECT e.course_code, COALESCE(c.name, e.course_code), COALESCE(c.kind, 'Theory'), c.credits
+            FROM enrollment e
+            LEFT JOIN courses c ON e.course_code = c.code
+            WHERE e.student_id = ?
+            ORDER BY e.course_code
+        """, [sid]).fetchall()
+
+        subjects = []
+        for c_code, c_name, c_kind, c_credits in enrolled_courses:
+            raw_comps = con.execute("""
+                SELECT component, value, flag, raw_text
+                FROM scores
+                WHERE student_id = ? AND course_code = ? AND component != 'TOT1'
+                ORDER BY component
+            """, [sid, c_code]).fetchall()
+
+            comp_map = {}
+            is_absent = False
+            for comp, val, flag, raw_t in raw_comps:
+                comp_map[str(comp)] = {
+                    "marks": float(val) if val is not None else None,
+                    "flag": str(flag) if flag is not None else None,
+                    "raw_text": str(raw_t) if raw_t is not None else None,
+                }
+                if flag and str(flag).strip().upper() in ("A", "AB", "ABS", "ABSENT"):
+                    is_absent = True
+
+            recon = con.execute("""
+                SELECT printed_total, grade
+                FROM reconciliation
+                WHERE student_id = ? AND course_code = ?
+            """, [sid, c_code]).fetchone()
+
+            printed_total = float(recon[0]) if recon and recon[0] is not None else None
+            grade = str(recon[1]).strip() if recon and recon[1] is not None else None
+            if grade and grade.upper() in ("AB", "ABS", "ABSENT"):
+                is_absent = True
+
+            status = "failed" if (grade and grade.upper() in ("F", "FAIL")) else ("absent" if is_absent else "passed")
+
+            subjects.append({
+                "course_code": str(c_code),
+                "course_name": str(c_name),
+                "kind": str(c_kind),
+                "credits": float(c_credits) if c_credits is not None else None,
+                "components": comp_map,
+                "total_marks": printed_total,
+                "letter_grade": grade,
+                "status": status,
+                "is_absent": is_absent,
+            })
+
+        slips.append({
+            "student_id": sid,
+            "name": name_str,
+            "roll_no": str(s_row[2]) if s_row[2] is not None else "",
+            "seat_no": str(s_row[3]) if s_row[3] is not None else "",
+            "division": str(s_row[4] or "—"),
+            "level": str(s_row[5] or "UG"),
+            "total_marks": _safe_float(s_row[6]),
+            "total_credits": _safe_float(s_row[7]),
+            "overall_result": str(s_row[8] or "PASSES"),
+            "sgpi": _safe_float(s_row[9]),
+            "cgpa": _safe_float(s_row[10]),
+            "subjects": subjects,
+        })
+
+    return slips
+
+
+def export_analysis_dossier_pdf(con: duckdb.DuckDBPyConnection, anonymize: bool = False) -> tuple[str, bytes]:
+    """Generate institutional result analysis PDF report with ReportLab."""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from app.services.overview_service import get_overview_summary
+
+    summary = get_overview_summary(con)
+    kpis = summary.kpis
+    res = summary.results
+    hardest = summary.hardest_subjects
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36,
+    )
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=18,
+        leading=22,
+        alignment=1,
+        spaceAfter=4,
+    )
+    subtitle_style = ParagraphStyle(
+        'DocSub',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=10,
+        leading=14,
+        alignment=1,
+        textColor=colors.HexColor('#555555'),
+        spaceAfter=15,
+    )
+    h2_style = ParagraphStyle(
+        'Heading2',
+        parent=styles['Heading2'],
+        fontName='Helvetica-Bold',
+        fontSize=12,
+        leading=16,
+        spaceBefore=12,
+        spaceAfter=6,
+        textColor=colors.HexColor('#111111'),
+    )
+
+    story = [
+        Paragraph("INSTITUTIONAL RESULT ANALYSIS DOSSIER", title_style),
+        Paragraph(f"Academic Examination Cell &bull; Dataset: {summary.dataset.name}", subtitle_style),
+        HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#111111'), spaceAfter=15),
+    ]
+
+    # 1. Performance Overview Table
+    story.append(Paragraph("1. Cohort Performance Summary", h2_style))
+    kpi_data = [
+        ["Total Students Enrolled", str(kpis.total_students), "Total Courses Cataloged", str(kpis.total_courses)],
+        ["Passed Students", f"{kpis.passed_students} ({kpis.pass_rate_percent:.1f}%)", "Failed Students (Backlogs)", str(kpis.failed_students)],
+        ["Students with Absences", str(kpis.absent_students), "Average SGPI", f"{kpis.sgpi_average:.2f}" if kpis.sgpi_average else "—"],
+        ["Median SGPI", f"{kpis.sgpi_median:.2f}" if kpis.sgpi_median else "—", "Verification Flags", str(kpis.needs_attention_count)],
+    ]
+    t1 = Table(kpi_data, colWidths=[150, 120, 150, 120])
+    t1.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fbfbfb')),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#dddddd')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#eeeeee')),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('PADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(t1)
+    story.append(Spacer(1, 14))
+
+    # 2. Division Breakdown Table
+    story.append(Paragraph("2. Class Division Distribution", h2_style))
+    div_data = [["Division", "Enrolled", "Passed", "Pass Rate (%)"]]
+    for d in res.divisions:
+        div_data.append([d.division, str(d.enrolled), str(d.passed), f"{d.pass_rate_percent:.1f}%"])
+    t2 = Table(div_data, colWidths=[180, 120, 120, 120])
+    t2.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#eeeeee')),
+        ('PADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(t2)
+    story.append(Spacer(1, 14))
+
+    # 3. Courses with Highest Failure Rates
+    story.append(Paragraph("3. Highest Failure Subjects", h2_style))
+    hardest_data = [["Course Code", "Course Title", "Enrolled", "Failed", "Failure Rate (%)"]]
+    for sub in hardest[:5]:
+        hardest_data.append([
+            sub.course_code,
+            sub.course_title[:35],
+            str(sub.enrolled_count),
+            str(sub.failed_count),
+            f"{sub.failure_rate_percent:.1f}%"
+        ])
+    t3 = Table(hardest_data, colWidths=[90, 230, 70, 70, 80])
+    t3.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#eeeeee')),
+        ('PADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(t3)
+    story.append(Spacer(1, 24))
+
+    # 4. Signatures
+    story.append(Spacer(1, 20))
+    sig_data = [
+        ["_" * 26, "_" * 26, "_" * 26],
+        ["Controller of Examinations", "Head of Department", "Principal / Dean"],
+    ]
+    t_sig = Table(sig_data, colWidths=[180, 180, 180])
+    t_sig.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (-1, 1), 9),
+        ('PADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(t_sig)
+
+    doc.build(story)
+    return "EduQuery_Result_Analysis.pdf", buf.getvalue()
+
+
+def export_student_slips_pdf(con: duckdb.DuckDBPyConnection, division: str | None = None, anonymize: bool = False) -> tuple[str, bytes]:
+    """Generate multi-page printable student result slips PDF with ReportLab."""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, PageBreak
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+
+    slips = get_division_student_slips(con, division=division, anonymize=anonymize)
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=36,
+        bottomMargin=36,
+    )
+    styles = getSampleStyleSheet()
+
+    h1_style = ParagraphStyle(
+        'SlipH1',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=15,
+        leading=19,
+        alignment=1,
+        spaceAfter=2,
+    )
+    sub_style = ParagraphStyle(
+        'SlipSub',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=9,
+        leading=12,
+        alignment=1,
+        textColor=colors.HexColor('#444444'),
+        spaceAfter=10,
+    )
+
+    story = []
+    for idx, slip in enumerate(slips):
+        if idx > 0:
+            story.append(PageBreak())
+
+        story.append(Paragraph("UNIVERSITY EXAMINATION RESULT SLIP", h1_style))
+        story.append(Paragraph("Academic Marksheet Statement &bull; Examination Cell", sub_style))
+        story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor('#000000'), spaceAfter=8))
+
+        # Student Details Table
+        meta_data = [
+            [f"Student Name: {slip['name']}", f"Seat Number: {slip['seat_no'] or '—'}"],
+            [f"Student ID: {slip['student_id']}", f"Roll Number: {slip['roll_no'] or '—'}"],
+            [f"Division: {slip['division']}  ·  Level: {slip['level']}", f"Overall Outcome: {slip['overall_result']}"],
+        ]
+        t_meta = Table(meta_data, colWidths=[300, 240])
+        t_meta.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('PADDING', (0, 0), (-1, -1), 2),
+        ]))
+        story.append(t_meta)
+        story.append(Spacer(1, 8))
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor('#aaaaaa'), spaceAfter=10))
+
+        # Courses Table
+        c_headers = ["Code", "Course Title", "Credits", "Marks", "Grade", "Status"]
+        c_rows = [c_headers]
+        for sub in slip['subjects']:
+            marks_str = str(sub['total_marks']) if sub['total_marks'] is not None else ('AB' if sub['is_absent'] else '—')
+            c_rows.append([
+                sub['course_code'],
+                sub['course_name'][:38],
+                str(sub['credits']) if sub['credits'] is not None else '—',
+                marks_str,
+                sub['letter_grade'] or '—',
+                sub['status'].upper(),
+            ])
+
+        t_courses = Table(c_rows, colWidths=[70, 240, 50, 55, 55, 70])
+        t_courses.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (2, 0), (-1, -1), 'CENTER'),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cccccc')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e5e5')),
+            ('PADDING', (0, 0), (-1, -1), 4),
+        ]))
+        story.append(t_courses)
+        story.append(Spacer(1, 10))
+
+        # Bottom Totals Table
+        tot_marks_str = f"{slip['total_marks']}" if slip['total_marks'] is not None else '—'
+        tot_credits_str = f"{slip['total_credits']}" if slip['total_credits'] is not None else '—'
+        sgpi_str = f"{slip['sgpi']:.2f}" if slip['sgpi'] is not None else '—'
+        cgpa_str = f"{slip['cgpa']:.2f}" if slip['cgpa'] is not None else '—'
+
+        totals_data = [
+            [f"Total Marks: {tot_marks_str}  ·  Total Credits: {tot_credits_str}", f"SGPI: {sgpi_str}  ·  CGPA: {cgpa_str}"]
+        ]
+        t_tot = Table(totals_data, colWidths=[300, 240])
+        t_tot.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+            ('PADDING', (0, 0), (-1, -1), 4),
+        ]))
+        story.append(t_tot)
+        story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#000000'), spaceAfter=40))
+
+        # Signature Table
+        sig_data = [
+            ["_" * 24, "_" * 24, "_" * 24],
+            ["Controller of Examinations", "Head of Department", "Principal / Dean"],
+        ]
+        t_sig = Table(sig_data, colWidths=[180, 180, 180])
+        t_sig.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 1), (-1, 1), 8),
+            ('PADDING', (0, 0), (-1, -1), 2),
+        ]))
+        story.append(t_sig)
+
+    doc.build(story)
+    div_suffix = f"_{division}" if division else ""
+    return f"EduQuery_Result_Slips{div_suffix}.pdf", buf.getvalue()
+
 

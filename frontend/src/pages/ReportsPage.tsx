@@ -1,4 +1,5 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { GlassCard } from '../ui/GlassCard'
 import { Button } from '../ui/Button'
 import {
@@ -11,49 +12,151 @@ import {
   Mail,
   Printer,
   Sparkles,
+  Check,
 } from 'lucide-react'
-import { getHodBrief } from '../api/client'
+import {
+  downloadMeritListExcel,
+  downloadBacklogsExcel,
+  downloadMailMergeCsv,
+  downloadAnalysisDossier,
+  downloadStudentSlipsPdf,
+  getHodBrief,
+  getDivisionStudentSlips,
+  saveBlobAsFile,
+} from '../api/client'
+import type { StudentSlip } from '../api/types'
 
 export const ReportsPage: React.FC = () => {
   const [anonymized, setAnonymized] = useState(false)
   const [generating, setGenerating] = useState<string | null>(null)
+  const [downloadSuccess, setDownloadSuccess] = useState<string | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  const handleDownloadReport = async (reportType: string, filename: string) => {
-    setGenerating(reportType)
+  // Slips Printing State
+  const slipsLoading = false
+  const [loadedSlips, setLoadedSlips] = useState<StudentSlip[]>([])
+
+  useEffect(() => {
+    getDivisionStudentSlips('', anonymized)
+      .then((res) => {
+        if (res?.slips) setLoadedSlips(res.slips)
+      })
+      .catch(() => {})
+  }, [anonymized])
+
+  const notifySuccess = (type: string) => {
+    setDownloadSuccess(type)
+    setTimeout(() => setDownloadSuccess(null), 3000)
+  }
+
+  const handleDownloadMeritList = async () => {
+    setGenerating('merit_list')
+    setErrorMsg(null)
     try {
-      if (reportType === 'hod_brief') {
-        const brief = await getHodBrief()
-        const content = `${brief.title}\nStatus: ${brief.verified ? 'VERIFIED GROUND TRUTH' : 'UNVERIFIED'}\nGenerated: ${brief.generated_at}\n\n${brief.narrative}\n\nFACTS USED FROM MARKSHEET:\n${JSON.stringify(brief.facts_used, null, 2)}`
-        const blob = new Blob([content], { type: 'text/plain' })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = filename.replace('.pdf', '.txt')
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-        return
-      }
-
-      await new Promise((r) => setTimeout(r, 400))
-      const dummyContent = `EduQuery Academic Report: ${reportType}\nCohort: 145 Students\nAnonymized: ${anonymized ? 'Yes (Roll Numbers Only)' : 'No'}\nGenerated: ${new Date().toISOString()}`
-      const blob = new Blob([dummyContent], { type: 'text/plain' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
+      await downloadMeritListExcel(anonymized)
+      notifySuccess('merit_list')
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to download merit list workbook')
     } finally {
       setGenerating(null)
     }
   }
 
-  const handlePrintSlips = () => {
+  const handleDownloadBacklogs = async () => {
+    setGenerating('backlogs')
+    setErrorMsg(null)
+    try {
+      await downloadBacklogsExcel(anonymized)
+      notifySuccess('backlogs')
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to download backlog roster workbook')
+    } finally {
+      setGenerating(null)
+    }
+  }
+
+  const handleDownloadMailMerge = async () => {
+    setGenerating('mail_merge')
+    setErrorMsg(null)
+    try {
+      await downloadMailMergeCsv(anonymized)
+      notifySuccess('mail_merge')
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to download mail-merge CSV')
+    } finally {
+      setGenerating(null)
+    }
+  }
+
+  const handleDownloadAnalysis = async () => {
+    setGenerating('analysis')
+    setErrorMsg(null)
+    try {
+      await downloadAnalysisDossier(anonymized)
+      notifySuccess('analysis')
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to download result analysis report')
+    } finally {
+      setGenerating(null)
+    }
+  }
+
+  const handleDownloadHodBrief = async () => {
+    setGenerating('hod_brief')
+    setErrorMsg(null)
+    try {
+      const brief = await getHodBrief()
+      const content = [
+        '='.repeat(72),
+        brief.title.toUpperCase(),
+        '='.repeat(72),
+        `Generated: ${brief.generated_at}`,
+        `Status: ${brief.verified ? 'VERIFIED AGAINST MARKSHEET' : 'UNVERIFIED'}`,
+        '',
+        brief.narrative,
+        '',
+        '='.repeat(72),
+        'VERIFIED FACTS FROM MARKSHEET:',
+        '='.repeat(72),
+        JSON.stringify(brief.facts_used, null, 2),
+      ].join('\n')
+
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
+      saveBlobAsFile(blob, 'EduQuery_HOD_Executive_Brief.txt')
+      notifySuccess('hod_brief')
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to generate HOD executive brief')
+    } finally {
+      setGenerating(null)
+    }
+  }
+
+  const triggerPrintSlips = () => {
+    document.body.classList.add('printing-result-slips')
+    const cleanup = () => {
+      document.body.classList.remove('printing-result-slips')
+      window.removeEventListener('afterprint', cleanup)
+    }
+    window.addEventListener('afterprint', cleanup)
     window.print()
+    setTimeout(cleanup, 2500)
+  }
+
+  const handlePrintDivisionSlips = () => {
+    triggerPrintSlips()
+  }
+
+  const handleDownloadSlipsPdf = async () => {
+    setGenerating('slips_pdf')
+    setErrorMsg(null)
+    try {
+      await downloadStudentSlipsPdf('', anonymized)
+      notifySuccess('slips_pdf')
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to download student result slips PDF')
+    } finally {
+      setGenerating(null)
+    }
   }
 
   return (
@@ -96,14 +199,14 @@ export const ReportsPage: React.FC = () => {
               letterSpacing: '-0.02em',
             }}
           >
-            Institutional Reports & Exports
+            Institutional Reports
           </h1>
           <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)', margin: 0 }}>
-            Generate print-ready executive summaries, merit lists, result slips, and department briefs.
+            Download official merit lists, backlogs, result slips, and department summaries.
           </p>
         </div>
 
-        {/* Anonymization Toggle (Requirement 10) */}
+        {/* Anonymization Toggle */}
         <label
           style={{
             display: 'inline-flex',
@@ -133,6 +236,26 @@ export const ReportsPage: React.FC = () => {
         </label>
       </div>
 
+      {/* Error Notification */}
+      {errorMsg && (
+        <div
+          style={{
+            padding: '10px 14px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--status-danger-bg)',
+            border: '1px solid var(--status-danger-border)',
+            color: 'var(--status-danger-text)',
+            fontSize: 'var(--text-xs)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <AlertCircle size={16} />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
       {/* Anonymization Active Notice */}
       {anonymized && (
         <div
@@ -150,16 +273,16 @@ export const ReportsPage: React.FC = () => {
         >
           <Shield size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
           <div>
-            <strong style={{ color: 'var(--text)' }}>Anonymization Filter Active:</strong> Student legal names
-            are completely masked across all exported spreadsheets, PDF summaries, and notice mail-merge datasets.
-            Records are identified solely by examination seat numbers and class roll numbers.
+            <strong style={{ color: 'var(--text)' }}>Anonymization Filter Active:</strong> Student names
+            are masked across exported spreadsheets, notices, and printed slips. Records are identified
+            solely by seat and roll numbers.
           </div>
         </div>
       )}
 
-      {/* Reports Grid (Requirement 10: 6 Key Official Reports) */}
+      {/* Reports Grid (6 Verified Official Documents) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 'var(--space-4)' }}>
-        {/* 1. Result Analysis PDF */}
+        {/* 1. Result Analysis */}
         <GlassCard variant="glass-1" padding="lg">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-3)' }}>
             <div
@@ -181,21 +304,21 @@ export const ReportsPage: React.FC = () => {
                 Result Analysis PDF
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Comprehensive Institutional Dossier
+                Complete performance overview
               </div>
             </div>
           </div>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 var(--space-4) 0', lineHeight: 1.5 }}>
-            Synthesizes HOD executive brief, full 27-course catalog, failure rankings, elective distribution, and pre-declaration verification items.
+            Detailed breakdown of cohort pass rates, division comparisons, course failure rankings, and reconciliation check status.
           </p>
           <Button
             size="sm"
             variant="primary"
-            loading={generating === 'result_analysis'}
-            onClick={() => handleDownloadReport('result_analysis', 'EduQuery_Result_Analysis.pdf')}
-            icon={<Download size={14} />}
+            loading={generating === 'analysis'}
+            onClick={handleDownloadAnalysis}
+            icon={downloadSuccess === 'analysis' ? <Check size={14} /> : <Download size={14} />}
           >
-            Download Dossier (PDF)
+            {downloadSuccess === 'analysis' ? 'Downloaded' : 'Download Dossier (PDF)'}
           </Button>
         </GlassCard>
 
@@ -221,25 +344,25 @@ export const ReportsPage: React.FC = () => {
                 Cohort Merit List
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Ranked by CGPA / SGPI with documented tie-breaking
+                Ranked by CGPA and SGPI with tie-break rules
               </div>
             </div>
           </div>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 var(--space-4) 0', lineHeight: 1.5 }}>
-            Full cohort academic ranking with Division A and Division B rank breakouts, university distinction markers, and deterministic tie-breaking.
+            Complete student ranking ordered by performance, with division rank details and distinction markers.
           </p>
           <Button
             size="sm"
             variant="secondary"
             loading={generating === 'merit_list'}
-            onClick={() => handleDownloadReport('merit_list', 'EduQuery_Merit_List.xlsx')}
-            icon={<Download size={14} />}
+            onClick={handleDownloadMeritList}
+            icon={downloadSuccess === 'merit_list' ? <Check size={14} /> : <Download size={14} />}
           >
-            Export Merit List (Excel)
+            {downloadSuccess === 'merit_list' ? 'Downloaded' : 'Export Merit List (Excel)'}
           </Button>
         </GlassCard>
 
-        {/* 3. Failed & Absent Lists (with Contacts for Notices) */}
+        {/* 3. Failed & Absent Lists */}
         <GlassCard variant="glass-1" padding="lg">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-3)' }}>
             <div
@@ -266,20 +389,20 @@ export const ReportsPage: React.FC = () => {
             </div>
           </div>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 var(--space-4) 0', lineHeight: 1.5 }}>
-            Consolidated 13 failed students and 7 absent candidates with exact subject backlog codes and institutional contact information.
+            Consolidated failed students and absent candidates with exact subject backlog codes and institutional contact information.
           </p>
           <Button
             size="sm"
             variant="secondary"
             loading={generating === 'backlogs'}
-            onClick={() => handleDownloadReport('backlogs', 'EduQuery_Failed_Absent_Roster.xlsx')}
-            icon={<Download size={14} />}
+            onClick={handleDownloadBacklogs}
+            icon={downloadSuccess === 'backlogs' ? <Check size={14} /> : <Download size={14} />}
           >
-            Export Backlog Roster
+            {downloadSuccess === 'backlogs' ? 'Downloaded' : 'Export Backlog Roster'}
           </Button>
         </GlassCard>
 
-        {/* 4. Result Slips (Bulk / Individual) */}
+        {/* 4. Result Slips (Printable) */}
         <GlassCard variant="glass-1" padding="lg">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-3)' }}>
             <div
@@ -308,17 +431,29 @@ export const ReportsPage: React.FC = () => {
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 var(--space-4) 0', lineHeight: 1.5 }}>
             Official printable result slips per candidate with subject breakdown, letter grades, component marks, SGPI/CGPA, and signatures.
           </p>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={handlePrintSlips}
-            icon={<Printer size={14} />}
-          >
-            Print Division Slips
-          </Button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={slipsLoading}
+              onClick={handlePrintDivisionSlips}
+              icon={<Printer size={14} />}
+            >
+              Print Division Slips
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={generating === 'slips_pdf'}
+              onClick={handleDownloadSlipsPdf}
+              icon={downloadSuccess === 'slips_pdf' ? <Check size={14} /> : <Download size={14} />}
+            >
+              {downloadSuccess === 'slips_pdf' ? 'Downloaded' : 'Download Slips (PDF)'}
+            </Button>
+          </div>
         </GlassCard>
 
-        {/* 5. HOD Executive Brief (2 pages max) */}
+        {/* 5. Department Head Brief */}
         <GlassCard variant="glass-1" padding="lg">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-3)' }}>
             <div
@@ -337,28 +472,28 @@ export const ReportsPage: React.FC = () => {
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 'var(--text-md)', color: 'var(--text)' }}>
-                HOD Executive Brief
+                Department Head Brief
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Strictly 2 pages max for leadership review
+                Concise summary for department leadership
               </div>
             </div>
           </div>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 var(--space-4) 0', lineHeight: 1.5 }}>
-            Synthesizes cohort pass rate (91.0%), division comparison (Div A 88.2% vs Div B 95.0%), hardest subject (PCEC12T), and action items.
+            Summary covering cohort pass rates, division comparisons, key subject failure counts, and next steps.
           </p>
           <Button
             size="sm"
             variant="secondary"
             loading={generating === 'hod_brief'}
-            onClick={() => handleDownloadReport('hod_brief', 'EduQuery_HOD_Executive_Brief.pdf')}
-            icon={<Download size={14} />}
+            onClick={handleDownloadHodBrief}
+            icon={downloadSuccess === 'hod_brief' ? <Check size={14} /> : <Download size={14} />}
           >
-            Export HOD Brief
+            {downloadSuccess === 'hod_brief' ? 'Downloaded' : 'Export Department Brief'}
           </Button>
         </GlassCard>
 
-        {/* 6. Notice Mail-Merge CSV */}
+        {/* 6. Student Notices Mail-Merge */}
         <GlassCard variant="glass-1" padding="lg">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: 'var(--space-3)' }}>
             <div
@@ -377,27 +512,114 @@ export const ReportsPage: React.FC = () => {
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 'var(--text-md)', color: 'var(--text)' }}>
-                Notice Mail-Merge CSV
+                Student Notices Mail-Merge
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                Ready for mass student communication
+                Formatted spreadsheet for email notices
               </div>
             </div>
           </div>
           <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 var(--space-4) 0', lineHeight: 1.5 }}>
-            Pre-formatted mail-merge CSV containing student identifiers, contact emails, subject backlogs, and template replacement parameters.
+            Spreadsheet with student IDs, email addresses, course backlogs, and notice message fields for mail-merge.
           </p>
           <Button
             size="sm"
             variant="secondary"
             loading={generating === 'mail_merge'}
-            onClick={() => handleDownloadReport('mail_merge', 'EduQuery_Notice_MailMerge.csv')}
-            icon={<Download size={14} />}
+            onClick={handleDownloadMailMerge}
+            icon={downloadSuccess === 'mail_merge' ? <Check size={14} /> : <Download size={14} />}
           >
-            Export Mail-Merge CSV
+            {downloadSuccess === 'mail_merge' ? 'Downloaded' : 'Export Mail-Merge CSV'}
           </Button>
         </GlassCard>
       </div>
+
+      {/* Printable Result Slips Portal (Multi-Page Print Tree) */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <div id="print-slips-portal" aria-hidden="true">
+            {loadedSlips.map((slip) => (
+              <div key={slip.student_id} className="single-student-slip">
+                <div style={{ textAlign: 'center', borderBottom: '2px solid #000', paddingBottom: '12px', marginBottom: '16px' }}>
+                  <h2 style={{ margin: '0 0 4px 0', fontSize: '18px', fontWeight: 700, textTransform: 'uppercase' }}>
+                    University Examination Result Slip
+                  </h2>
+                  <div style={{ fontSize: '12px', color: '#444' }}>
+                    Academic Marksheet Statement &bull; Examination Cell
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '12px', borderBottom: '1px solid #ccc', paddingBottom: '10px' }}>
+                  <div>
+                    <div><strong>Student Name:</strong> {slip.name}</div>
+                    <div><strong>Student ID:</strong> {slip.student_id}</div>
+                    <div><strong>Division:</strong> {slip.division} &bull; <strong>Level:</strong> {slip.level}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div><strong>Seat Number:</strong> {slip.seat_no || '—'}</div>
+                    <div><strong>Roll Number:</strong> {slip.roll_no || '—'}</div>
+                    <div><strong>Overall Outcome:</strong> <span style={{ fontWeight: 700 }}>{slip.overall_result}</span></div>
+                  </div>
+                </div>
+
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px', fontSize: '11px' }}>
+                  <thead>
+                    <tr style={{ background: '#f2f2f2', borderBottom: '1.5px solid #000' }}>
+                      <th style={{ border: '1px solid #ccc', padding: '6px' }}>Code</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'left' }}>Course Title</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Credits</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Marks</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Grade</th>
+                      <th style={{ border: '1px solid #ccc', padding: '6px', textAlign: 'center' }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {slip.subjects.map((s) => (
+                      <tr key={s.course_code}>
+                        <td style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'center', fontFamily: 'monospace' }}>
+                          {s.course_code}
+                        </td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px' }}>{s.course_name}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'center' }}>{s.credits ?? '—'}</td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'center', fontWeight: 600 }}>
+                          {s.total_marks !== null ? s.total_marks : (s.is_absent ? 'AB' : '—')}
+                        </td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'center', fontWeight: 700 }}>
+                          {s.letter_grade || '—'}
+                        </td>
+                        <td style={{ border: '1px solid #ccc', padding: '5px', textAlign: 'center', fontWeight: 700 }}>
+                          {s.status.toUpperCase()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1.5px solid #000', paddingTop: '10px', fontSize: '12px', marginBottom: '40px' }}>
+                  <div>
+                    <strong>Total Marks:</strong> {slip.total_marks ?? '—'} &bull; <strong>Total Credits:</strong> {slip.total_credits ?? '—'}
+                  </div>
+                  <div>
+                    <strong>SGPI:</strong> {slip.sgpi !== null ? slip.sgpi.toFixed(2) : '—'} &bull; <strong>CGPA:</strong> {slip.cgpa !== null ? slip.cgpa.toFixed(2) : '—'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '60px', fontSize: '11px' }}>
+                  <div style={{ borderTop: '1px solid #000', width: '180px', textAlign: 'center', paddingTop: '4px' }}>
+                    Controller of Examinations
+                  </div>
+                  <div style={{ borderTop: '1px solid #000', width: '180px', textAlign: 'center', paddingTop: '4px' }}>
+                    Head of Department
+                  </div>
+                  <div style={{ borderTop: '1px solid #000', width: '180px', textAlign: 'center', paddingTop: '4px' }}>
+                    Principal / Dean
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }

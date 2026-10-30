@@ -768,6 +768,8 @@ export interface SessionPreviewData {
   sheets: string[];
   detected_students?: number;
   detected_subjects?: number;
+  passed_count?: number;
+  failed_count?: number;
   students_count?: number;
   courses_count?: number;
   divisions: string[];
@@ -820,6 +822,8 @@ export interface SessionStatusResponse {
   filename?: string;
   students_count?: number;
   courses_count?: number;
+  passed_count?: number;
+  failed_count?: number;
   created_at?: string;
   expires_at?: string;
   preview?: SessionPreviewData;
@@ -1020,3 +1024,36 @@ export interface EarlyWarningResponse {
   backtest: EarlyWarningBacktestMetrics;
   students: EarlyWarningStudentItem[];
 }
+
+export interface StudentSlipSubject {
+  course_code: string;
+  course_name: string;
+  kind: string;
+  credits: number | null;
+  components: Record<string, { marks: number | null; flag: string | null; raw_text: string | null }>;
+  total_marks: number | null;
+  letter_grade: string | null;
+  status: 'passed' | 'failed' | 'absent';
+  is_absent: boolean;
+}
+
+export interface StudentSlip {
+  student_id: string;
+  name: string;
+  roll_no: string;
+  seat_no: string;
+  division: string;
+  level: string;
+  total_marks: number | null;
+  total_credits: number | null;
+  overall_result: string;
+  sgpi: number | null;
+  cgpa: number | null;
+  subjects: StudentSlipSubject[];
+}
+
+export interface StudentSlipsResponse {
+  slips: StudentSlip[];
+  total: number;
+}
+

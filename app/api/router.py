@@ -10,6 +10,7 @@ from app.api.routes.data_quality import router as data_quality_router
 from app.api.routes.imports import router as imports_router
 from app.api.routes.investigation import router as investigation_router
 from app.api.routes.overview import router as overview_router
+from app.api.routes.reports import router as reports_router
 from app.api.routes.session import router as session_router
 from app.api.routes.students import (
     export_absent_students_excel_route,
@@ -21,6 +22,7 @@ from app.api.routes.subjects import router as subjects_router
 api_v1_router = APIRouter()
 
 api_v1_router.include_router(session_router)
+api_v1_router.include_router(reports_router)
 api_v1_router.include_router(ai_router)
 api_v1_router.include_router(overview_router)
 api_v1_router.include_router(analytics_router)

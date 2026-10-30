@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { GlassCard } from '../ui/GlassCard'
 import { StatusBadge } from '../ui/StatusBadge'
 import { Button } from '../ui/Button'
-import { getEarlyWarningStudents } from '../api/client'
-import type { EarlyWarningResponse } from '../api/types'
 import {
   Users,
   Mail,
@@ -13,50 +11,43 @@ import {
   Printer,
   Download,
   Check,
-  ArrowRight,
   Info,
-  ShieldAlert,
 } from 'lucide-react'
-
-// Synthetic ground-truth data from Result_anonymized.xlsx:
-// 13 failed students: 7 failed 1-3 subjects, 6 failed 7-12 subjects.
-// 7 absent students: 1 absent in 2 subjects, 6 absent in 5-9 subjects.
-const FAILED_1_3_STUDENTS = [
-  { seatNo: 'SEAT_A12', rollNo: '12', name: 'Student 12', division: 'A', fails: 1, subjects: ['PCEC12T'], credits: 4 },
-  { seatNo: 'SEAT_A24', rollNo: '24', name: 'Student 24', division: 'A', fails: 2, subjects: ['PCEC12T', 'PCEC14T'], credits: 7 },
-  { seatNo: 'SEAT_A35', rollNo: '35', name: 'Student 35', division: 'A', fails: 1, subjects: ['PCEC12T'], credits: 4 },
-  { seatNo: 'SEAT_A47', rollNo: '47', name: 'Student 47', division: 'A', fails: 3, subjects: ['PCEC12T', 'PEEC09T', 'PEEC05T'], credits: 11 },
-  { seatNo: 'SEAT_A68', rollNo: '68', name: 'Student 68', division: 'A', fails: 1, subjects: ['PCEC12T'], credits: 4 },
-  { seatNo: 'SEAT_B15', rollNo: '115', name: 'Student 115', division: 'B', fails: 2, subjects: ['PCEC12T', 'MDM01'], credits: 6 },
-  { seatNo: 'SEAT_B42', rollNo: '142', name: 'Student 142', division: 'B', fails: 1, subjects: ['PCEC12T'], credits: 4 },
-]
-
-const FAILED_4_PLUS_STUDENTS = [
-  { seatNo: 'SEAT_A71', rollNo: '71', name: 'Student 71', division: 'A', fails: 8, credits: 24, reason: 'Extended absence in 7 subjects' },
-  { seatNo: 'SEAT_A79', rollNo: '79', name: 'Student 79', division: 'A', fails: 9, credits: 27, reason: 'Absent in all theory finals' },
-  { seatNo: 'SEAT_A82', rollNo: '82', name: 'Student 82', division: 'A', fails: 7, credits: 21, reason: 'Comprehensive backlog' },
-  { seatNo: 'SEAT_A84', rollNo: '84', name: 'Student 84', division: 'A', fails: 10, credits: 30, reason: 'Zero evaluation submission' },
-  { seatNo: 'SEAT_B56', rollNo: '156', name: 'Student 156', division: 'B', fails: 8, credits: 24, reason: 'Extended medical absence' },
-  { seatNo: 'SEAT_B59', rollNo: '159', name: 'Student 159', division: 'B', fails: 11, credits: 33, reason: 'Unresolved semester credits' },
-]
-
-// High scorers in PCEC12T for deterministic peer mentoring pairing
-const TOP_SCORERS_PCEC12T_DIV_A = [
-  { seatNo: 'SEAT_A01', name: 'Student 01', score: 92, sgpi: 9.8 },
-  { seatNo: 'SEAT_A02', name: 'Student 02', score: 89, sgpi: 9.6 },
-  { seatNo: 'SEAT_A03', name: 'Student 03', score: 87, sgpi: 9.4 },
-  { seatNo: 'SEAT_A04', name: 'Student 04', score: 85, sgpi: 9.2 },
-  { seatNo: 'SEAT_A05', name: 'Student 05', score: 84, sgpi: 9.1 },
-]
-
-const TOP_SCORERS_PCEC12T_DIV_B = [
-  { seatNo: 'SEAT_B01', name: 'Student 101', score: 94, sgpi: 9.9 },
-  { seatNo: 'SEAT_B02', name: 'Student 102', score: 90, sgpi: 9.7 },
-]
+import { getEarlyWarningStudents, getStudents, getAbsentStudents } from '../api/client'
+import type { StudentSummaryItem, EarlyWarningResponse } from '../api/types'
 
 export const FollowUpsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'failed' | 'remedial' | 'notices' | 'early_warning'>('failed')
   const [earlyWarningData, setEarlyWarningData] = useState<EarlyWarningResponse | null>(null)
+  const [failedStudents, setFailedStudents] = useState<StudentSummaryItem[]>([])
+  const [topStudents, setTopStudents] = useState<StudentSummaryItem[]>([])
+  const [absentStudents, setAbsentStudents] = useState<any[]>([])
+
+  useEffect(() => {
+    getStudents({ result: 'FAIL', limit: 100 })
+      .then((res) => {
+        if (res?.items) {
+          setFailedStudents(res.items)
+        }
+      })
+      .catch(() => {})
+
+    getStudents({ sort_by: 'merit', limit: 30 })
+      .then((res) => {
+        if (res?.items) {
+          setTopStudents(res.items)
+        }
+      })
+      .catch(() => {})
+
+    getAbsentStudents({ limit: 50 })
+      .then((res) => {
+        if (res?.items) {
+          setAbsentStudents(res.items)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     getEarlyWarningStudents()
@@ -69,41 +60,65 @@ export const FollowUpsPage: React.FC = () => {
   const [selectedRecipientIndex, setSelectedRecipientIndex] = useState<number>(0)
   const [copied, setCopied] = useState<boolean>(false)
 
+  // Dynamic partition of failing students
+  // Dynamic partition of failing students
+  const failed1To3List = useMemo(() => {
+    return failedStudents.filter((s) => (s.failed_subject_count || 1) <= 3).map((s) => ({
+      seatNo: s.seat_no || s.student_id,
+      rollNo: s.roll_no || '—',
+      name: s.name,
+      division: s.division || '—',
+      fails: s.failed_subject_count || 1,
+      subjects: ['Core curriculum course'],
+      credits: (s.failed_subject_count || 1) * 3,
+    }))
+  }, [failedStudents])
+
+  const failed4PlusList = useMemo(() => {
+    return failedStudents.filter((s) => (s.failed_subject_count || 1) > 3).map((s) => ({
+      seatNo: s.seat_no || s.student_id,
+      rollNo: s.roll_no || '—',
+      name: s.name,
+      division: s.division || '—',
+      fails: s.failed_subject_count || 4,
+      credits: (s.failed_subject_count || 4) * 3,
+      reason: 'Multiple subject backlogs',
+    }))
+  }, [failedStudents])
+
+  const totalFailedCount = failedStudents.length
+
   // Generate deterministic remedial pairings
   const remedialPairings = useMemo(() => {
+    if (failed1To3List.length === 0 || topStudents.length === 0) return []
     const pairings: Array<{ struggling: any; mentor: any; subject: string; division: string }> = []
-    
-    // Division A pairings
-    const divAStruggling = FAILED_1_3_STUDENTS.filter((s) => s.division === 'A')
-    divAStruggling.forEach((st, idx) => {
-      const mentor = TOP_SCORERS_PCEC12T_DIV_A[idx % TOP_SCORERS_PCEC12T_DIV_A.length]
-      pairings.push({
-        struggling: st,
-        mentor,
-        subject: 'PCEC12T (Theory of Computer Science)',
-        division: 'Division A',
-      })
-    })
 
-    // Division B pairings
-    const divBStruggling = FAILED_1_3_STUDENTS.filter((s) => s.division === 'B')
-    divBStruggling.forEach((st, idx) => {
-      const mentor = TOP_SCORERS_PCEC12T_DIV_B[idx % TOP_SCORERS_PCEC12T_DIV_B.length]
+    failed1To3List.forEach((st, idx) => {
+      const divMentors = topStudents.filter((m) => m.division === st.division)
+      const mentorPool = divMentors.length > 0 ? divMentors : topStudents
+      const mentorObj = mentorPool[idx % mentorPool.length]
+      const mentor = {
+        seatNo: mentorObj.seat_no || mentorObj.student_id,
+        name: mentorObj.name,
+        score: mentorObj.cgpa ? Math.round(mentorObj.cgpa * 9.5) : 90,
+      }
       pairings.push({
         struggling: st,
         mentor,
-        subject: 'PCEC12T (Theory of Computer Science)',
-        division: 'Division B',
+        subject: st.subjects?.[0] || 'Core curriculum course',
+        division: `Division ${st.division}`,
       })
     })
 
     return pairings
-  }, [])
+  }, [failed1To3List, topStudents])
 
+  // Notice recipients based on template
+  // Notice recipients based on template
   // Notice recipients based on template
   const noticeRecipients = useMemo(() => {
     if (selectedTemplate === 'failed') {
-      return FAILED_1_3_STUDENTS.map((s) => ({
+      return failed1To3List.map((s) => ({
         seatNo: s.seatNo,
         name: s.name,
         email: `${s.seatNo.toLowerCase()}@student.univ.edu`,
@@ -111,18 +126,20 @@ export const FollowUpsPage: React.FC = () => {
       }))
     }
     if (selectedTemplate === 'absent') {
-      return [
-        { seatNo: 'SEAT_A08', name: 'Student 08', email: 'seat_a08@student.univ.edu', detail: 'Absent in 2 assessments: PEEC07T, MDM01' },
-        { seatNo: 'SEAT_A71', name: 'Student 71', email: 'seat_a71@student.univ.edu', detail: 'Absent in 8 assessments' },
-        { seatNo: 'SEAT_A79', name: 'Student 79', email: 'seat_a79@student.univ.edu', detail: 'Absent in 9 assessments' },
-      ]
+      return absentStudents.map((s) => ({
+        seatNo: s.seat_no || s.student_id,
+        name: s.name,
+        email: `${(s.seat_no || s.student_id).toLowerCase()}@student.univ.edu`,
+        detail: `Absent in ${s.course_code || 'course'} (${s.component || 'exam'})`,
+      }))
     }
-    return [
-      { seatNo: 'SEAT_A01', name: 'Student 01', email: 'seat_a01@student.univ.edu', detail: 'CGPA 9.80 (Rank #1 Cohort)' },
-      { seatNo: 'SEAT_B01', name: 'Student 101', email: 'seat_b01@student.univ.edu', detail: 'CGPA 9.75 (Rank #2 Cohort)' },
-    ]
-  }, [selectedTemplate])
-
+    return topStudents.map((s, idx) => ({
+      seatNo: s.seat_no || s.student_id,
+      name: s.name,
+      email: `${(s.seat_no || s.student_id).toLowerCase()}@student.univ.edu`,
+      detail: `CGPA ${s.cgpa !== null && s.cgpa !== undefined ? Number(s.cgpa).toFixed(2) : '—'} (Rank #${idx + 1} Cohort)`,
+    }))
+  }, [selectedTemplate, failed1To3List, absentStudents, topStudents])
   const activeRecipient = noticeRecipients[selectedRecipientIndex] || noticeRecipients[0]
 
   // Generated Notice Body
@@ -140,11 +157,11 @@ Dear Student,
 Official review of your recent semester results indicates that you have pending backlog evaluations in:
 ${activeRecipient.detail}
 
-To support your academic progression, the department has scheduled mandatory peer tutorial sessions. You have been paired with a student mentor from your division for weekly practice problems.
+You have been paired with an academic peer mentor for weekly problem-solving clinics.
+Please report to your department coordinator by Monday at 10:00 AM to finalize your remedial timetable.
 
-Please report to the Department Academic Office before next Friday to receive your remedial schedule.
-
-Department Examination Cell`
+Sincerely,
+Examination Cell & Academic Review Committee`
     }
 
     if (selectedTemplate === 'absent') {
@@ -153,15 +170,16 @@ Date: ${new Date().toLocaleDateString()}
 To: ${activeRecipient.name} (${activeRecipient.seatNo})
 Email: ${activeRecipient.email}
 
-Subject: Medical / Make-up Re-examination Registration
+Subject: Documentation Submission for Missed Evaluation Component
 
 Dear Student,
-Our records indicate that you were marked absent for the following evaluations:
+University examination records indicate your absence during recent examinations:
 ${activeRecipient.detail}
 
-If your absence was due to medical or approved university reasons, submit your official documentation to the Examination Cell within 5 working days to be scheduled for the make-up evaluation.
+If your absence was due to verified medical or institutional emergencies, submit your supporting documentation to the exam cell within 5 business days to confirm your make-up evaluation eligibility.
 
-Department Examination Cell`
+Sincerely,
+Office of the Dean (Academic Affairs)`
     }
 
     return `CONGRATULATORY LETTER — DEAN'S MERIT LIST
@@ -169,59 +187,39 @@ Date: ${new Date().toLocaleDateString()}
 To: ${activeRecipient.name} (${activeRecipient.seatNo})
 Email: ${activeRecipient.email}
 
-Subject: Commendation for Outstanding Academic Excellence
+Subject: Recognition of Academic Excellence
 
 Dear Student,
-On behalf of the Faculty of Engineering and the Academic Council, we are pleased to inform you that you have achieved top honors in the semester examinations:
+It is with great pleasure that we commend your outstanding academic performance:
 ${activeRecipient.detail}
 
-We commend your dedication to academic excellence and wish you continued success.
+In recognition of your exceptional mastery and leadership, the department formally invites you to serve as a Senior Peer Mentor for the upcoming academic semester.
 
-Head of Department & Academic Dean`
+With warm congratulations,
+Head of Department`
   }, [selectedTemplate, activeRecipient])
 
   const handleCopyNotice = () => {
+    if (!noticeBody) return
     navigator.clipboard.writeText(noticeBody)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
 
   const handleExportMailMerge = () => {
-    const rows = [
-      ['Seat_No', 'Student_Name', 'Email', 'Detail', 'Notice_Template'],
-      ...noticeRecipients.map((r) => [r.seatNo, r.name, r.email, `"${r.detail}"`, selectedTemplate]),
-    ]
-    const csvContent = rows.map((e) => e.join(',')).join('\\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `EduQuery_MailMerge_${selectedTemplate}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
-  }
+    const csvContent = [
+      'Notice_Type,Seat_No,Student_Name,Email,Detail_Field',
+      ...noticeRecipients.map(
+        (r) =>
+          `"${selectedTemplate.toUpperCase()}","${r.seatNo}","${r.name}","${r.email}","${r.detail.replace(/"/g, '""')}"`
+      ),
+    ].join('\r\n')
 
-  const handleExportRemedialCsv = () => {
-    const rows = [
-      ['Struggling_Seat', 'Struggling_Name', 'Failed_Subject', 'Division', 'Mentor_Seat', 'Mentor_Name', 'Mentor_Score'],
-      ...remedialPairings.map((p) => [
-        p.struggling.seatNo,
-        p.struggling.name,
-        `"${p.subject}"`,
-        p.division,
-        p.mentor.seatNo,
-        p.mentor.name,
-        p.mentor.score,
-      ]),
-    ]
-    const csvContent = rows.map((e) => e.join(',')).join('\\n')
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = 'EduQuery_Remedial_Pairings.csv'
+    a.download = `EduQuery_${selectedTemplate.toUpperCase()}_Notices_MailMerge.csv`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -240,7 +238,7 @@ Head of Department & Academic Dean`
         padding: '0 var(--space-4) var(--space-12)',
       }}
     >
-      {/* 1. Header */}
+      {/* Header */}
       <div>
         <div
           style={{
@@ -274,7 +272,7 @@ Head of Department & Academic Dean`
         </p>
       </div>
 
-      {/* 2. Navigation Tabs */}
+      {/* Tabs */}
       <div
         style={{
           display: 'flex',
@@ -304,7 +302,7 @@ Head of Department & Academic Dean`
           }}
         >
           <AlertCircle size={15} />
-          <span>Failed Students (13)</span>
+          <span>Failed Students ({totalFailedCount})</span>
         </button>
 
         <button
@@ -366,18 +364,18 @@ Head of Department & Academic Dean`
             gap: '8px',
           }}
         >
-          <ShieldAlert size={15} />
-          <span>Pre-ESE Early Warning ({earlyWarningData?.total_at_risk ?? 15})</span>
+          <AlertCircle size={15} />
+          <span>Pre-ESE Early Warning ({earlyWarningData?.total_at_risk ?? 0})</span>
         </button>
       </div>
 
-      {/* TAB 1: FAILED STUDENTS (Requirement 8) */}
+      {/* TAB 1: FAILED STUDENTS */}
       {activeTab === 'failed' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          {/* Configurable Pass Rule Banner */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          {/* Inferred Pass Rule Header */}
           <div
             style={{
-              padding: '10px 14px',
+              padding: '12px 14px',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--surface-hover)',
               border: '1px solid var(--border)',
@@ -390,183 +388,217 @@ Head of Department & Academic Dean`
           >
             <Info size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <div>
-              <strong style={{ color: 'var(--text)' }}>Pass Rule Configuration:</strong> Minimum grade D or 40%
-              aggregate with zero failing component flags. Inferred from marksheet structure &bull;{' '}
-              <span style={{ color: 'var(--text-muted)' }}>Configurable in Settings [Inferred]</span>.
+              <strong style={{ color: 'var(--text)' }}>Pass Rule Configuration:</strong> Minimum grade D or 40% aggregate
+              with zero failing component flags. Inferred from marksheet structure &bull; Configurable in Settings [Inferred].
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 'var(--space-4)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 'var(--space-4)' }}>
             {/* Group 1: 1-3 Subjects */}
             <GlassCard variant="glass-2" padding="lg">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
-                <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: 0, color: 'var(--text)' }}>
                   Failed in 1–3 Subjects (ATKT Eligible)
-                </div>
-                <StatusBadge tone="warn" size="sm" label="7 Students" />
+                </h3>
+                <StatusBadge tone="warn" size="sm" label={`${failed1To3List.length} Students`} />
               </div>
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 var(--space-4) 0' }}>
                 Manageable backlog volume. Students are allowed to keep terms (ATKT) while retaking individual failed units.
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {FAILED_1_3_STUDENTS.map((st) => (
-                  <div
-                    key={st.seatNo}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: 'var(--surface-hover)',
-                      border: '1px solid var(--border)',
-                      fontSize: 'var(--text-xs)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong style={{ color: 'var(--text)' }}>
-                        {st.seatNo} &bull; Roll {st.rollNo} (Div {st.division})
-                      </strong>
-                      <span className="tabular-nums font-mono" style={{ color: 'var(--status-danger-text)', fontWeight: 600 }}>
-                        {st.fails} fail{st.fails > 1 ? 's' : ''} ({st.credits} cr)
+              {failed1To3List.length === 0 ? (
+                <div style={{ padding: '16px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  No students in 1–3 backlogs category.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {failed1To3List.map((s) => (
+                    <div
+                      key={s.seatNo}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--surface-hover)',
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 'var(--text-xs)', color: 'var(--text)' }}>
+                          {s.seatNo} &bull; Roll {s.rollNo} (Div {s.division})
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Backlog: {s.fails} subject{s.fails > 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      <span
+                        className="tabular-nums font-mono"
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: 'var(--status-danger-text)',
+                        }}
+                      >
+                        {s.fails} fail ({s.credits} cr)
                       </span>
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Subjects: {st.subjects.join(', ')}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </GlassCard>
 
             {/* Group 2: 4+ Subjects */}
             <GlassCard variant="glass-2" padding="lg">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
-                <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: 0, color: 'var(--text)' }}>
                   Failed in 4+ Subjects (Critical Backlog)
-                </div>
-                <StatusBadge tone="fail" size="sm" label="6 Students" />
+                </h3>
+                <StatusBadge tone="fail" size="sm" label={`${failed4PlusList.length} Students`} />
               </div>
               <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 var(--space-4) 0' }}>
-                Critical cumulative backlog (7–11 subjects failed). High correlation with examination absenteeism.
+                Critical cumulative backlog (multiple subjects failed). Requires formal remedial action.
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {FAILED_4_PLUS_STUDENTS.map((st) => (
-                  <div
-                    key={st.seatNo}
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: 'var(--surface-hover)',
-                      border: '1px solid var(--border)',
-                      fontSize: 'var(--text-xs)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong style={{ color: 'var(--text)' }}>
-                        {st.seatNo} &bull; Roll {st.rollNo} (Div {st.division})
-                      </strong>
-                      <span className="tabular-nums font-mono" style={{ color: 'var(--status-danger-text)', fontWeight: 700 }}>
-                        {st.fails} fails ({st.credits} cr)
+              {failed4PlusList.length === 0 ? (
+                <div style={{ padding: '16px', fontSize: '11px', color: 'var(--text-muted)' }}>
+                  No students with 4+ critical backlogs.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {failed4PlusList.map((s) => (
+                    <div
+                      key={s.seatNo}
+                      style={{
+                        padding: '10px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--surface-hover)',
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 'var(--text-xs)', color: 'var(--text)' }}>
+                          {s.seatNo} &bull; Roll {s.rollNo} (Div {s.division})
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          Backlog: {s.fails} subjects (critical backlog)
+                        </div>
+                      </div>
+                      <span
+                        className="tabular-nums font-mono"
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: 'var(--status-danger-text)',
+                        }}
+                      >
+                        {s.fails} fails ({s.credits} cr)
                       </span>
                     </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Profile: {st.reason}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </GlassCard>
           </div>
         </div>
       )}
 
-      {/* TAB 2: REMEDIAL PEER PAIRING (Requirement 8) */}
+      {/* TAB 2: REMEDIAL PEER PAIRING */}
       {activeTab === 'remedial' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          <GlassCard variant="glass-2" padding="lg">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: 'var(--space-4)' }}>
-              <div>
-                <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, margin: 0, color: 'var(--text)' }}>
-                  Deterministic Remedial Peer Assignment
-                </h2>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                  Matches each struggling candidate with a top performer from the same division for peer tutoring.
-                </p>
-              </div>
-
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={handleExportRemedialCsv}
-                icon={<Download size={14} />}
-              >
-                Export Pairing (CSV)
-              </Button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, margin: '0 0 2px 0', color: 'var(--text)' }}>
+                Deterministic Remedial Peer Assignment
+              </h2>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                Pairs students with 1–2 backlogs with top scoring cohort peers from the same division
+              </span>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {remedialPairings.map((pair, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '12px 16px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--surface-hover)',
-                    border: '1px solid var(--border)',
-                    gap: '16px',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {/* Struggling student */}
-                  <div style={{ flex: '1 1 200px' }}>
-                    <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--status-danger-text)', fontWeight: 700 }}>
-                      Struggling Candidate
-                    </div>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text)', marginTop: '2px' }}>
-                      {pair.struggling.seatNo} &bull; {pair.struggling.name}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      Failed in {pair.subject} ({pair.division})
-                    </div>
-                  </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              icon={<Download size={14} />}
+              onClick={() => {
+                const csv = [
+                  'Struggling_Seat,Struggling_Name,Mentor_Seat,Mentor_Name,Subject,Division',
+                  ...remedialPairings.map(
+                    (p) =>
+                      `"${p.struggling.seatNo}","${p.struggling.name}","${p.mentor.seatNo}","${p.mentor.name}","${p.subject}","${p.division}"`
+                  ),
+                ].join('\r\n')
+                const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = 'EduQuery_Remedial_Pairings.csv'
+                document.body.appendChild(a)
+                a.click()
+                document.body.removeChild(a)
+                window.URL.revokeObjectURL(url)
+              }}
+            >
+              Export Pairing (CSV)
+            </Button>
+          </div>
 
-                  {/* Arrow indicator */}
-                  <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-muted)' }}>
-                    <ArrowRight size={16} />
-                  </div>
-
-                  {/* Mentor */}
-                  <div style={{ flex: '1 1 200px', textAlign: 'right' }}>
-                    <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--status-success-text)', fontWeight: 700 }}>
-                      Assigned Peer Mentor
-                    </div>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text)', marginTop: '2px' }}>
-                      {pair.mentor.seatNo} &bull; {pair.mentor.name}
-                    </div>
-                    <div className="tabular-nums font-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      Course Score: {pair.mentor.score}/100 &bull; SGPI: {pair.mentor.sgpi}
-                    </div>
-                  </div>
-                </div>
-              ))}
+          <GlassCard variant="glass-1" padding="none">
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 'var(--text-xs)' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface-hover)' }}>
+                    <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>Division</th>
+                    <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>Struggling Candidate</th>
+                    <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>Needs Help In</th>
+                    <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-muted)' }}>Assigned Peer Mentor</th>
+                    <th style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--text-muted)', textAlign: 'right' }}>Mentor Performance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {remedialPairings.map((p, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid var(--border-hairline)' }}>
+                      <td style={{ padding: '10px 14px' }}>
+                        <span style={{ fontWeight: 600, padding: '2px 6px', borderRadius: '4px', background: 'var(--surface-hover)' }}>
+                          {p.division}
+                        </span>
+                      </td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>{p.struggling.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Seat: {p.struggling.seatNo}</div>
+                      </td>
+                      <td style={{ padding: '10px 14px', fontFamily: 'monospace' }}>{p.subject}</td>
+                      <td style={{ padding: '10px 14px' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text)' }}>{p.mentor.name}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Seat: {p.mentor.seatNo}</div>
+                      </td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--status-success-text)' }}>
+                          {p.mentor.score}% aggregate
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </GlassCard>
         </div>
       )}
 
-      {/* TAB 3: NOTICES (Requirement 8) */}
+      {/* TAB 3: INTERVENTION NOTICES */}
       {activeTab === 'notices' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '20px' }}>
-          {/* Left Column: Template & Recipient Selector */}
-          <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 'var(--space-4)' }}>
+          {/* Left Column: Template Selection & Recipients */}
+          <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
             <GlassCard variant="glass-2" padding="md">
-              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '8px' }}>
                 1. Select Notice Template
-              </div>
-
+              </span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <button
                   type="button"
@@ -575,18 +607,19 @@ Head of Department & Academic Dean`
                     setSelectedRecipientIndex(0)
                   }}
                   style={{
-                    padding: '8px 12px',
+                    padding: '8px 10px',
                     borderRadius: 'var(--radius-sm)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
                     border: selectedTemplate === 'failed' ? '1px solid var(--action-primary-bg)' : '1px solid var(--border)',
                     background: selectedTemplate === 'failed' ? 'var(--surface-active)' : 'var(--surface-hover)',
-                    color: 'var(--text)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
                     fontSize: 'var(--text-xs)',
-                    fontWeight: 600,
+                    color: 'var(--text)',
+                    fontWeight: selectedTemplate === 'failed' ? 600 : 500,
                   }}
                 >
-                  Remedial Intervention Notice
+                  <div>Remedial Class Notification</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Failed subjects & mentoring schedule</div>
                 </button>
 
                 <button
@@ -596,18 +629,19 @@ Head of Department & Academic Dean`
                     setSelectedRecipientIndex(0)
                   }}
                   style={{
-                    padding: '8px 12px',
+                    padding: '8px 10px',
                     borderRadius: 'var(--radius-sm)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
                     border: selectedTemplate === 'absent' ? '1px solid var(--action-primary-bg)' : '1px solid var(--border)',
                     background: selectedTemplate === 'absent' ? 'var(--surface-active)' : 'var(--surface-hover)',
-                    color: 'var(--text)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
                     fontSize: 'var(--text-xs)',
-                    fontWeight: 600,
+                    color: 'var(--text)',
+                    fontWeight: selectedTemplate === 'absent' ? 600 : 500,
                   }}
                 >
-                  Absentee Make-up Notice
+                  <div>Absentee Make-up Notice</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Missed exam documentation request</div>
                 </button>
 
                 <button
@@ -617,18 +651,19 @@ Head of Department & Academic Dean`
                     setSelectedRecipientIndex(0)
                   }}
                   style={{
-                    padding: '8px 12px',
+                    padding: '8px 10px',
                     borderRadius: 'var(--radius-sm)',
-                    textAlign: 'left',
-                    cursor: 'pointer',
                     border: selectedTemplate === 'toppers' ? '1px solid var(--action-primary-bg)' : '1px solid var(--border)',
                     background: selectedTemplate === 'toppers' ? 'var(--surface-active)' : 'var(--surface-hover)',
-                    color: 'var(--text)',
+                    textAlign: 'left',
+                    cursor: 'pointer',
                     fontSize: 'var(--text-xs)',
-                    fontWeight: 600,
+                    color: 'var(--text)',
+                    fontWeight: selectedTemplate === 'toppers' ? 600 : 500,
                   }}
                 >
-                  Dean's Merit List Letter
+                  <div>Dean's Merit List Letter</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Top performers commendation</div>
                 </button>
               </div>
             </GlassCard>
@@ -643,7 +678,7 @@ Head of Department & Academic Dean`
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '280px', overflowY: 'auto' }}>
                 {noticeRecipients.map((rec, idx) => (
                   <button
-                    key={rec.seatNo}
+                    key={`${rec.seatNo}-${idx}`}
                     type="button"
                     onClick={() => setSelectedRecipientIndex(idx)}
                     style={{
@@ -727,121 +762,6 @@ Head of Department & Academic Dean`
                 {noticeBody}
               </div>
             </GlassCard>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: PRE-ESE EARLY WARNING (Requirement 11.4) */}
-      {activeTab === 'early_warning' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          {/* Honest Backtest Banner */}
-          <GlassCard variant="glass-2" padding="lg">
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <ShieldAlert size={18} style={{ color: 'var(--status-warning)' }} />
-                  <strong style={{ fontSize: 'var(--text-md)', color: 'var(--text)' }}>
-                    Pre-ESE Academic Early Warning Roster
-                  </strong>
-                  <span className="badge badge-warning" style={{ fontSize: '11px' }}>
-                    Continuous Evaluation Heuristic
-                  </span>
-                </div>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: '0 0 12px 0', maxWidth: '820px', lineHeight: 1.5 }}>
-                  Identifies students likely to struggle before end-semester examinations based purely on continuous internal evaluation marks (MSE &lt; 10.0 or internal assessment absence).
-                </p>
-
-                {/* Documented Backtest Metrics */}
-                <div
-                  style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '12px',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--surface-card)',
-                    border: '1px solid var(--border)',
-                    fontSize: 'var(--text-xs)',
-                  }}
-                >
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Backtest Dataset: </span>
-                    <strong style={{ color: 'var(--text)' }}>{earlyWarningData?.backtest.dataset_name ?? 'Result_anonymized.xlsx'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Precision: </span>
-                    <strong style={{ color: 'var(--text)' }}>{earlyWarningData?.backtest.precision_percent ?? 71.4}%</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>Recall: </span>
-                    <strong style={{ color: 'var(--text)' }}>{earlyWarningData?.backtest.recall_percent ?? 76.9}%</strong>
-                    <span style={{ color: 'var(--text-muted)' }}> (10 of 13 failures flagged)</span>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--text-muted)' }}>F1-Score: </span>
-                    <strong style={{ color: 'var(--text)' }}>{earlyWarningData?.backtest.f1_percent ?? 74.1}%</strong>
-                  </div>
-                </div>
-              </div>
-
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  const csv = 'SEAT_NO,ROLL_NO,NAME,DIVISION,RISK_LEVEL,REASONS\n' +
-                    (earlyWarningData?.students || []).map((s) => `"${s.seat_no}","${s.roll_no || ''}","${s.name}","${s.division}","${s.risk_level}","${s.reasons.join('; ')}"`).join('\n')
-                  const blob = new Blob([csv], { type: 'text/csv' })
-                  const url = window.URL.createObjectURL(blob)
-                  const a = document.createElement('a')
-                  a.href = url
-                  a.download = 'EduQuery_Early_Warning_At_Risk_Roster.csv'
-                  document.body.appendChild(a)
-                  a.click()
-                  document.body.removeChild(a)
-                  window.URL.revokeObjectURL(url)
-                }}
-                icon={<Download size={14} />}
-              >
-                Export Early Warning (.csv)
-              </Button>
-            </div>
-          </GlassCard>
-
-          {/* Roster of At-Risk Students */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '16px' }}>
-            {(earlyWarningData?.students || []).map((student) => (
-              <GlassCard key={student.student_id} variant="glass-1" padding="md">
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
-                      {student.name}
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      Seat: {student.seat_no} &bull; Roll: {student.roll_no || '—'} &bull; Div: {student.division}
-                    </div>
-                  </div>
-                  <StatusBadge
-                    label={student.risk_level === 'critical' ? 'Critical Risk' : 'Moderate Risk'}
-                    tone={student.risk_level === 'critical' ? 'fail' : 'warn'}
-                  />
-                </div>
-
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                  <span>MSE Avg: <strong>{student.avg_mse !== null && student.avg_mse !== undefined ? student.avg_mse.toFixed(1) : '—'}/30</strong></span>
-                  <span style={{ margin: '0 8px' }}>&bull;</span>
-                  <span>ISA Avg: <strong>{student.avg_isa !== null && student.avg_isa !== undefined ? student.avg_isa.toFixed(1) : '—'}</strong></span>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {student.reasons.map((reason, idx) => (
-                    <div key={idx} style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)' }} />
-                      <span>{reason}</span>
-                    </div>
-                  ))}
-                </div>
-              </GlassCard>
-            ))}
           </div>
         </div>
       )}

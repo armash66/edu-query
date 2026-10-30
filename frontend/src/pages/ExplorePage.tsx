@@ -396,7 +396,7 @@ export const ExplorePage: React.FC = () => {
 
   const hasActiveFilters = conditions.length > 0 || Boolean(searchInput.trim())
   const total = data?.total ?? 0
-  const cohortTotal = data?.cohort_total ?? 145
+  const cohortTotal = data?.cohort_total ?? data?.total ?? 0
 
   // List of capabilities fields
   const availableFields = capabilities?.fields ?? [

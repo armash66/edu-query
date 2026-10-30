@@ -16,15 +16,15 @@ describe('ReportsPage', () => {
     )
 
     // Check header
-    expect(screen.getByText('Institutional Reports & Exports')).toBeInTheDocument()
+    expect(screen.getByText('Institutional Reports')).toBeInTheDocument()
 
     // Check all 6 reports
     expect(screen.getByText('Result Analysis PDF')).toBeInTheDocument()
     expect(screen.getByText('Cohort Merit List')).toBeInTheDocument()
     expect(screen.getByText('Failed & Absent Action Roster')).toBeInTheDocument()
     expect(screen.getByText('Result Slips (Print / PDF)')).toBeInTheDocument()
-    expect(screen.getByText('HOD Executive Brief')).toBeInTheDocument()
-    expect(screen.getByText('Notice Mail-Merge CSV')).toBeInTheDocument()
+    expect(screen.getByText('Department Head Brief')).toBeInTheDocument()
+    expect(screen.getByText('Student Notices Mail-Merge')).toBeInTheDocument()
 
     // Check Anonymization toggle
     const toggle = screen.getByLabelText(/Anonymize Exports \(Roll Numbers Only\)/i)

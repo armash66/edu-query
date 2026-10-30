@@ -488,7 +488,7 @@ export const UploadPage: React.FC = () => {
                       marginTop: 'var(--space-1)',
                     }}
                   >
-                    {preview.detected_students ?? session?.students_count ?? 145}
+                    {preview.detected_students ?? preview.students_count ?? session?.students_count ?? 0}
                   </div>
                 </div>
 
@@ -519,7 +519,7 @@ export const UploadPage: React.FC = () => {
                       marginTop: 'var(--space-1)',
                     }}
                   >
-                    {preview.detected_subjects ?? session?.courses_count ?? 27}
+                    {preview.detected_subjects ?? preview.courses_count ?? session?.courses_count ?? 0}
                   </div>
                 </div>
 
@@ -549,10 +549,12 @@ export const UploadPage: React.FC = () => {
                       marginTop: 'var(--space-1)',
                     }}
                   >
-                    {preview.divisions && preview.divisions.length > 0 ? preview.divisions.join(', ') : 'A, B'}
+                    {preview.divisions && preview.divisions.length > 0 ? preview.divisions.join(', ') : 'All Divisions'}
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    132 Passed &bull; 13 Failed
+                    {(preview.passed_count !== undefined && preview.failed_count !== undefined)
+                      ? `${preview.passed_count} Passed • ${preview.failed_count} Failed`
+                      : 'Records ready for verification'}
                   </div>
                 </div>
               </div>
@@ -971,10 +973,7 @@ export const UploadPage: React.FC = () => {
                     27 Courses
                   </span>
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                    12 Backlogs in PCEC12T
-                  </span>
-                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                    7 Absences
+                    Sample Backlogs & Absences
                   </span>
                 </div>
 

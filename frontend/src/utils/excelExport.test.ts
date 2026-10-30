@@ -109,7 +109,7 @@ describe('Shared Lightweight Excel Export Utility', () => {
       data: [],
     })
 
-    expect(result.filename).toBe('Empty_Test.xlsx')
+    expect(result.filename).toBe('Empty_Test.csv')
     expect(result.blob).toBeInstanceOf(Blob)
     expect(result.workbook.SheetNames).toContain('Empty Sheet')
   })

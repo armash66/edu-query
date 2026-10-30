@@ -106,7 +106,7 @@ export const DataQualityPage: React.FC = () => {
   // Passed automated checks that detected zero contradictions
   const passedChecks = [
     { title: 'Duplicate Student Seat Identifiers', code: 'CHK_DUP_SEAT', count: 0, status: 'No duplicates in cohort' },
-    { title: 'Enrollment Schema Boundary Rules', code: 'CHK_ENROLL_SCHEMA', count: 0, status: 'All 145 student rosters valid' },
+    { title: 'Enrollment Schema Boundary Rules', code: 'CHK_ENROLL_SCHEMA', count: 0, status: 'All student rosters valid' },
     { title: 'Marksheet Formula Cache Validation', code: 'CHK_FORMULA_CACHE', count: 0, status: 'Zero corrupted formula cells' },
     { title: 'Mandatory Grade Flag Precedence', code: 'CHK_FLAG_PRECEDENCE', count: 0, status: 'Component failure flags verified' },
   ]

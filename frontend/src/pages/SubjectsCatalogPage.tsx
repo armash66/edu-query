@@ -5,10 +5,12 @@ import {
   ArrowRight,
   TrendingDown,
   Layers,
+  Info,
 } from 'lucide-react'
 import {
   getSubjects,
   getSubjectFailureSummary,
+  getOverviewSummary,
   type SubjectListParams,
 } from '../api/client'
 import {
@@ -16,6 +18,7 @@ import {
   type CourseItem,
   type PaginatedResponse,
   type SubjectFailureSummaryItem,
+  type OverviewSummaryResponse,
 } from '../api/types'
 import { GlassCard } from '../ui/GlassCard'
 import { Button } from '../ui/Button'
@@ -45,6 +48,9 @@ export const SubjectsCatalogPage: React.FC = () => {
   // Failures Ranking Data
   const [failuresSummary, setFailuresSummary] = useState<SubjectFailureSummaryItem[]>([])
   const [failuresLoading, setFailuresLoading] = useState<boolean>(false)
+
+  const [overviewSummary, setOverviewSummary] = useState<OverviewSummaryResponse | null>(null)
+
 
   const fetchCatalog = useCallback(async () => {
     setLoading(true)
@@ -84,6 +90,13 @@ export const SubjectsCatalogPage: React.FC = () => {
     }
   }, [divisionFilter])
 
+
+  useEffect(() => {
+    getOverviewSummary()
+      .then(setOverviewSummary)
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (activeTab === 'catalog') {
       fetchCatalog()
@@ -105,38 +118,15 @@ export const SubjectsCatalogPage: React.FC = () => {
   }
 
   // Discovered Elective Groups: MDM electives (145 enrolled total) and Program electives (145 enrolled total)
-  const electiveGroups = useMemo(() => {
-    return [
-      {
-        id: 'mdm',
-        name: 'Multidisciplinary Minor Electives (MDM Choices)',
-        description: 'Cohort students selected exactly 1 of 4 multidisciplinary minor options (145 enrolled).',
-        totalEnrolled: 145,
-        courses: [
-          { code: 'MDMBD02', name: 'Financial Basics for Engineers and Technopreneurs', enrolled: 63, kind: 'Theory', smallCohort: false },
-          { code: 'MDMIE02', name: 'Startup Planning and Development', enrolled: 41, kind: 'Theory', smallCohort: false },
-          { code: 'MDMRB02', name: 'Machine Vision and Robotic Perception', enrolled: 32, kind: 'Theory', smallCohort: false },
-          { code: 'MDMBI02', name: 'Algorithms and Data Structures in Bioinformatics', enrolled: 9, kind: 'Theory', smallCohort: false },
-        ],
-      },
-      {
-        id: 'pe',
-        name: 'Program Electives (Specialization Tracks)',
-        description: 'Domain-specific program electives with associated practical laboratory units.',
-        totalEnrolled: 145,
-        courses: [
-          { code: 'PEEC09T', name: 'Machine Learning (paired with PEEC09P)', enrolled: 116, kind: 'Theory', smallCohort: false },
-          { code: 'PEEC05T', name: 'Soft Computing (paired with PEEC05P)', enrolled: 116, kind: 'Theory', smallCohort: false },
-          { code: 'PEEC06T', name: 'Data Warehousing and Mining (paired with PEEC06P)', enrolled: 18, kind: 'Theory', smallCohort: false },
-          { code: 'PEEC10T', name: 'Probabilistic Graphic Model (paired with PEEC10P)', enrolled: 18, kind: 'Theory', smallCohort: false },
-          { code: 'PEEC08T', name: 'Advanced VLSI Design and Technology (paired with PEEC08P)', enrolled: 9, kind: 'Theory', smallCohort: false },
-          { code: 'PEEC12T', name: 'Analog IC Design (paired with PEEC12P)', enrolled: 9, kind: 'Theory', smallCohort: false },
-          { code: 'PEEC07T', name: 'Principles of IoT (paired with PEEC07P)', enrolled: 2, kind: 'Theory', smallCohort: true },
-          { code: 'PEEC11T', name: 'Embedded System Design with Tiny OS (paired with PEEC11P)', enrolled: 2, kind: 'Theory', smallCohort: true },
-        ],
-      },
-    ]
-  }, [])
+
+  const electiveCourses = useMemo(() => {
+    return courses.filter((c) => {
+      const k = (c.kind || '').toLowerCase()
+      const n = (c.name || '').toLowerCase()
+      const code = (c.code || '').toUpperCase()
+      return k.includes('elective') || n.includes('elective') || code.startsWith('MDM') || code.startsWith('PE') || code.startsWith('OE')
+    })
+  }, [courses])
 
   const columns: Column<CourseItem>[] = [
     {
@@ -462,51 +452,63 @@ export const SubjectsCatalogPage: React.FC = () => {
           gap: 'var(--space-4)',
         }}
       >
+        {/* Card 1: Total Courses */}
         <GlassCard variant="glass-1" padding="md">
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
             Total Curriculum Courses
           </div>
-          <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text)', marginTop: '4px' }}>
-            27 Courses
+          <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text)', marginTop: '4px' }}>
+            {total || overviewSummary?.kpis?.total_courses || courses.length} Courses
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            145 students enrolled class-wide
+            {overviewSummary?.kpis?.total_students !== undefined ? `${overviewSummary.kpis.total_students} students enrolled class-wide` : 'Enrolled cohort candidates'}
           </div>
         </GlassCard>
 
+        {/* Card 2: Pass Rate */}
         <GlassCard variant="glass-1" padding="md">
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
             Class-Wide Pass Rate
           </div>
-          <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text)', marginTop: '4px' }}>
-            91.0%
+          <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text)', marginTop: '4px' }}>
+            {overviewSummary?.kpis?.pass_rate_percent !== undefined ? `${overviewSummary.kpis.pass_rate_percent.toFixed(1)}%` : '—'}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            132 of 145 students passed all courses
+            {overviewSummary?.kpis ? `${overviewSummary.kpis.passed_students} of ${overviewSummary.kpis.total_students} students passed all courses` : 'Student pass status'}
           </div>
         </GlassCard>
 
+        {/* Card 3: Highest Failure Subject */}
         <GlassCard variant="glass-1" padding="md">
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
             Highest Failure Subject
           </div>
-          <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--status-danger-text)', marginTop: '4px' }}>
-            PCEC12T (12)
+          <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--status-danger-text)', marginTop: '4px' }}>
+            {failuresSummary.length > 0
+              ? `${failuresSummary[0].course_code} (${failuresSummary[0].confirmed_failures_count})`
+              : overviewSummary?.hardest_subjects?.[0]
+              ? `${overviewSummary.hardest_subjects[0].course_code} (${overviewSummary.hardest_subjects[0].failed_count})`
+              : 'None'}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Theory of Computer Science · 8.3% failure rate
+            {failuresSummary.length > 0
+              ? `${failuresSummary[0].course_name} · ${failuresSummary[0].failure_rate_percent.toFixed(1)}% failure rate`
+              : overviewSummary?.hardest_subjects?.[0]
+              ? `${overviewSummary.hardest_subjects[0].course_title} · ${overviewSummary.hardest_subjects[0].failure_rate_percent.toFixed(1)}% failure rate`
+              : 'Zero course failures detected'}
           </div>
         </GlassCard>
 
+        {/* Card 4: Electives */}
         <GlassCard variant="glass-1" padding="md">
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Elective Offering Tracks
+            Elective Offerings
           </div>
-          <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text)', marginTop: '4px' }}>
-            2 Groups
+          <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text)', marginTop: '4px' }}>
+            {electiveCourses.length > 0 ? `${electiveCourses.length} Electives` : 'Core Curriculum'}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            MDM Electives & Program Electives
+            {electiveCourses.length > 0 ? 'Elective tracks detected in marksheet' : 'Common required subjects'}
           </div>
         </GlassCard>
       </div>
@@ -652,10 +654,10 @@ export const SubjectsCatalogPage: React.FC = () => {
 
       {/* TAB 3: ELECTIVES (Requirement 5) */}
       {activeTab === 'electives' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
           <div
             style={{
-              padding: '10px 14px',
+              padding: '12px 14px',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--surface-hover)',
               border: '1px solid var(--border)',
@@ -666,7 +668,7 @@ export const SubjectsCatalogPage: React.FC = () => {
               color: 'var(--text-secondary)',
             }}
           >
-            <Layers size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <Info size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <div>
               <strong style={{ color: 'var(--text)' }}>Elective Policy Audit:</strong> Discovered elective choices
               partition cohort enrollment across offerings. Small elective cohorts (under 5 students) are presented plainly
@@ -674,100 +676,103 @@ export const SubjectsCatalogPage: React.FC = () => {
             </div>
           </div>
 
-          {electiveGroups.map((group) => (
-            <GlassCard key={group.id} variant="glass-2" padding="lg">
+          {electiveCourses.length === 0 ? (
+            <GlassCard variant="glass-2" padding="lg">
+              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 'var(--text-sm)' }}>
+                No elective course tracks detected in this dataset. All registered courses are part of the core student curriculum.
+              </div>
+            </GlassCard>
+          ) : (
+            <GlassCard variant="glass-2" padding="lg">
               <div style={{ marginBottom: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                  <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, margin: 0, color: 'var(--text)' }}>
-                    {group.name}
-                  </h2>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    {group.totalEnrolled} total enrolled candidates
-                  </span>
+                <h2 style={{ fontSize: 'var(--text-md)', fontWeight: 700, margin: '0 0 4px 0', color: 'var(--text)' }}>
+                  Detected Elective Subjects ({electiveCourses.length})
+                </h2>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Enrolled student headcounts and course outcomes across elective options
                 </div>
-                <p style={{ margin: '4px 0 0 0', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-                  {group.description}
-                </p>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {group.courses.map((course) => (
-                  <div
-                    key={course.code}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 14px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: 'var(--surface-hover)',
-                      border: '1px solid var(--border)',
-                      gap: '12px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="font-mono" style={{ fontWeight: 700, fontSize: 'var(--text-xs)', color: 'var(--text)' }}>
-                          {course.code}
-                        </span>
-                        {course.smallCohort && (
-                          <span
-                            style={{
-                              fontSize: '10px',
-                              fontWeight: 600,
-                              padding: '1px 6px',
-                              borderRadius: 'var(--radius-xs)',
-                              background: 'var(--surface-active)',
-                              color: 'var(--text-muted)',
-                              border: '1px solid var(--border)',
-                            }}
-                          >
-                            Small Cohort (&lt;5 students)
+                {electiveCourses.map((course) => {
+                  const enrolled = course.enrolled_students_count ?? 0
+                  const isSmall = enrolled > 0 && enrolled < 5
+                  return (
+                    <div
+                      key={course.code}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        borderRadius: 'var(--radius-sm)',
+                        background: 'var(--surface-hover)',
+                        border: '1px solid var(--border)',
+                        gap: '12px',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span className="font-mono" style={{ fontWeight: 700, fontSize: 'var(--text-xs)', color: 'var(--text)' }}>
+                            {course.code}
                           </span>
-                        )}
+                          {isSmall && (
+                            <span
+                              style={{
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                padding: '1px 6px',
+                                borderRadius: 'var(--radius-xs)',
+                                background: 'var(--surface-active)',
+                                color: 'var(--text-muted)',
+                                border: '1px solid var(--border)',
+                              }}
+                            >
+                              Small Cohort (&lt;5 students)
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text)', marginTop: '2px', fontWeight: 500 }}>
+                          {course.name}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text)', marginTop: '2px', fontWeight: 500 }}>
-                        {course.name}
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <div className="tabular-nums font-mono" style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
+                            {enrolled}
+                          </div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                            enrolled
+                          </div>
+                        </div>
+
+                        <Link
+                          to={`/subjects/${encodeURIComponent(course.code.split(' ')[0])}`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            fontSize: 'var(--text-xs)',
+                            fontWeight: 600,
+                            color: 'var(--text)',
+                            textDecoration: 'none',
+                            padding: '4px 10px',
+                            borderRadius: 'var(--radius-xs)',
+                            background: 'var(--surface-active)',
+                            border: '1px solid var(--border)',
+                          }}
+                        >
+                          View Roster &rarr;
+                        </Link>
                       </div>
                     </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      <div style={{ textAlign: 'right' }}>
-                        <div className="tabular-nums font-mono" style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
-                          {course.enrolled}
-                        </div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                          enrolled
-                        </div>
-                      </div>
-
-                      <Link
-                        to={`/subjects/${course.code.split(' ')[0]}`}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '5px 10px',
-                          borderRadius: 'var(--radius-sm)',
-                          background: 'var(--surface-active)',
-                          border: '1px solid var(--border)',
-                          fontSize: 'var(--text-xs)',
-                          fontWeight: 600,
-                          color: 'var(--text)',
-                          textDecoration: 'none',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        <span>View Roster</span>
-                        <ArrowRight size={12} />
-                      </Link>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </GlassCard>
-          ))}
+          )}
         </div>
       )}
     </div>

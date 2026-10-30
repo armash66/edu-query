@@ -165,8 +165,11 @@ export function extractFilenameFromHeader(disposition: string | null, fallback: 
 
 export async function requestBlob(path: string, options: FetchOptions = {}): Promise<Blob> {
   const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
-  const defaultAccept = path.includes('excel') || path.endsWith('.xlsx')
+  const lowerPath = path.toLowerCase()
+  const defaultAccept = (lowerPath.includes('excel') || lowerPath.includes('merit') || lowerPath.includes('backlog') || lowerPath.endsWith('.xlsx'))
     ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*'
+    : (lowerPath.includes('pdf') || lowerPath.includes('dossier') || lowerPath.includes('analysis') || lowerPath.includes('slip'))
+    ? 'application/pdf, application/octet-stream, */*'
     : 'text/csv, application/octet-stream, */*'
   const headers: Record<string, string> = {
     Accept: defaultAccept,
@@ -222,8 +225,11 @@ export async function downloadAndSaveFile(
   options: FetchOptions = {}
 ): Promise<string> {
   const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`
-  const defaultAccept = path.includes('excel') || path.endsWith('.xlsx')
+  const lowerPath = path.toLowerCase()
+  const defaultAccept = (lowerPath.includes('excel') || lowerPath.includes('merit') || lowerPath.includes('backlog') || lowerPath.endsWith('.xlsx'))
     ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream, */*'
+    : (lowerPath.includes('pdf') || lowerPath.includes('dossier') || lowerPath.includes('analysis') || lowerPath.includes('slip'))
+    ? 'application/pdf, application/octet-stream, */*'
     : 'text/csv, application/octet-stream, */*'
   const headers: Record<string, string> = {
     Accept: defaultAccept,
@@ -279,8 +285,13 @@ export async function downloadAndSaveFile(
 
 export function saveBlobAsFile(blob: Blob, rawFilename: string): void {
   const filename = (rawFilename || 'EduQuery_Export.xlsx').trim()
-  const mimeType = filename.toLowerCase().endsWith('.xlsx')
+  const lower = filename.toLowerCase()
+  const mimeType = lower.endsWith('.xlsx')
     ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    : lower.endsWith('.pdf')
+    ? 'application/pdf'
+    : lower.endsWith('.txt')
+    ? 'text/plain;charset=utf-8'
     : 'text/csv;charset=utf-8'
 
   // Ensure blob has explicit target MIME type
@@ -966,3 +977,66 @@ export async function draftNotice(
 export async function getEarlyWarningStudents(signal?: AbortSignal): Promise<EarlyWarningResponse> {
   return request<EarlyWarningResponse>('/api/v1/students/early-warning', { signal })
 }
+
+// =========================================================================
+// Official Reports & Exports (Real OpenPyXL Workbooks & Formatted Docs)
+// =========================================================================
+
+export async function downloadMeritListExcel(anonymize: boolean = false): Promise<string> {
+  const query = anonymize ? '?anonymize=true' : ''
+  return downloadAndSaveFile(
+    `/api/v1/reports/merit-list/export${query}`,
+    'EduQuery_Merit_List.xlsx'
+  )
+}
+
+export async function downloadBacklogsExcel(anonymize: boolean = false): Promise<string> {
+  const query = anonymize ? '?anonymize=true' : ''
+  return downloadAndSaveFile(
+    `/api/v1/reports/backlogs/export${query}`,
+    'EduQuery_Failed_Absent_Roster.xlsx'
+  )
+}
+
+export async function downloadMailMergeCsv(anonymize: boolean = false): Promise<string> {
+  const query = anonymize ? '?anonymize=true' : ''
+  return downloadAndSaveFile(
+    `/api/v1/reports/mail-merge/export${query}`,
+    'EduQuery_Notice_MailMerge.csv'
+  )
+}
+
+export async function downloadAnalysisDossier(anonymize: boolean = false): Promise<string> {
+  const query = anonymize ? '?anonymize=true' : ''
+  return downloadAndSaveFile(
+    `/api/v1/reports/analysis-dossier/export${query}`,
+    'EduQuery_Result_Analysis.pdf'
+  )
+}
+
+export async function downloadStudentSlipsPdf(division?: string, anonymize: boolean = false): Promise<string> {
+  const params = new URLSearchParams()
+  if (division && division.trim()) params.set('division', division.trim())
+  if (anonymize) params.set('anonymize', 'true')
+  const qStr = params.toString() ? `?${params.toString()}` : ''
+  return downloadAndSaveFile(
+    `/api/v1/reports/slips/export-pdf${qStr}`,
+    division ? `EduQuery_Result_Slips_${division}.pdf` : 'EduQuery_Result_Slips.pdf'
+  )
+}
+
+export async function getDivisionStudentSlips(
+  division?: string,
+  anonymize: boolean = false,
+  signal?: AbortSignal
+): Promise<{ slips: import('./types').StudentSlip[]; total: number }> {
+  const params = new URLSearchParams()
+  if (division && division.trim()) params.set('division', division.trim())
+  if (anonymize) params.set('anonymize', 'true')
+  const qStr = params.toString() ? `?${params.toString()}` : ''
+  return request<{ slips: import('./types').StudentSlip[]; total: number }>(
+    `/api/v1/reports/slips${qStr}`,
+    { signal }
+  )
+}
+

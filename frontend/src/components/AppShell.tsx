@@ -21,6 +21,7 @@ import { BootScreen } from './BootScreen'
 import { IconButton } from '../ui/IconButton'
 import { ThemeMenu } from './ThemeMenu'
 import { GlobalSearchTrigger } from './GlobalSearchTrigger'
+import { getOverviewSummary } from '../api/client'
 
 const CommandPalette = lazy(() => import('./CommandPalette').then((m) => ({ default: m.CommandPalette })))
 const ConfirmDialog = lazy(() => import('./ConfirmDialog').then((m) => ({ default: m.ConfirmDialog })))
@@ -60,6 +61,31 @@ export const AppShell: React.FC = () => {
     }
   })
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+  const [absentBadge, setAbsentBadge] = useState<string | null>(null)
+  const [anomalyBadge, setAnomalyBadge] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!hasActiveSession) return
+    let isMounted = true
+    getOverviewSummary()
+      .then((summary) => {
+        if (!isMounted) return
+        if (summary?.kpis?.absent_students && summary.kpis.absent_students > 0) {
+          setAbsentBadge(String(summary.kpis.absent_students))
+        } else {
+          setAbsentBadge(null)
+        }
+        if (summary?.kpis?.needs_attention_count && summary.kpis.needs_attention_count > 0) {
+          setAnomalyBadge(String(summary.kpis.needs_attention_count))
+        } else {
+          setAnomalyBadge(null)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [hasActiveSession, location.pathname])
 
   const toggleRail = () => {
     setIsRail((prev) => {
@@ -148,23 +174,23 @@ export const AppShell: React.FC = () => {
       label: 'Investigate',
       items: [
         { to: '/explore', label: 'Explore', icon: <Compass size={18} /> },
-        { to: '/absent', label: 'Absent Students', icon: <UserX size={18} />, badge: '7', badgeTone: 'neutral' },
+        { to: '/absent', label: 'Absent Students', icon: <UserX size={18} />, badge: absentBadge ?? undefined, badgeTone: 'neutral' },
       ],
     },
     {
       label: 'Act',
       items: [
         { to: '/follow-ups', label: 'Follow-ups', icon: <UserCheck size={18} /> },
-        { to: '/data-quality', label: 'Data Quality', icon: <ShieldAlert size={18} />, badge: '3', badgeTone: 'amber' },
+        { to: '/data-quality', label: 'Data Quality', icon: <ShieldAlert size={18} />, badge: anomalyBadge ?? undefined, badgeTone: 'amber' },
         { to: '/reports', label: 'Reports', icon: <FileText size={18} /> },
       ],
     },
   ]
 
   // Dataset status details
-  const studentCount = session?.students_count ?? health?.database?.students_count ?? 145
-  const courseCount = session?.courses_count ?? health?.database?.courses_count ?? 27
-  const datasetName = session?.filename || 'Result_anonymized.xlsx'
+  const studentCount = session?.students_count ?? health?.database?.students_count ?? null
+  const courseCount = session?.courses_count ?? health?.database?.courses_count ?? null
+  const datasetName = session?.filename || 'Active Marksheet'
 
   // Compute status: strictly "Temporary session · expires in N min"
   const isTemporary = session?.mode === 'temporary' || (!session?.mode && Boolean(session?.expires_at))
@@ -478,7 +504,7 @@ export const AppShell: React.FC = () => {
                   {datasetName}
                 </div>
                 <div className="tabular-nums" style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
-                  {studentCount} students &bull; {courseCount} courses
+                  {studentCount !== null ? `${studentCount} students` : ''}{courseCount !== null ? ` • ${courseCount} courses` : ''}
                 </div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '10px', marginTop: '1px' }}>
                   {datasetStatusLabel}

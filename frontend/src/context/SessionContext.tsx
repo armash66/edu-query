@@ -6,6 +6,7 @@ import {
   confirmSession as apiConfirmSession,
   deleteSession as apiDeleteSession,
   saveSession as apiSaveSession,
+  setSessionToken,
   clearSessionToken,
 } from '../api/client'
 import type {
@@ -42,6 +43,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const status = await getSessionStatus()
       setSession(status)
+      if (status.session_id && (status.active || status.state === 'preview_ready')) {
+        setSessionToken(status.session_id)
+      }
       if (status.preview) {
         setPreview(status.preview)
       }
@@ -63,6 +67,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const uploadMarksheet = async (file: File): Promise<SessionUploadResponse> => {
     const res = await uploadSession(file)
+    if (res.session_id) {
+      setSessionToken(res.session_id)
+    }
     setPreview(res.preview)
     setSession({
       active: false,
@@ -81,6 +88,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const loadSampleSession = async (): Promise<SessionUploadResponse> => {
     const res = await createSampleSession()
+    if (res.session_id) {
+      setSessionToken(res.session_id)
+    }
     setPreview(res.preview)
     setSession({
       active: false,
@@ -99,6 +109,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const confirmSession = async (): Promise<SessionConfirmResponse> => {
     const res = await apiConfirmSession(session?.session_id)
+    if (res.session_id) {
+      setSessionToken(res.session_id)
+    }
     setSession((prev) => ({
       active: true,
       state: 'active',

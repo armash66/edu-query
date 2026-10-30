@@ -81,7 +81,7 @@ def get_overview_summary(
 
     passed_count = 0
     failed_count = 0
-    absent_count = 0
+    result_absent_count = 0
 
     for raw_res, cnt in results_rows:
         val = str(raw_res).strip().upper()
@@ -90,10 +90,21 @@ def get_overview_summary(
         elif "FAIL" in val:
             failed_count += cnt
         elif "ABSENT" in val:
-            absent_count += cnt
-        else:
-            # If not explicitly pass/fail/absent, check if marks are absent
-            absent_count += cnt
+            result_absent_count += cnt
+
+    # In university marksheets, students who missed exams fail overall;
+    # query distinct students with absent evaluation components in scores table
+    absent_st_row = con.execute(
+        """
+        SELECT COUNT(DISTINCT student_id)
+        FROM scores
+        WHERE component != 'TOT1'
+          AND (UPPER(TRIM(flag)) IN ('A', 'AB', 'ABS', 'ABSENT')
+               OR UPPER(TRIM(raw_text)) IN ('A', 'AB', 'ABS', 'ABSENT'))
+        """
+    ).fetchone()
+    scores_absent_count = int(absent_st_row[0]) if absent_st_row and absent_st_row[0] is not None else 0
+    absent_count = max(result_absent_count, scores_absent_count)
 
     pass_rate = round((passed_count / total_students) * 100.0, 1) if total_students > 0 else 0.0
     fail_rate = round((failed_count / total_students) * 100.0, 1) if total_students > 0 else 0.0

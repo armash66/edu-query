@@ -255,15 +255,16 @@ def generate_hod_brief(con: duckdb.DuckDBPyConnection) -> HodBriefResponse:
     pass_pct = round((total_passed / total_students) * 100.0, 1) if total_students else 0.0
     fail_pct = round((total_failed / total_students) * 100.0, 1) if total_students else 0.0
 
-    # Division A
-    div_a_total = con.execute("SELECT COUNT(*) FROM students WHERE division = 'A'").fetchone()[0]
-    div_a_passed = con.execute("SELECT COUNT(*) FROM students WHERE division = 'A' AND UPPER(result) LIKE '%PASS%'").fetchone()[0]
-    div_a_pct = round((div_a_passed / div_a_total) * 100.0, 1) if div_a_total else 0.0
-
-    # Division B
-    div_b_total = con.execute("SELECT COUNT(*) FROM students WHERE division = 'B'").fetchone()[0]
-    div_b_passed = con.execute("SELECT COUNT(*) FROM students WHERE division = 'B' AND UPPER(result) LIKE '%PASS%'").fetchone()[0]
-    div_b_pct = round((div_b_passed / div_b_total) * 100.0, 1) if div_b_total else 0.0
+    # Divisions (dynamic)
+    div_rows = con.execute("""
+        SELECT 
+            COALESCE(division, 'Cohort') as div_name,
+            COUNT(*) as total,
+            COUNT(CASE WHEN UPPER(result) LIKE '%PASS%' THEN 1 END) as passed
+        FROM students
+        GROUP BY division
+        ORDER BY div_name
+    """).fetchall()
 
     # Absenteeism across scores and grades
     absent_query = """
@@ -279,6 +280,24 @@ def generate_hod_brief(con: duckdb.DuckDBPyConnection) -> HodBriefResponse:
     """
     absent_students = con.execute(absent_query).fetchone()[0]
 
+    # Severe absentees (absent in >= 3 courses)
+    severe_absent_query = """
+    SELECT COUNT(DISTINCT student_id) FROM (
+        SELECT student_id, COUNT(DISTINCT course_code) as ab_cnt FROM (
+            SELECT student_id, course_code FROM scores
+            WHERE component != 'TOT1'
+              AND (UPPER(TRIM(COALESCE(flag, ''))) IN ('A', 'AB', 'ABS', 'ABSENT')
+                   OR UPPER(TRIM(COALESCE(raw_text, ''))) IN ('A', 'AB', 'ABS', 'ABSENT'))
+            UNION
+            SELECT student_id, course_code FROM grades
+            WHERE UPPER(TRIM(COALESCE(letter, ''))) IN ('AB', 'ABS', 'ABSENT')
+        )
+        GROUP BY student_id
+        HAVING ab_cnt >= 3
+    )
+    """
+    severe_absent_count = con.execute(severe_absent_query).fetchone()[0]
+
     # Hardest Subject in reconciliation
     hardest_query = """
     SELECT course_code, COUNT(DISTINCT student_id) as fails
@@ -290,13 +309,13 @@ def generate_hod_brief(con: duckdb.DuckDBPyConnection) -> HodBriefResponse:
     LIMIT 1
     """
     hardest_row = con.execute(hardest_query).fetchone()
-    hardest_code = hardest_row[0] if hardest_row else "PCEC12T"
-    hardest_fails = hardest_row[1] if hardest_row else 12
+    hardest_code = hardest_row[0] if hardest_row else "None"
+    hardest_fails = hardest_row[1] if hardest_row else 0
 
     # Top CGPA
-    top_row = con.execute("SELECT seat_no, cgpa FROM students ORDER BY cgpa DESC LIMIT 1").fetchone()
-    top_seat = str(top_row[0]) if top_row else "SEAT_A01"
-    top_cgpa = float(top_row[1]) if top_row and top_row[1] is not None else 9.85
+    top_row = con.execute("SELECT seat_no, cgpa FROM students WHERE cgpa IS NOT NULL ORDER BY cgpa DESC LIMIT 1").fetchone()
+    top_seat = str(top_row[0]) if top_row and top_row[0] is not None else "N/A"
+    top_cgpa = round(float(top_row[1]), 2) if top_row and top_row[1] is not None else 0.0
 
     facts_used = {
         "cohort_total": total_students,
@@ -304,13 +323,8 @@ def generate_hod_brief(con: duckdb.DuckDBPyConnection) -> HodBriefResponse:
         "total_failed": total_failed,
         "pass_percentage": pass_pct,
         "fail_percentage": fail_pct,
-        "division_a_total": div_a_total,
-        "division_a_passed": div_a_passed,
-        "division_a_pass_percent": div_a_pct,
-        "division_b_total": div_b_total,
-        "division_b_passed": div_b_passed,
-        "division_b_pass_percent": div_b_pct,
         "total_students_with_absent": absent_students,
+        "severe_absent_count": severe_absent_count,
         "hardest_course_code": hardest_code,
         "hardest_course_failures": hardest_fails,
         "top_student_seat": top_seat,
@@ -318,23 +332,60 @@ def generate_hod_brief(con: duckdb.DuckDBPyConnection) -> HodBriefResponse:
         "unresolved_data_discrepancies": 0,
     }
 
-    # 2. Institutional narrative template strictly incorporating the exact ground-truth facts
+    div_text_lines = []
+    for d_name, d_tot, d_pass in div_rows:
+        d_pct = round((d_pass / d_tot) * 100.0, 1) if d_tot else 0.0
+        key_prefix = f"division_{str(d_name).lower().replace(' ', '_')}"
+        facts_used[f"{key_prefix}_total"] = d_tot
+        facts_used[f"{key_prefix}_passed"] = d_pass
+        facts_used[f"{key_prefix}_pass_percent"] = d_pct
+        div_text_lines.append(f"- Division {d_name}: {d_pass} of {d_tot} passed ({d_pct}%).")
+
+    div_a_row = next((r for r in div_rows if str(r[0]).upper() in ('A', 'DIV A', 'DIVISION A')), None)
+    div_b_row = next((r for r in div_rows if str(r[0]).upper() in ('B', 'DIV B', 'DIVISION B')), None)
+    facts_used["division_a_total"] = div_a_row[1] if div_a_row else 0
+    facts_used["division_a_passed"] = div_a_row[2] if div_a_row else 0
+    facts_used["division_a_pass_percent"] = round((div_a_row[2] / div_a_row[1]) * 100.0, 1) if div_a_row and div_a_row[1] else 0.0
+    facts_used["division_b_total"] = div_b_row[1] if div_b_row else 0
+    facts_used["division_b_passed"] = div_b_row[2] if div_b_row else 0
+    facts_used["division_b_pass_percent"] = round((div_b_row[2] / div_b_row[1]) * 100.0, 1) if div_b_row and div_b_row[1] else 0.0
+
+    div_section = "\n".join(div_text_lines) if div_text_lines else "Single cohort without division splits."
+
+    if hardest_fails > 0:
+        bottleneck_line = f"The subject with the most failures is {hardest_code}, with {hardest_fails} course failures."
+    else:
+        bottleneck_line = "No subject failures were recorded across the cohort."
+
+    if absent_students > 0:
+        if severe_absent_count > 0:
+            absent_line = f"A total of {absent_students} students recorded at least one absent mark, including {severe_absent_count} students absent in multiple subjects."
+        else:
+            absent_line = f"A total of {absent_students} students recorded at least one absent mark."
+    else:
+        absent_line = "No examination absences were recorded across the cohort."
+
+    if top_seat != "N/A" and top_cgpa > 0:
+        merit_line = f"The highest cumulative standing across the cohort was achieved by {top_seat} with a CGPA of {top_cgpa}."
+    else:
+        merit_line = "Individual CGPA rankings are available in the Merit List export."
+
     narrative = f"""EXECUTIVE PERFORMANCE SUMMARY FOR HEAD OF DEPARTMENT
+
 Cohort Overview:
-The official evaluation comprises {total_students} evaluated students across Divisions A and B. Overall cohort performance remains robust with {total_passed} students declared Passed ({pass_pct}%) and {total_failed} students declared Failed ({fail_pct}%).
+The official evaluation comprises {total_students} students. A total of {total_passed} students passed ({pass_pct}%) and {total_failed} students failed ({fail_pct}%).
 
 Division Breakdown:
-- Division A: {div_a_passed} of {div_a_total} students passed ({div_a_pct}%).
-- Division B: {div_b_passed} of {div_b_total} students passed ({div_b_pct}%).
+{div_section}
 
 Subject & Examination Bottlenecks:
-The curriculum bottleneck for this examination cycle is {hardest_code}, accounting for {hardest_fails} course failures. Furthermore, {absent_students} students recorded at least one examination absence, with 6 severe absentees failing all attempted assessments.
+{bottleneck_line} {absent_line}
 
 Merit Highlights:
-The highest cumulative standing across the cohort was achieved by {top_seat} with a CGPA of {top_cgpa}.
+{merit_line}
 
-Pre-Declaration Data Quality Clearance:
-All marksheet sum records, seat numbers, and SGPI computations have passed verification checks with {facts_used['unresolved_data_discrepancies']} unresolved anomalies. The cohort dataset is cleared for official declaration."""
+Data Quality Clearance:
+All marksheet sum records, seat numbers, and SGPI calculations have passed verification checks with {facts_used['unresolved_data_discrepancies']} unresolved anomalies."""
 
     # 3. Numeric verification audit: Every number in the narrative must exist in facts_used
     allowed_numbers = set()
@@ -346,12 +397,11 @@ All marksheet sum records, seat numbers, and SGPI computations have passed verif
             elif isinstance(v, int):
                 allowed_numbers.add(f"{v}.0")
 
-    # Extract all numbers/percentages from narrative (e.g. 145, 91.0, 13, 0)
     extracted_numbers = re.findall(r"\b\d+(?:\.\d+)?\b", narrative)
     unverified_numbers = [
         num for num in extracted_numbers
         if num not in allowed_numbers
-        and num not in {"1", "6"}  # allow 1 page narrative and 6 severe absentees
+        and num not in {"1"}
     ]
 
     is_verified = len(unverified_numbers) == 0

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   UserX,
@@ -215,6 +215,44 @@ export const AbsentStudentsPage: React.FC = () => {
   const distinctStudents = totalStudents || new Set(records.map((r) => r.student_id)).size
   const distinctCourses = totalCourses || new Set(records.map((r) => r.course_code)).size
   const recordsToPrint = printRecords && printRecords.length > 0 ? printRecords : records
+
+  // Dynamically group distinct absent candidates from records
+  const groupedAbsentees = useMemo(() => {
+    const map = new Map<string, {
+      student_id: string
+      name: string
+      seat_no: string | null
+      roll_no: string | null
+      division: string | null
+      overall_result: string | null
+      courses: Set<string>
+      components: string[]
+    }>()
+
+    records.forEach((r) => {
+      if (!map.has(r.student_id)) {
+        map.set(r.student_id, {
+          student_id: r.student_id,
+          name: r.name,
+          seat_no: r.seat_no,
+          roll_no: r.roll_no,
+          division: r.division,
+          overall_result: r.overall_result,
+          courses: new Set<string>(),
+          components: [],
+        })
+      }
+      const entry = map.get(r.student_id)!
+      if (r.course_code) entry.courses.add(r.course_code)
+      if (r.component) entry.components.push(r.component)
+    })
+
+    const all = Array.from(map.values())
+    const isolated = all.filter((s) => s.courses.size <= 2)
+    const extended = all.filter((s) => s.courses.size > 2)
+
+    return { isolated, extended, totalStudents: all.length }
+  }, [records])
 
   const columns: Column<AbsentStudentItem>[] = [
     {
@@ -784,87 +822,120 @@ export const AbsentStudentsPage: React.FC = () => {
         />
       )}
 
-      {/* Grouped Absence Severity Breakdown (Requirement 6) */}
+      {/* Grouped Absence Severity Breakdown (Dynamic Cohort Partition) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-4)' }}>
-        {/* Group 1: Absent in 1-2 subjects (1 student) */}
+        {/* Group 1: Absent in 1-2 subjects */}
         <GlassCard variant="glass-2" padding="md">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
               Absent in 1–2 Subjects
             </div>
-            <StatusBadge tone="warn" size="sm" label="1 Student" />
+            <StatusBadge
+              tone={groupedAbsentees.isolated.length > 0 ? 'warn' : 'info'}
+              size="sm"
+              label={`${groupedAbsentees.isolated.length} Candidate${groupedAbsentees.isolated.length === 1 ? '' : 's'}`}
+            />
           </div>
           <p style={{ margin: '0 0 12px 0', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-            Isolated component absence. Candidate may be eligible for immediate make-up re-evaluation.
+            Isolated component absence. Candidates may be eligible for immediate make-up re-evaluation.
           </p>
-          <div
-            style={{
-              padding: '10px 12px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--surface-hover)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '4px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <strong style={{ fontSize: 'var(--text-xs)', color: 'var(--text)' }}>Student SEAT_A08 (Div A)</strong>
-              <StatusBadge tone="pass" size="sm" label="Overall Passed" />
+          {groupedAbsentees.isolated.length === 0 ? (
+            <div style={{ padding: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              No candidates with isolated absences in the active filter.
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              Contact: seat_a08@student.univ.edu
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+              {groupedAbsentees.isolated.map((s) => (
+                <div
+                  key={s.student_id}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-hover)',
+                    border: '1px solid var(--border)',
+                    fontSize: '11px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong style={{ color: 'var(--text)' }}>
+                      {s.name} {s.seat_no ? `(${s.seat_no})` : ''} {s.division ? `· Div ${s.division}` : ''}
+                    </strong>
+                    <StatusBadge
+                      tone={(s.overall_result || '').toUpperCase().includes('PASS') ? 'pass' : 'fail'}
+                      size="sm"
+                      label={s.overall_result || 'Pending'}
+                    />
+                  </div>
+                  <div style={{ color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Missed in: <strong>{Array.from(s.courses).join(', ')}</strong>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              Missed assessments in: <strong>2 subjects (PEEC07T, MDM01)</strong>
-            </div>
-          </div>
+          )}
         </GlassCard>
 
-        {/* Group 2: Absent in 5+ subjects (6 students) */}
+        {/* Group 2: Absent in 5+ subjects (Critical) */}
         <GlassCard variant="glass-2" padding="md">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
               Absent in 5+ Subjects (Critical)
             </div>
-            <StatusBadge tone="fail" size="sm" label="6 Students" />
+            <StatusBadge
+              tone={groupedAbsentees.extended.length > 0 ? 'fail' : 'info'}
+              size="sm"
+              label={`${groupedAbsentees.extended.length} Candidate${groupedAbsentees.extended.length === 1 ? '' : 's'}`}
+            />
           </div>
           <p style={{ margin: '0 0 12px 0', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-            Chronic or extended absence across multiple course units. 100% overlap with failed student backlogs.
+            Chronic or extended absence across multiple course units. Requires administrative consultation.
           </p>
-          <div
-            style={{
-              padding: '10px 12px',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--surface-hover)',
-              border: '1px solid var(--border)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '6px',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text)' }}>
-                6 Candidates (Div A: 4 &bull; Div B: 2)
-              </span>
-              <StatusBadge tone="fail" size="sm" label="All 6 Failed" />
+          {groupedAbsentees.extended.length === 0 ? (
+            <div style={{ padding: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              No candidates with chronic/extended absences in the active filter.
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-              Absent across 5–9 examination components. Recommended for formal faculty dean consultation.
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+              {groupedAbsentees.extended.map((s) => (
+                <div
+                  key={s.student_id}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-hover)',
+                    border: '1px solid var(--border)',
+                    fontSize: '11px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong style={{ color: 'var(--text)' }}>
+                      {s.name} {s.seat_no ? `(${s.seat_no})` : ''} {s.division ? `· Div ${s.division}` : ''}
+                    </strong>
+                    <StatusBadge
+                      tone={(s.overall_result || '').toUpperCase().includes('PASS') ? 'pass' : 'fail'}
+                      size="sm"
+                      label={s.overall_result || 'Pending'}
+                    />
+                  </div>
+                  <div style={{ color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Missed {s.courses.size} subjects: <strong>{Array.from(s.courses).join(', ')}</strong>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-              <Link
-                to="/follow-ups"
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  color: 'var(--text)',
-                  textDecoration: 'underline',
-                }}
-              >
-                Draft Absence Notices &rarr;
-              </Link>
-            </div>
+          )}
+          <div style={{ marginTop: '8px' }}>
+            <Link
+              to="/follow-ups"
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--text)',
+                textDecoration: 'underline',
+              }}
+            >
+              Draft Notice &rarr;
+            </Link>
           </div>
         </GlassCard>
       </div>
