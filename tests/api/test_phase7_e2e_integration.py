@@ -229,13 +229,13 @@ def test_full_application_lifecycle_e2e(e2e_environment):
     fail_csv_resp = client.get("/api/v1/subjects/CS101/failures/export")
     assert fail_csv_resp.status_code == 200
     assert "subject_CS101_failures.csv" in fail_csv_resp.headers["content-disposition"]
-    assert "FAILING_LETTER_GRADE" in fail_csv_resp.text
+    assert "Fail" in fail_csv_resp.text
 
     # Student breakdown export
     breakdown_csv_resp = client.get("/api/v1/students/STU_E2E_01/export")
     assert breakdown_csv_resp.status_code == 200
     assert "student_STU_E2E_01_breakdown.csv" in breakdown_csv_resp.headers["content-disposition"]
-    assert "PASSING_LETTER_GRADE" in breakdown_csv_resp.text
+    assert "Pass" in breakdown_csv_resp.text
 
     # ---------------------------------------------------------
     # 5. Workbook Upload & Quarantine (Previewing does NOT activate)

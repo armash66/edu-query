@@ -1,13 +1,16 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import {
   BarChart3,
   Users,
+  UserX,
+  Compass,
   BookOpen,
   ShieldCheck,
   Database,
   UploadCloud,
   Palette,
+  Trash2,
   PanelLeftClose,
   PanelLeftOpen,
 } from 'lucide-react'
@@ -19,11 +22,30 @@ import { ThemeMenu } from './ThemeMenu'
 import { GlobalSearchTrigger } from './GlobalSearchTrigger'
 
 const CommandPalette = lazy(() => import('./CommandPalette').then((m) => ({ default: m.CommandPalette })))
+const ConfirmDialog = lazy(() => import('./ConfirmDialog').then((m) => ({ default: m.ConfirmDialog })))
 
 export const AppShell: React.FC = () => {
   const { health, error: healthError, refreshHealth } = useHealth()
-  const { session, hasActiveSession } = useSession()
+  const { session, hasActiveSession, deleteSession } = useSession()
   const location = useLocation()
+  const navigate = useNavigate()
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDeleteSessionConfirm = async () => {
+    setDeleting(true)
+    try {
+      await deleteSession()
+      await refreshHealth()
+      setIsDeleteDialogOpen(false)
+      navigate('/upload')
+    } catch (err) {
+      console.error('Failed to delete session:', err)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   // Sidebar Rail State (persisted in localStorage)
   const [isRail, setIsRail] = useState<boolean>(() => {
@@ -82,10 +104,12 @@ export const AppShell: React.FC = () => {
 
   const { title, subtitle } = getPageTitle(location.pathname)
 
-  // 5 Canonical Nav Items
+  // Canonical Nav Items
   const mainNavItems = [
     { to: '/', label: 'Overview', icon: <BarChart3 size={18} />, end: true },
     { to: '/students', label: 'Students', icon: <Users size={18} /> },
+    { to: '/absent', label: 'Absent Students', icon: <UserX size={18} /> },
+    { to: '/explore', label: 'Explore', icon: <Compass size={18} /> },
     { to: '/subjects', label: 'Subjects', icon: <BookOpen size={18} /> },
     { to: '/data-quality', label: 'Data Quality', icon: <ShieldCheck size={18} /> },
     { to: '/imports', label: 'Datasets', icon: <Database size={18} /> },
@@ -372,7 +396,6 @@ export const AppShell: React.FC = () => {
               justifyContent: 'center',
               minWidth: 0,
               flex: 1,
-              maxWidth: 'calc(100% - 110px)',
             }}
           >
             <h1
@@ -407,10 +430,21 @@ export const AppShell: React.FC = () => {
             )}
           </div>
 
-          {/* Right: (a) Search Field, (b) Single Theme Menu Button */}
+          {/* Right: (a) Search Field, (b) Single Theme Menu Button, (c) Delete Session Button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <GlobalSearchTrigger onClick={() => setIsCommandPaletteOpen(true)} />
             <ThemeMenu align="right" direction="down" shape="circle" />
+            {hasActiveSession && (
+              <IconButton
+                aria-label="Delete analysis session and reset data"
+                title="Delete Session"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDeleteDialogOpen(true)}
+                icon={<Trash2 size={16} />}
+                style={{ color: 'var(--status-danger-text)' }}
+              />
+            )}
           </div>
         </header>
 
@@ -454,12 +488,27 @@ export const AppShell: React.FC = () => {
         </NavLink>
       </nav>
 
-      {/* Command Palette Modal */}
+      {/* Modals & Dialogs */}
       <Suspense fallback={null}>
         {isCommandPaletteOpen && (
           <CommandPalette
             isOpen={isCommandPaletteOpen}
             onClose={() => setIsCommandPaletteOpen(false)}
+          />
+        )}
+      </Suspense>
+
+      <Suspense fallback={null}>
+        {isDeleteDialogOpen && (
+          <ConfirmDialog
+            title="Delete Analysis Session & Data"
+            message="Are you sure you want to permanently delete this analysis session? All temporary marksheet records, extracted student evaluations, and analytics cache will be cleared immediately. This cannot be undone."
+            confirmLabel="Delete session and data"
+            cancelLabel="Keep analysis"
+            danger={true}
+            loading={deleting}
+            onConfirm={handleDeleteSessionConfirm}
+            onCancel={() => setIsDeleteDialogOpen(false)}
           />
         )}
       </Suspense>

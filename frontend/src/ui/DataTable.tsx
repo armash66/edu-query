@@ -11,9 +11,12 @@ export interface Column<T> {
   sortable?: boolean
   sortValue?: (row: T) => string | number
   width?: string | number
+  minWidth?: string | number
+  maxWidth?: string | number
   align?: 'left' | 'center' | 'right'
   sticky?: boolean
   hideOnMobile?: boolean
+  wrap?: boolean
 }
 
 export interface DataTableProps<T> {
@@ -26,6 +29,7 @@ export interface DataTableProps<T> {
   onRowClick?: (row: T) => void
   initialSortKey?: string
   initialSortDirection?: 'asc' | 'desc'
+  onSortChange?: (sortKey: string, sortDir: 'asc' | 'desc') => void
   pageSize?: number
   showDensityToggle?: boolean
   defaultDensity?: 'comfortable' | 'compact'
@@ -49,6 +53,7 @@ export function DataTable<T>({
   onRowClick,
   initialSortKey,
   initialSortDirection = 'asc',
+  onSortChange,
   pageSize = 25,
   showDensityToggle = true,
   defaultDensity = 'comfortable',
@@ -79,11 +84,11 @@ export function DataTable<T>({
   // Handle column sort toggle
   const handleSort = (col: Column<T>) => {
     if (!col.sortable) return
-    if (sortKey === col.key) {
-      setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'))
-    } else {
-      setSortKey(col.key)
-      setSortDir('asc')
+    const nextDir = sortKey === col.key ? (sortDir === 'asc' ? 'desc' : 'asc') : 'asc'
+    setSortKey(col.key)
+    setSortDir(nextDir)
+    if (onSortChange) {
+      onSortChange(col.key, nextDir)
     }
     handlePageChange(1)
   }
@@ -132,7 +137,7 @@ export function DataTable<T>({
 
   const rowHeight = density === 'comfortable' ? '54px' : '38px'
   const cellPadding =
-    density === 'comfortable' ? '12px 16px' : '8px 14px'
+    density === 'comfortable' ? '12px 12px' : '8px 10px'
 
   return (
     <div
@@ -153,7 +158,7 @@ export function DataTable<T>({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: 'var(--space-3) var(--space-4)',
+            padding: '14px 24px',
             borderBottom: '1px solid var(--border)',
             background: 'var(--surface-hover)',
           }}
@@ -233,6 +238,8 @@ export function DataTable<T>({
                       zIndex: isSticky ? 4 : 2,
                       left: isSticky ? 0 : undefined,
                       padding: cellPadding,
+                      ...(cIdx === 0 ? { paddingLeft: '18px' } : {}),
+                      ...(cIdx === columns.length - 1 ? { paddingRight: '18px' } : {}),
                       fontWeight: 600,
                       color: 'var(--text-secondary)',
                       textTransform: 'uppercase',
@@ -242,7 +249,8 @@ export function DataTable<T>({
                       userSelect: 'none',
                       whiteSpace: 'nowrap',
                       width: col.width,
-                      minWidth: col.width,
+                      minWidth: col.minWidth || col.width,
+                      maxWidth: col.maxWidth,
                       textAlign: col.align || 'left',
                       background: 'var(--surface-hover)',
                       boxShadow: isSticky ? '2px 0 4px var(--border)' : undefined,
@@ -328,11 +336,14 @@ export function DataTable<T>({
                           className={isSticky ? 'table-sticky-col' : undefined}
                           style={{
                             padding: cellPadding,
+                      ...(cIdx === 0 ? { paddingLeft: '18px' } : {}),
+                      ...(cIdx === columns.length - 1 ? { paddingRight: '18px' } : {}),
                             color: 'var(--text)',
                             width: col.width,
-                            minWidth: col.width,
+                            minWidth: col.minWidth || col.width,
+                            maxWidth: col.maxWidth,
                             textAlign: col.align || 'left',
-                            whiteSpace: 'nowrap',
+                            whiteSpace: col.wrap ? 'normal' : 'nowrap',
                             position: isSticky ? 'sticky' : undefined,
                             left: isSticky ? 0 : undefined,
                             zIndex: isSticky ? 1 : undefined,
@@ -363,7 +374,7 @@ export function DataTable<T>({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: 'var(--space-3) var(--space-4)',
+            padding: '14px 24px',
             borderTop: '1px solid var(--border)',
             background: 'var(--surface-hover)',
             flexWrap: 'wrap',

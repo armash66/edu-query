@@ -99,9 +99,11 @@ describe('AbsentStudentsPage', () => {
     expect(screen.getByText('AB')).toBeInTheDocument()
     expect(screen.getByText('ABSENT')).toBeInTheDocument()
 
-    // Check distinct subject count badges
-    expect(screen.getByText('4 P')).toBeInTheDocument()
-    expect(screen.getByText('5 P')).toBeInTheDocument()
+    // Check KPI overview cards and results
+    expect(screen.getByText('Absent Students')).toBeInTheDocument()
+    expect(screen.getByText('Absence Incidents')).toBeInTheDocument()
+    expect(screen.getByText('FAIL')).toBeInTheDocument()
+    expect(screen.getByText('PASS')).toBeInTheDocument()
   })
 
   it('filters absent records by division, subject, and search query', async () => {

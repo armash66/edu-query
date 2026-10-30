@@ -368,6 +368,16 @@ body::after {
 /* -------------------------------------------------------------------------
    Interactive Elements & Touch Targets
    ------------------------------------------------------------------------- */
+
+/* Listbox combobox trigger focus resets to prevent jarring 4px double white rings */
+.listbox-trigger:focus,
+.listbox-trigger:focus-visible,
+button[role="combobox"]:focus,
+button[role="combobox"]:focus-visible {
+  outline: none !important;
+  box-shadow: 0 0 0 1px var(--border-strong) !important;
+}
+
 :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -387,14 +397,7 @@ body::after {
   --scrollbar-track: transparent;
 }
 
-html,
-body,
-*,
-.glass-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
-}
-
+/* WebKit / Chromium custom scrollbars (Chrome, Edge, Safari, Opera) */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -416,14 +419,43 @@ body,
   background-clip: padding-box;
 }
 
-::-webkit-scrollbar-button {
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-button:single-button,
+::-webkit-scrollbar-button:start,
+::-webkit-scrollbar-button:end,
+::-webkit-scrollbar-button:vertical:decrement,
+::-webkit-scrollbar-button:vertical:increment,
+::-webkit-scrollbar-button:horizontal:decrement,
+::-webkit-scrollbar-button:horizontal:increment {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
+  background: transparent !important;
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Slim scrollbars for dedicated glass scroll areas */
+.glass-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Universal standard CSS scrollbars (Chrome 121+, Firefox 64+, Edge 121+, Safari 18+) */
+html,
+body,
+*,
+*::before,
+*::after,
+.glass-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+html {
+  scrollbar-gutter: stable;
 }
 
 /* Command palette input resets to prevent browser focus-ring box-shadow rectangle */

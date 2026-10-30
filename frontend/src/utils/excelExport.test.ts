@@ -9,12 +9,23 @@ import {
   sanitizeSheetName,
   sanitizeCsvCell,
   generateCsv,
+  formatReason,
 } from './excelExport'
 import type { AbsentStudentItem, StudentSummaryItem, SubjectStudentItem } from '../api/types'
 
 describe('Shared Lightweight Excel Export Utility', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('formats classification reasons cleanly into Pass, Fail, or Absent', () => {
+    expect(formatReason('PASSING_LETTER_GRADE')).toBe('Pass')
+    expect(formatReason('PASSING_GRADE_WITH_ABSENT_COMPONENT')).toBe('Pass')
+    expect(formatReason('FAILING_LETTER_GRADE')).toBe('Fail')
+    expect(formatReason('EXPLICIT_FAIL_FLAG')).toBe('Fail')
+    expect(formatReason('ABSENT_IN_ASSESSMENT')).toBe('Absent')
+    expect(formatReason(null)).toBe('')
+    expect(formatReason(undefined)).toBe('')
   })
 
   it('sanitizes filename to always end in .csv and strip illegal characters', () => {

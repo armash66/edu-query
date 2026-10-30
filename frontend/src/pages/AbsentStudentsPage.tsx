@@ -1,7 +1,14 @@
-import { Listbox } from '../ui/Listbox'
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { UserX, Filter, Download, Printer, AlertTriangle, BookOpen, Users } from 'lucide-react'
+import {
+  UserX,
+  Download,
+  Printer,
+  AlertTriangle,
+  BookOpen,
+  Users,
+  ArrowUpRight,
+} from 'lucide-react'
 import {
   getAbsentStudents,
   getAbsentComponents,
@@ -16,16 +23,22 @@ import {
   type CourseItem,
   type PaginatedResponse,
 } from '../api/types'
-import { SearchBar } from '../components/SearchBar'
-import { Pagination } from '../components/Pagination'
-import { StatusBadge } from '../components/StatusBadge'
+import { GlassCard } from '../ui/GlassCard'
+import { Button } from '../ui/Button'
+import { SearchField } from '../ui/SearchField'
+import { Listbox } from '../ui/Listbox'
+import { DataTable, type Column } from '../ui/DataTable'
+import { StatusBadge } from '../ui/StatusBadge'
 import { LoadingState } from '../components/LoadingState'
-import { EmptyState } from '../components/EmptyState'
+import { EmptyState } from '../ui/EmptyState'
 import { ErrorBanner } from '../components/ErrorBanner'
+import { toTitleCase } from '../utils/text'
 
 export const AbsentStudentsPage: React.FC = () => {
   const [records, setRecords] = useState<AbsentStudentItem[]>([])
   const [total, setTotal] = useState<number>(0)
+  const [totalStudents, setTotalStudents] = useState<number>(0)
+  const [totalCourses, setTotalCourses] = useState<number>(0)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<ApiError | null>(null)
 
@@ -91,6 +104,8 @@ export const AbsentStudentsPage: React.FC = () => {
       const data: PaginatedResponse<AbsentStudentItem> = await getAbsentStudents(params, controller.signal)
       setRecords(data.items || [])
       setTotal(data.total || 0)
+      setTotalStudents(data.total_students ?? new Set((data.items || []).map((r) => r.student_id)).size)
+      setTotalCourses(data.total_courses ?? new Set((data.items || []).map((r) => r.course_code)).size)
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         return
@@ -114,23 +129,23 @@ export const AbsentStudentsPage: React.FC = () => {
     }
   }, [fetchAbsentList])
 
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query)
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value)
     setPage(1)
   }
 
-  const handleDivisionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setDivisionFilter(e.target.value)
+  const handleDivisionChange = (val: string) => {
+    setDivisionFilter(val)
     setPage(1)
   }
 
-  const handleCourseChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCourseFilter(e.target.value)
+  const handleCourseChange = (val: string) => {
+    setCourseFilter(val)
     setPage(1)
   }
 
-  const handleComponentChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setComponentFilter(e.target.value)
+  const handleComponentChange = (val: string) => {
+    setComponentFilter(val)
     setPage(1)
   }
 
@@ -142,130 +157,264 @@ export const AbsentStudentsPage: React.FC = () => {
     setPage(1)
   }
 
+  const hasActiveFilters = Boolean(
+    searchQuery.trim() || divisionFilter || courseFilter || componentFilter
+  )
+
   const handleExportExcel = async () => {
+    if (exporting || total === 0) return
     setExporting(true)
     try {
-      const isFiltered = Boolean(searchQuery.trim() || divisionFilter.trim() || courseFilter.trim() || componentFilter.trim())
-      // 1. Try server-side real .xlsx endpoint
+      const params: AbsentStudentsParams = {
+        query: searchQuery.trim() || undefined,
+        division: divisionFilter.trim() || undefined,
+        course_code: courseFilter.trim() || undefined,
+        component: componentFilter.trim() || undefined,
+      }
       try {
-        const blob = await downloadAbsentStudentsExcel({
-          query: searchQuery.trim() || undefined,
-          division: divisionFilter.trim() || undefined,
-          course_code: courseFilter.trim() || undefined,
-          component: componentFilter.trim() || undefined,
-        })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = isFiltered ? 'EduQuery_Absent_Students_Filtered.xlsx' : 'EduQuery_Absent_Students.xlsx'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-        return
-      } catch (serverErr) {
-        console.warn('Server-side absent xlsx export failed, falling back to client CSV export', serverErr)
+        await downloadAbsentStudentsExcel(params)
+      } catch (backendErr) {
+        console.warn('Server-side absent xlsx export failed, falling back to client CSV export', backendErr)
+        const fetchAll = await getAbsentStudents({ ...params, limit: 10000, offset: 0 })
+        const dataset = fetchAll.items || []
+        exportAbsentStudents(dataset, false)
       }
-
-      // 2. Client-side fallback to RFC 4180 CSV
-      let recordsToExport: AbsentStudentItem[] = []
-      if (records.length >= total && records.length > 0) {
-        recordsToExport = records
-      } else if (total <= 100) {
-        const fullList = await getAbsentStudents({
-          query: searchQuery.trim() || undefined,
-          division: divisionFilter.trim() || undefined,
-          course_code: courseFilter.trim() || undefined,
-          component: componentFilter.trim() || undefined,
-          limit: Math.min(Math.max(total, 1), 100),
-          offset: 0,
-        })
-        recordsToExport = fullList?.items && fullList.items.length > 0 ? fullList.items : records
-      } else {
-        const batchSize = 100
-        const pagesNeeded = Math.ceil(total / batchSize)
-        const fetchPromises = []
-        for (let i = 0; i < pagesNeeded; i++) {
-          fetchPromises.push(
-            getAbsentStudents({
-              query: searchQuery.trim() || undefined,
-              division: divisionFilter.trim() || undefined,
-              course_code: courseFilter.trim() || undefined,
-              component: componentFilter.trim() || undefined,
-              limit: batchSize,
-              offset: i * batchSize,
-            })
-          )
-        }
-        const pages = await Promise.all(fetchPromises)
-        const allItems = pages.flatMap((p) => p.items || [])
-        recordsToExport = allItems.length > 0 ? allItems : records
-      }
-      exportAbsentStudents(recordsToExport, isFiltered)
-    } catch {
-      alert('Failed to export absent students to Excel. Please try again.')
+    } catch (err) {
+      console.error('Failed to export absent student records to Excel:', err)
     } finally {
       setExporting(false)
     }
   }
 
   const handlePrintRoster = async () => {
+    if (printing || total === 0) return
     setPrinting(true)
     try {
-      if (records.length >= total && records.length > 0) {
-        setPrintRecords(records)
-      } else if (total <= 100) {
-        const fullList = await getAbsentStudents({
-          query: searchQuery.trim() || undefined,
-          division: divisionFilter.trim() || undefined,
-          course_code: courseFilter.trim() || undefined,
-          component: componentFilter.trim() || undefined,
-          limit: Math.min(Math.max(total, 1), 100),
-          offset: 0,
-        })
-        setPrintRecords(fullList?.items && fullList.items.length > 0 ? fullList.items : records)
-      } else {
-        const batchSize = 100
-        const pagesNeeded = Math.ceil(Math.min(total, 1000) / batchSize)
-        const fetchPromises = []
-        for (let i = 0; i < pagesNeeded; i++) {
-          fetchPromises.push(
-            getAbsentStudents({
-              query: searchQuery.trim() || undefined,
-              division: divisionFilter.trim() || undefined,
-              course_code: courseFilter.trim() || undefined,
-              component: componentFilter.trim() || undefined,
-              limit: batchSize,
-              offset: i * batchSize,
-            })
-          )
-        }
-        const pages = await Promise.all(fetchPromises)
-        const allItems = pages.flatMap((p) => p?.items || [])
-        setPrintRecords(allItems.length > 0 ? allItems : records)
+      const params: AbsentStudentsParams = {
+        query: searchQuery.trim() || undefined,
+        division: divisionFilter.trim() || undefined,
+        course_code: courseFilter.trim() || undefined,
+        component: componentFilter.trim() || undefined,
+        limit: 10000,
+        offset: 0,
       }
-    } catch {
-      setPrintRecords(records)
-    } finally {
+      const allRecords = await getAbsentStudents(params)
+      setPrintRecords(allRecords.items || [])
       setTimeout(() => {
         window.print()
         setPrinting(false)
-      }, 150)
+      }, 300)
+    } catch (err) {
+      console.error('Failed to load complete dataset for printing:', err)
+      window.print()
+      setPrinting(false)
     }
   }
 
-  const hasActiveFilters = Boolean(
-    searchQuery.trim() || divisionFilter.trim() || courseFilter.trim() || componentFilter.trim()
-  )
-
+  // Summary counts
+  const distinctStudents = totalStudents || new Set(records.map((r) => r.student_id)).size
+  const distinctCourses = totalCourses || new Set(records.map((r) => r.course_code)).size
   const recordsToPrint = printRecords && printRecords.length > 0 ? printRecords : records
 
-  // Compute summary stats from current visible page records
-  const uniqueStudentCount = new Set(records.map((r) => r.student_id)).size
-  const uniqueCourseCount = new Set(records.map((r) => r.course_code)).size
+  const columns: Column<AbsentStudentItem>[] = [
+    {
+      key: 'roll_no',
+      header: 'Seat / Roll',
+      width: '100px',
+      sticky: true,
+      render: (row) => (
+        <div>
+          <span className="font-mono" style={{ fontWeight: 700, color: 'var(--text)' }}>
+            {row.roll_no || row.seat_no || row.student_id}
+          </span>
+          {row.roll_no && row.seat_no && (
+            <div className="font-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Seat: {row.seat_no}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'name',
+      header: 'Student Name',
+      minWidth: '140px',
+      maxWidth: '220px',
+      wrap: true,
+      render: (row) => (
+        <Link
+          to={`/students/${encodeURIComponent(row.student_id)}`}
+          style={{
+            fontWeight: 600,
+            color: 'var(--text)',
+            textDecoration: 'none',
+            display: 'inline-block',
+            lineHeight: 1.3,
+          }}
+          className="hover-underline"
+          title={row.name}
+        >
+          {toTitleCase(row.name)}
+        </Link>
+      ),
+    },
+    {
+      key: 'division',
+      header: 'Div',
+      width: '50px',
+      align: 'center',
+      render: (row) => (
+        <span
+          className="font-mono"
+          style={{
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            padding: '2px 6px',
+            borderRadius: 'var(--radius-xs)',
+            background: 'var(--surface-hover)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          {row.division || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'course_code',
+      header: 'Subject',
+      minWidth: '130px',
+      maxWidth: '200px',
+      wrap: true,
+      render: (row) => (
+        <div>
+          <Link
+            to={`/subjects/${encodeURIComponent(row.course_code)}`}
+            style={{
+              fontWeight: 700,
+              color: 'var(--text)',
+              textDecoration: 'none',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--text-xs)',
+            }}
+            className="hover-underline"
+          >
+            {row.course_code}
+          </Link>
+          <div
+            style={{
+              fontSize: '11px',
+              color: 'var(--text-muted)',
+              lineHeight: 1.2,
+              marginTop: '1px',
+            }}
+            title={row.course_name}
+          >
+            {row.course_name}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'component',
+      header: 'Component',
+      width: '90px',
+      align: 'center',
+      render: (row) => (
+        <span
+          className="font-mono"
+          style={{
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            padding: '2px 6px',
+            borderRadius: 'var(--radius-xs)',
+            background: 'var(--surface-active)',
+            color: 'var(--text)',
+          }}
+        >
+          {row.component}
+        </span>
+      ),
+    },
+    {
+      key: 'raw_text',
+      header: 'Marker',
+      width: '75px',
+      align: 'center',
+      render: (row) => (
+        <span
+          className="font-mono"
+          style={{
+            fontSize: '11px',
+            fontWeight: 700,
+            padding: '2px 6px',
+            borderRadius: 'var(--radius-xs)',
+            background: 'var(--status-warning-bg)',
+            color: 'var(--status-warning-text)',
+            border: '1px solid var(--status-warning-border)',
+            letterSpacing: '0.04em',
+          }}
+        >
+          {row.raw_text || 'AB'}
+        </span>
+      ),
+    },
+    {
+      key: 'overall_result',
+      header: 'Result',
+      width: '100px',
+      align: 'center',
+      render: (row) => {
+        const outcome = (row.overall_result || '').toUpperCase()
+        const tone: 'pass' | 'fail' | 'warn' = outcome.includes('PASS')
+          ? 'pass'
+          : outcome.includes('FAIL')
+          ? 'fail'
+          : 'warn'
+        return <StatusBadge tone={tone} size="sm" label={outcome || 'UNRESOLVED'} />
+      },
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: '105px',
+      align: 'right',
+      render: (row) => (
+        <Link
+          to={`/students/${encodeURIComponent(row.student_id)}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            color: 'var(--text)',
+            textDecoration: 'none',
+            padding: '5px 10px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface-hover)',
+            border: '1px solid var(--border)',
+            transition: 'all var(--transition-fast)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span>View</span>
+          <ArrowUpRight size={12} />
+        </Link>
+      ),
+    },
+  ]
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%' }}>
+    <div
+      style={{
+        maxWidth: '1280px',
+        margin: '0 auto',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-6)',
+      }}
+    >
       <style>{`
         @media screen {
           .print-absent-view {
@@ -337,182 +486,278 @@ export const AbsentStudentsPage: React.FC = () => {
         }
       `}</style>
 
-      {/* Header & Controls Card */}
-      <div className="card" style={{ marginBottom: '1.25rem' }}>
-        <div className="card-body">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div>
-                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <UserX size={20} style={{ color: '#d97706' }} />
-                  Absent Students Audit
-                </h2>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Authoritative log of students with recorded absent markers (A, AB, ABS, ABSENT) in examination components.
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  {hasActiveFilters ? (
-                    <span>Filtered Incidents: <strong>{total.toLocaleString()}</strong></span>
-                  ) : (
-                    <span>Total Incidents: <strong>{total.toLocaleString()}</strong></span>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleExportExcel}
-                  disabled={exporting || total === 0}
-                  className="btn btn-secondary btn-sm"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                  title="Export filtered absent records to Excel (.xlsx)"
-                >
-                  <Download size={14} />
-                  <span>{exporting ? 'Exporting...' : 'Export to Excel (.xlsx)'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handlePrintRoster}
-                  disabled={printing || total === 0}
-                  className="btn btn-secondary btn-sm"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                  title="Print complete absent students roster"
-                >
-                  <Printer size={14} />
-                  <span>{printing ? 'Preparing Print...' : 'Print Roster'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Stat Highlights */}
-            {total > 0 && (
-              <div
-                className="stats-row"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                  gap: '0.75rem',
-                  padding: '0.75rem 1rem',
-                  backgroundColor: '#fffbeb',
-                  border: '1px solid #fef3c7',
-                  borderRadius: '6px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <AlertTriangle size={18} style={{ color: '#d97706' }} />
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: '#92400e', textTransform: 'uppercase', fontWeight: 600 }}>
-                      Absence Records
-                    </div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#78350f' }}>
-                      {total.toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Users size={18} style={{ color: '#d97706' }} />
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: '#92400e', textTransform: 'uppercase', fontWeight: 600 }}>
-                      Students on Page
-                    </div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#78350f' }}>
-                      {uniqueStudentCount}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <BookOpen size={18} style={{ color: '#d97706' }} />
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: '#92400e', textTransform: 'uppercase', fontWeight: 600 }}>
-                      Subjects on Page
-                    </div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#78350f' }}>
-                      {uniqueCourseCount}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Filter Bar */}
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <div style={{ flex: '1 1 240px' }}>
-                <SearchBar
-                  placeholder="Search by student name, roll no, seat no..."
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  loading={loading}
-                />
-              </div>
-
-              {/* Division Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '150px' }}>
-                <Filter size={15} style={{ color: 'var(--text-muted)' }} />
-                <Listbox
-                  options={[
-                    { value: '', label: 'All Divisions' },
-                    { value: 'A', label: 'Division A' },
-                    { value: 'B', label: 'Division B' },
-                    { value: 'C', label: 'Division C' },
-                    { value: 'D', label: 'Division D' },
-                  ]}
-                  value={divisionFilter}
-                  onChange={(val) => handleDivisionChange({ target: { value: val } } as any)}
-                  size="sm"
-                  ariaLabel="Filter by Division"
-                />
-              </div>
-
-              {/* Course Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '180px' }}>
-                <Listbox
-                  options={[
-                    { value: '', label: 'All Subjects' },
-                    ...availableCourses.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` }))
-                  ]}
-                  value={courseFilter}
-                  onChange={(val) => handleCourseChange({ target: { value: val } } as any)}
-                  size="sm"
-                  ariaLabel="Filter by Subject"
-                />
-              </div>
-
-              {/* Component Filter */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '160px' }}>
-                <Listbox
-                  options={[
-                    { value: '', label: 'All Components' },
-                    ...availableComponents.map((comp) => ({ value: comp, label: comp }))
-                  ]}
-                  value={componentFilter}
-                  onChange={(val) => handleComponentChange({ target: { value: val } } as any)}
-                  size="sm"
-                  ariaLabel="Filter by Component"
-                />
-              </div>
-
-              {hasActiveFilters && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={handleResetFilters}
-                  style={{ fontSize: '0.8rem' }}
-                >
-                  Reset Filters
-                </button>
-              )}
-            </div>
+      {/* Page Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 'var(--space-4)',
+        }}
+      >
+        <div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              fontSize: '11px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-muted)',
+              marginBottom: 'var(--space-1)',
+            }}
+          >
+            <UserX size={14} />
+            <span>ABSENTEEISM AUDIT</span>
           </div>
+          <h1
+            style={{
+              fontSize: 'var(--text-xl)',
+              fontWeight: 700,
+              color: 'var(--text)',
+              letterSpacing: '-0.02em',
+              margin: 0,
+            }}
+          >
+            Absent Students Audit
+          </h1>
+          <p
+            style={{
+              fontSize: 'var(--text-sm)',
+              color: 'var(--text-muted)',
+              margin: 'var(--space-1) 0 0 0',
+            }}
+          >
+            Authoritative log of students with recorded absent markers (A, AB, ABS, ABSENT) in examination components.
+          </p>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={exporting || total === 0}
+            loading={exporting}
+            icon={<Download size={14} />}
+            title="Export filtered absent records to Excel (.xlsx)"
+          >
+            Export to Excel (.xlsx)
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handlePrintRoster}
+            disabled={printing || total === 0}
+            loading={printing}
+            icon={<Printer size={14} />}
+            title="Print complete absent students roster"
+          >
+            Print Roster
+          </Button>
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* KPI Highlight Strip */}
+      {total > 0 && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 'var(--space-4)',
+          }}
+        >
+          <GlassCard elevation={1} padding="md">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              <AlertTriangle size={14} style={{ color: 'var(--status-warning-text)' }} />
+              <span>Absence Incidents</span>
+            </div>
+            <div
+              className="tabular-nums font-mono"
+              style={{
+                fontSize: '26px',
+                fontWeight: 700,
+                color: 'var(--text)',
+                marginTop: '4px',
+                lineHeight: 1.2,
+              }}
+            >
+              {total.toLocaleString()}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Total unattempted evaluations
+            </div>
+          </GlassCard>
+
+          <GlassCard elevation={1} padding="md">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              <Users size={14} style={{ color: 'var(--text-secondary)' }} />
+              <span>Absent Students</span>
+            </div>
+            <div
+              className="tabular-nums font-mono"
+              style={{
+                fontSize: '26px',
+                fontWeight: 700,
+                color: 'var(--text)',
+                marginTop: '4px',
+                lineHeight: 1.2,
+              }}
+            >
+              {distinctStudents}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Distinct students with absences
+            </div>
+          </GlassCard>
+
+          <GlassCard elevation={1} padding="md">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              <BookOpen size={14} style={{ color: 'var(--text-secondary)' }} />
+              <span>Affected Courses</span>
+            </div>
+            <div
+              className="tabular-nums font-mono"
+              style={{
+                fontSize: '26px',
+                fontWeight: 700,
+                color: 'var(--text)',
+                marginTop: '4px',
+                lineHeight: 1.2,
+              }}
+            >
+              {distinctCourses}
+            </div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+              Courses with absent evaluations
+            </div>
+          </GlassCard>
+        </div>
+      )}
+
+      {/* Filter Bar */}
+      <GlassCard elevation={1} padding="md">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 'var(--space-3)',
+          }}
+        >
+          <div style={{ flex: '1 1 280px', maxWidth: '380px' }}>
+            <SearchField
+              placeholder="Search by student name, roll no, seat no..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              aria-label="Search absent students"
+            />
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              flexWrap: 'wrap',
+            }}
+          >
+            {/* Division Filter */}
+            <div style={{ minWidth: '140px' }}>
+              <Listbox
+                options={[
+                  { value: '', label: 'All Divisions' },
+                  { value: 'A', label: 'Division A' },
+                  { value: 'B', label: 'Division B' },
+                ]}
+                value={divisionFilter}
+                onChange={handleDivisionChange}
+                size="sm"
+                ariaLabel="Filter by Division"
+              />
+            </div>
+
+            {/* Course Filter */}
+            <div style={{ minWidth: '180px' }}>
+              <Listbox
+                options={[
+                  { value: '', label: 'All Subjects' },
+                  ...availableCourses.map((c) => ({ value: c.code, label: `${c.code} — ${c.name}` })),
+                ]}
+                value={courseFilter}
+                onChange={handleCourseChange}
+                size="sm"
+                ariaLabel="Filter by Subject"
+              />
+            </div>
+
+            {/* Component Filter */}
+            <div style={{ minWidth: '160px' }}>
+              <Listbox
+                options={[
+                  { value: '', label: 'All Components' },
+                  ...availableComponents.map((comp) => ({ value: comp, label: comp })),
+                ]}
+                value={componentFilter}
+                onChange={handleComponentChange}
+                size="sm"
+                ariaLabel="Filter by Component"
+              />
+            </div>
+
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleResetFilters}
+              >
+                Reset Filters
+              </Button>
+            )}
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Error Banner */}
       {error && (
         <ErrorBanner
           error={error}
@@ -521,233 +766,82 @@ export const AbsentStudentsPage: React.FC = () => {
         />
       )}
 
+      {/* Main Table / Empty / Loading */}
       {loading && !records.length ? (
         <LoadingState message="Fetching absent records from database..." />
       ) : !loading && !records.length ? (
         <EmptyState
-          icon={<UserX size={44} style={{ color: '#d97706' }} />}
           title="No Absent Students Found"
-          message={
+          description={
             hasActiveFilters
               ? 'No absent records matched your specified filters. Try clearing your search or selecting different options.'
               : 'No student absence records (A, AB, ABS, ABSENT) were detected in the active marksheet dataset.'
           }
           action={
             hasActiveFilters ? (
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={handleResetFilters}
-              >
+              <Button variant="secondary" size="sm" onClick={handleResetFilters}>
                 Reset All Filters
-              </button>
+              </Button>
             ) : undefined
           }
         />
       ) : (
-        <div className="card">
-          <div className="table-responsive">
-            <table className="table" style={{ width: '100%', tableLayout: 'fixed' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: '14%' }}>Roll / Seat No</th>
-                  <th style={{ width: '18%' }}>Student Name</th>
-                  <th style={{ width: '6%' }}>Div</th>
-                  <th style={{ width: '22%' }}>Subject</th>
-                  <th style={{ width: '9%' }}>Component</th>
-                  <th style={{ width: '8%', textAlign: 'center' }}>Marker</th>
-                  <th style={{ width: '13%' }}>Subjects (P / F / AB)</th>
-                  <th style={{ width: '10%' }}>Overall Result</th>
-                  <th style={{ width: '0%', display: 'none' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((item, idx) => {
-                  const identifier = item.student_id
-                  const outcome = (item.overall_result || '').toUpperCase()
-                  const statusType =
-                    outcome.includes('PASS')
-                      ? 'passed'
-                      : outcome.includes('FAIL')
-                      ? 'failed'
-                      : 'unresolved'
-
-                  return (
-                    <tr key={`${item.student_id}-${item.course_code}-${item.component}-${idx}`}>
-                      <td style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.roll_no || item.seat_no || item.student_id}
-                        {item.roll_no && item.seat_no && (
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                            Seat: {item.seat_no}
-                          </div>
-                        )}
-                      </td>
-                      <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <Link
-                          to={`/students/${encodeURIComponent(identifier)}`}
-                          style={{ color: 'var(--text-main)', fontWeight: 600, textDecoration: 'none' }}
-                          className="hover-underline"
-                          title={item.name}
-                        >
-                          {item.name}
-                        </Link>
-                      </td>
-                      <td>{item.division || '—'}</td>
-                      <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <Link
-                          to={`/subjects/${encodeURIComponent(item.course_code)}`}
-                          style={{ textDecoration: 'none', color: 'var(--primary)', fontWeight: 600 }}
-                          className="hover-underline"
-                          title={`${item.course_code} - ${item.course_name}`}
-                        >
-                          {item.course_code}
-                        </Link>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.course_name}
-                        </div>
-                      </td>
-                      <td>
-                        <span
-                          className="badge badge-neutral"
-                          style={{ fontSize: '0.75rem', fontWeight: 600 }}
-                        >
-                          {item.component}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <span
-                          className="badge badge-warning"
-                          style={{
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            backgroundColor: '#fef3c7',
-                            color: '#92400e',
-                          }}
-                        >
-                          {item.raw_text || 'AB'}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', flexWrap: 'wrap' }}>
-                          <span
-                            className="badge badge-success"
-                            style={{ fontSize: '0.72rem', padding: '0.15rem 0.4rem', fontWeight: 600 }}
-                            title="Passed Distinct Subjects"
-                          >
-                            {item.passed_subject_count ?? 0} P
-                          </span>
-                          <span
-                            className="badge badge-danger"
-                            style={{ fontSize: '0.72rem', padding: '0.15rem 0.4rem', fontWeight: 600 }}
-                            title="Failed Distinct Subjects"
-                          >
-                            {item.failed_subject_count ?? 0} F
-                          </span>
-                          <span
-                            className="badge badge-warning"
-                            style={{
-                              fontSize: '0.72rem',
-                              padding: '0.15rem 0.4rem',
-                              backgroundColor: '#fef3c7',
-                              color: '#92400e',
-                              fontWeight: 600,
-                            }}
-                            title="Distinct Subjects with Absent Marks"
-                          >
-                            {item.absent_subject_count ?? 0} AB
-                          </span>
-                        </div>
-                      </td>
-                      <td>
-                        <StatusBadge status={statusType} text={item.overall_result || 'UNRESOLVED'} />
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Showing {records.length > 0 ? (page - 1) * pageSize + 1 : 0} to{' '}
-              {Math.min(page * pageSize, total)} of {total.toLocaleString()} records
-            </div>
-            <Pagination
-              currentPage={page}
-              totalItems={total}
-              pageSize={pageSize}
-              onPageChange={(p) => setPage(p)}
-            />
-          </div>
-        </div>
+        <DataTable<AbsentStudentItem>
+          columns={columns}
+          data={records}
+          keyExtractor={(item, idx) => `${item.student_id}-${item.course_code}-${item.component}-${idx}`}
+          isLoading={loading}
+          showDensityToggle={true}
+          defaultDensity="comfortable"
+          showPagination={true}
+          serverTotal={total}
+          currentPage={page}
+          onPageChange={setPage}
+          pageSize={pageSize}
+        />
       )}
 
-      {/* Print-Only Roster Section */}
-      {printing && recordsToPrint && recordsToPrint.length > 0 && (
-        <div className="print-absent-view">
-          <div style={{ marginBottom: '1.25rem', borderBottom: '2px solid #0f172a', paddingBottom: '0.5rem' }}>
-            <h1 style={{ fontSize: '16pt', fontWeight: 'bold', margin: '0 0 0.25rem 0', color: '#0f172a' }}>
-              EduQuery — Absent Students Audit Roster
-            </h1>
-            <div style={{ fontSize: '9pt', color: '#475569' }}>
-              Generated: {new Date().toLocaleDateString()} &bull; Total Matching Records: {total}
-              {hasActiveFilters && (
-                <div style={{ marginTop: '0.2rem' }}>
-                  Active Filters:
-                  {searchQuery && ` Query: "${searchQuery}"`}
-                  {divisionFilter && ` | Division: ${divisionFilter}`}
-                  {courseFilter && ` | Course: ${courseFilter}`}
-                  {componentFilter && ` | Component: ${componentFilter}`}
-                </div>
-              )}
-            </div>
+      {/* Hidden Print Container for Clean Roster Printing */}
+      {printRecords && printRecords.length > 0 && (
+      <div className="print-absent-view">
+        <div style={{ marginBottom: '14px', borderBottom: '2px solid #0f172a', paddingBottom: '8px' }}>
+          <h1 style={{ margin: 0, fontSize: '16pt', fontWeight: 800 }}>EduQuery &mdash; Absent Students Audit Roster</h1>
+          <div style={{ fontSize: '9pt', color: '#475569', marginTop: '4px' }}>
+            Generated on {new Date().toLocaleDateString()} | Total Incidents: {recordsToPrint.length}
           </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '8.5pt' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f1f5f9', textAlign: 'left' }}>
-                <th style={{ padding: '5px 6px', width: '10%' }}>Roll No</th>
-                <th style={{ padding: '5px 6px', width: '9%' }}>Seat No</th>
-                <th style={{ padding: '5px 6px', width: '20%' }}>Student Name</th>
-                <th style={{ padding: '5px 6px', width: '5%', textAlign: 'center' }}>Div</th>
-                <th style={{ padding: '5px 6px', width: '20%' }}>Subject</th>
-                <th style={{ padding: '5px 6px', width: '8%' }}>Component</th>
-                <th style={{ padding: '5px 6px', width: '6%', textAlign: 'center' }}>Marker</th>
-                <th style={{ padding: '5px 6px', width: '6%', textAlign: 'center' }}>Passed</th>
-                <th style={{ padding: '5px 6px', width: '6%', textAlign: 'center' }}>Failed</th>
-                <th style={{ padding: '5px 6px', width: '6%', textAlign: 'center' }}>Absent</th>
-                <th style={{ padding: '5px 6px', width: '10%' }}>Outcome</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recordsToPrint.map((r, i) => (
-                <tr key={`print-${r.student_id}-${r.course_code}-${r.component}-${i}`}>
-                  <td style={{ padding: '4px 6px', fontWeight: 600, whiteSpace: 'nowrap' }}>{r.roll_no || '—'}</td>
-                  <td style={{ padding: '4px 6px', whiteSpace: 'nowrap' }}>{r.seat_no || '—'}</td>
-                  <td style={{ padding: '4px 6px' }}>{r.name}</td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center' }}>{r.division || '—'}</td>
-                  <td style={{ padding: '4px 6px' }}>{r.course_code} - {r.course_name}</td>
-                  <td style={{ padding: '4px 6px' }}>{r.component}</td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 700, color: '#92400e' }}>
-                    {r.raw_text || 'AB'}
-                  </td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: '#065f46' }}>
-                    {r.passed_subject_count ?? 0}
-                  </td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: (r.failed_subject_count ?? 0) > 0 ? '#991b1b' : '#64748b' }}>
-                    {r.failed_subject_count ?? 0}
-                  </td>
-                  <td style={{ padding: '4px 6px', textAlign: 'center', fontWeight: 600, color: (r.absent_subject_count ?? 0) > 0 ? '#92400e' : '#64748b' }}>
-                    {r.absent_subject_count ?? 0}
-                  </td>
-                  <td style={{ padding: '4px 6px', fontWeight: 600 }}>{r.overall_result || 'UNRESOLVED'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
+        <table>
+          <thead>
+            <tr>
+              <th style={{ width: '12%' }}>Roll No</th>
+              <th style={{ width: '12%' }}>Seat No</th>
+              <th style={{ width: '22%' }}>Student Name</th>
+              <th style={{ width: '6%' }}>Div</th>
+              <th style={{ width: '12%' }}>Course Code</th>
+              <th style={{ width: '20%' }}>Course Title</th>
+              <th style={{ width: '8%' }}>Comp</th>
+              <th style={{ width: '8%' }}>Marker</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recordsToPrint.map((item, idx) => (
+              <tr key={`print-${item.student_id}-${item.course_code}-${item.component}-${idx}`}>
+                <td style={{ fontWeight: 600 }}>{item.roll_no || '—'}</td>
+                <td>{item.seat_no || '—'}</td>
+                <td style={{ fontWeight: 600 }}>{item.name}</td>
+                <td style={{ textAlign: 'center' }}>{item.division || '—'}</td>
+                <td style={{ fontWeight: 600 }}>{item.course_code}</td>
+                <td>{item.course_name}</td>
+                <td>{item.component}</td>
+                <td style={{ textAlign: 'center', fontWeight: 700 }}>{item.raw_text || 'AB'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       )}
     </div>
   )
 }
+
+export default AbsentStudentsPage

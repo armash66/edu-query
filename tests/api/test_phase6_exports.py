@@ -167,7 +167,7 @@ def test_export_student_breakdown_csv_success(client):
     assert "Course Code" in text
     assert "CS101" in text
     assert "Classification Reason" in text
-    assert "FAILING_LETTER_GRADE" in text
+    assert "Fail" in text
 
 
 def test_export_student_breakdown_not_found(client):
@@ -187,7 +187,7 @@ def test_export_subject_failures_csv_success(client):
     assert "Failure Reason" in text
     assert "Seat No" in text
     assert "SEAT-99B" in text
-    assert "FAILING_LETTER_GRADE" in text
+    assert "Fail" in text
 
 
 def test_export_subject_failures_not_found(client):

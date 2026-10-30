@@ -23,6 +23,8 @@ class PaginatedResponse(BaseModel, Generic[T]):
     limit: int = Field(ge=1, description="Page limit applied")
     offset: int = Field(ge=0, description="Page offset applied")
     items: list[T] = Field(default_factory=list, description="Array of items on current page")
+    total_students: int | None = Field(default=None, description="Optional total distinct students count matching filter criteria")
+    total_courses: int | None = Field(default=None, description="Optional total distinct courses count matching filter criteria")
 
 
 class ErrorResponse(BaseModel):

@@ -1,16 +1,11 @@
-import { Listbox } from '../ui/Listbox'
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import {
-  Search,
+  Compass,
   Download,
   X,
-  ArrowRight,
-  ChevronLeft,
-  ChevronRight,
+  ArrowUpRight,
   Plus,
-  Filter,
-  ArrowUpDown,
   RotateCcw,
   SlidersHorizontal,
   Check,
@@ -32,10 +27,18 @@ import type {
   InvestigationOperator,
   InvestigationQueryRequest,
   InvestigationQueryResponse,
+  StudentSummaryItem,
 } from '../api/types'
-import { StatusBadge } from '../components/StatusBadge'
-import { ErrorBanner } from '../components/ErrorBanner'
+import { GlassCard } from '../ui/GlassCard'
+import { Button } from '../ui/Button'
+import { SearchField } from '../ui/SearchField'
+import { Listbox } from '../ui/Listbox'
+import { DataTable, type Column } from '../ui/DataTable'
+import { StatusBadge } from '../ui/StatusBadge'
 import { LoadingState } from '../components/LoadingState'
+import { EmptyState } from '../ui/EmptyState'
+import { ErrorBanner } from '../components/ErrorBanner'
+import { toTitleCase } from '../utils/text'
 
 const OPERATOR_LABELS: Record<InvestigationOperator, string> = {
   eq: 'is',
@@ -75,6 +78,18 @@ export const ExplorePage: React.FC = () => {
   // Sorting and Pagination
   const [sortBy, setSortBy] = useState<any>(searchParams.get('sort_by') || 'division')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>((searchParams.get('sort_dir') as any) || 'asc')
+
+  const handleSort = (colKey: string) => {
+    if (sortBy === colKey) {
+      const nextDir = sortDir === 'asc' ? 'desc' : 'asc'
+      setSortDir(nextDir)
+      updateUrl(searchInput, logic, conditions, offset, colKey, nextDir)
+    } else {
+      setSortBy(colKey)
+      setSortDir('asc')
+      updateUrl(searchInput, logic, conditions, offset, colKey, 'asc')
+    }
+  }
   const offsetParam = parseInt(searchParams.get('offset') || '0', 10)
   const [offset, setOffset] = useState<number>(isNaN(offsetParam) ? 0 : offsetParam)
   const limit = 25
@@ -99,69 +114,48 @@ export const ExplorePage: React.FC = () => {
       if (capsRes) setCapabilities(capsRes)
       if (subjRes) setCourses(subjRes.items)
     })
-
     return () => {
       active = false
     }
   }, [])
 
-  // 2. Parse initial conditions from URL search parameters
+  // 2. Parse initial URL searchParams into state conditions
   useEffect(() => {
-    const initialConditions: InvestigationCondition[] = []
+    const nextConditions: InvestigationCondition[] = []
 
-    const divParam = searchParams.get('division')
-    if (divParam) {
-      initialConditions.push({ field: 'division', operator: 'eq', value: divParam })
+    const div = searchParams.get('division')
+    if (div) nextConditions.push({ field: 'division', operator: 'eq', value: div })
+
+    const res = searchParams.get('result')
+    if (res) nextConditions.push({ field: 'result', operator: 'eq', value: res.toUpperCase() })
+
+    const course = searchParams.get('course')
+    if (course) nextConditions.push({ field: 'course_code', operator: 'eq', value: course })
+
+    const multiFails = searchParams.get('multi_fails')
+    if (multiFails === 'true') nextConditions.push({ field: 'multi_fails', operator: 'eq', value: true })
+
+    const hasAbsent = searchParams.get('has_absent')
+    if (hasAbsent === 'true') nextConditions.push({ field: 'has_absent', operator: 'eq', value: true })
+
+    const minAbsent = searchParams.get('min_absent')
+    if (minAbsent) {
+      const parsed = parseInt(minAbsent, 10)
+      if (!isNaN(parsed)) {
+        nextConditions.push({ field: 'absent_subject_count', operator: 'gte', value: parsed })
+      }
     }
 
-    const resParam = searchParams.get('result') || searchParams.get('outcome')
-    if (resParam) {
-      initialConditions.push({ field: 'result', operator: 'eq', value: resParam })
+    if (nextConditions.length > 0) {
+      setConditions(nextConditions)
     }
+  }, [searchParams])
 
-    const courseParam = searchParams.get('course') || searchParams.get('course_code')
-    if (courseParam) {
-      initialConditions.push({ field: 'course_code', operator: 'eq', value: courseParam })
-    }
-
-    const multiParam = searchParams.get('multi_fails')
-    if (multiParam === 'true') {
-      initialConditions.push({ field: 'multi_fails', operator: 'eq', value: true })
-    }
-
-    const minFailsParam = searchParams.get('min_fails')
-    if (minFailsParam) {
-      initialConditions.push({ field: 'failed_subject_count', operator: 'gte', value: parseInt(minFailsParam, 10) })
-    }
-
-    const minMarksParam = searchParams.get('min_marks')
-    if (minMarksParam) {
-      initialConditions.push({ field: 'total_marks', operator: 'gte', value: parseFloat(minMarksParam) })
-    }
-
-    const hasAbsentParam = searchParams.get('has_absent')
-    if (hasAbsentParam === 'true') {
-      initialConditions.push({ field: 'has_absent', operator: 'eq', value: true })
-    } else if (hasAbsentParam === 'false') {
-      initialConditions.push({ field: 'has_absent', operator: 'eq', value: false })
-    }
-
-    const minAbsentParam = searchParams.get('min_absent')
-    if (minAbsentParam) {
-      initialConditions.push({ field: 'absent_subject_count', operator: 'gte', value: parseInt(minAbsentParam, 10) })
-    }
-
-    if (initialConditions.length > 0) {
-      setConditions(initialConditions)
-    }
-  }, []) // Run once on mount
-
-  // 3. Fetch Investigation query with request cancellation
+  // 3. Execution of investigation query against backend API
   const fetchInvestigationResults = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort()
     }
-
     const controller = new AbortController()
     abortControllerRef.current = controller
 
@@ -169,14 +163,11 @@ export const ExplorePage: React.FC = () => {
     setError(null)
 
     const requestPayload: InvestigationQueryRequest = {
-      group:
-        conditions.length > 0
-          ? {
-              logic,
-              conditions: conditions.filter((c) => c.value !== '' && c.value !== null && c.value !== undefined),
-            }
-          : null,
-      search: searchInput.trim() || null,
+      search: searchInput.trim() || undefined,
+      group: {
+        logic,
+        conditions,
+      },
       sort_by: sortBy,
       sort_dir: sortDir,
       limit,
@@ -348,70 +339,45 @@ export const ExplorePage: React.FC = () => {
 
   // Quick preset filter buttons
   const applyQuickPreset = (field: InvestigationField, operator: InvestigationOperator, value: any) => {
-    const exists = conditions.some((c) => c.field === field && c.operator === operator && c.value === value)
-    let next: InvestigationCondition[]
-    if (exists) {
-      next = conditions.filter((c) => !(c.field === field && c.operator === operator && c.value === value))
-    } else {
-      next = [...conditions.filter((c) => c.field !== field), { field, operator, value }]
-    }
+    const next = [{ field, operator, value }]
     setConditions(next)
     setOffset(0)
     updateUrl(searchInput, logic, next, 0, sortBy, sortDir)
   }
 
-  // Sorting handler
-  const handleSort = (column: string) => {
-    if (sortBy === column) {
-      const nextDir = sortDir === 'asc' ? 'desc' : 'asc'
-      setSortDir(nextDir)
-      updateUrl(searchInput, logic, conditions, offset, column, nextDir)
-    } else {
-      setSortBy(column)
-      setSortDir('asc')
-      updateUrl(searchInput, logic, conditions, offset, column, 'asc')
-    }
-  }
-
-  // Excel Export action (.xlsx)
+  // Export
   const handleExportExcel = async () => {
+    if (exporting || !data || data.total === 0) return
     setExporting(true)
     try {
-      const blob = await downloadInvestigationExcel({
-        group:
-          conditions.length > 0
-            ? {
-                logic,
-                conditions: conditions.filter((c) => c.value !== '' && c.value !== null && c.value !== undefined),
-              }
-            : null,
-        search: searchInput.trim() || null,
+      const payload: InvestigationQueryRequest = {
+        search: searchInput.trim() || undefined,
+        group: { logic, conditions },
         sort_by: sortBy,
         sort_dir: sortDir,
-      })
-      saveBlobAsFile(blob, 'EduQuery_Academic_Investigation.xlsx')
-    } catch {
-      alert('Failed to generate Excel export. Please try again.')
+      }
+      const blob = await downloadInvestigationExcel(payload)
+      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+      saveBlobAsFile(blob, `EduQuery_Investigation_Export_${timestamp}.xlsx`)
+    } catch (err) {
+      console.error('Failed to export investigation query to Excel:', err)
     } finally {
       setExporting(false)
     }
   }
 
+  const hasActiveFilters = conditions.length > 0 || Boolean(searchInput.trim())
   const total = data?.total ?? 0
-  const cohortTotal = data?.cohort_total ?? 0
-  const totalPages = Math.ceil(total / limit)
-  const currentPage = Math.floor(offset / limit) + 1
-  const hasActiveFilters = Boolean(searchInput.trim() || conditions.length > 0)
+  const cohortTotal = data?.cohort_total ?? 145
 
-  // Map field metadata for dropdowns
+  // List of capabilities fields
   const availableFields = capabilities?.fields ?? [
-    { field: 'division', label: 'Division', data_type: 'choice', supported_operators: ['eq', 'neq'] },
-    { field: 'result', label: 'Outcome', data_type: 'choice', supported_operators: ['eq', 'neq'] },
-    { field: 'course_code', label: 'Subject', data_type: 'choice', supported_operators: ['eq', 'neq'] },
+    { field: 'division', label: 'Division', data_type: 'choice', supported_operators: ['eq', 'neq'], choices: ['A', 'B'] },
+    { field: 'result', label: 'Outcome', data_type: 'choice', supported_operators: ['eq', 'neq'], choices: ['PASSES', 'FAILS'] },
+    { field: 'course_code', label: 'Subject', data_type: 'choice', supported_operators: ['eq', 'neq'], choices: [] },
     { field: 'multi_fails', label: 'Failing 2+ Subjects', data_type: 'boolean', supported_operators: ['eq'] },
-    { field: 'has_absent', label: 'Has Absent Marks', data_type: 'boolean', supported_operators: ['eq'] },
-    { field: 'absent_subject_count', label: 'Absent Subject Count', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
-    { field: 'absent_course_code', label: 'Absent in Subject', data_type: 'choice', supported_operators: ['eq', 'neq', 'in'] },
+    { field: 'has_absent', label: 'Has Any Absence', data_type: 'boolean', supported_operators: ['eq'] },
+    { field: 'absent_course_code', label: 'Absent in Subject', data_type: 'choice', supported_operators: ['eq', 'neq'] },
     { field: 'absent_component', label: 'Absent in Component', data_type: 'choice', supported_operators: ['eq', 'neq', 'in'] },
     { field: 'failed_subject_count', label: 'Failed Subject Count', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
     { field: 'total_marks', label: 'Total Marks', data_type: 'number', supported_operators: ['gte', 'lte', 'eq'] },
@@ -420,111 +386,333 @@ export const ExplorePage: React.FC = () => {
 
   const selectedFieldCap = availableFields.find((f) => f.field === newFilterField)
 
-  return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-      {/* 1. Header & Quick Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+  const columns: Column<StudentSummaryItem>[] = [
+    {
+      key: 'seat_no',
+      header: 'Seat / Roll',
+      width: '95px',
+      sticky: true,
+      sortable: true,
+      render: (st) => (
+        <div className="font-mono">
+          <div style={{ fontWeight: 700, color: 'var(--text)' }}>
+            {st.seat_no || st.roll_no || st.student_id}
+          </div>
+          {st.roll_no && st.seat_no && (
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Roll: {st.roll_no}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'name',
+      header: 'Student Name',
+      minWidth: '140px',
+      maxWidth: '220px',
+      wrap: true,
+      sortable: true,
+      render: (st) => (
         <div>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
-            Interactive Academic Investigation Engine
-          </h2>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            Build multi-condition queries across student performance, failure patterns, and score thresholds
+          <Link
+            to={`/students/${encodeURIComponent(st.student_id)}`}
+            style={{ fontWeight: 600, color: 'var(--text)', textDecoration: 'none', lineHeight: 1.3 }}
+            className="hover-underline"
+          >
+            {toTitleCase(st.name)}
+          </Link>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            {st.student_id}
           </div>
         </div>
+      ),
+    },
+    {
+      key: 'division',
+      header: 'Div',
+      width: '50px',
+      align: 'center',
+      sortable: true,
+      render: (st) => (
+        <span
+          className="font-mono"
+          style={{
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            padding: '2px 6px',
+            borderRadius: 'var(--radius-xs)',
+            background: 'var(--surface-hover)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          {st.division ? `Div ${st.division}` : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'passed_count',
+      header: 'Passed',
+      width: '60px',
+      align: 'right',
+      render: (st) => (
+        <span className="font-mono tabular-nums" style={{ fontWeight: 600, color: 'var(--text)' }}>
+          {st.passed_subject_count ?? 0}
+        </span>
+      ),
+    },
+    {
+      key: 'failed_count',
+      header: 'Failed',
+      width: '60px',
+      align: 'right',
+      render: (st) => {
+        const fails = st.failed_subject_count ?? 0
+        return (
+          <span
+            className="font-mono tabular-nums"
+            style={{
+              fontWeight: 600,
+              color: fails > 0 ? 'var(--status-danger-text)' : 'var(--text-muted)',
+            }}
+          >
+            {fails}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'absent_count',
+      header: 'Absent',
+      width: '60px',
+      align: 'right',
+      render: (st) => {
+        const abs = st.absent_subject_count ?? 0
+        return (
+          <span
+            className="font-mono tabular-nums"
+            style={{
+              fontWeight: 600,
+              color: abs > 0 ? 'var(--status-warning-text)' : 'var(--text-muted)',
+            }}
+          >
+            {abs}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'total_marks',
+      header: 'Total',
+      width: '70px',
+      sortable: true,
+      align: 'right',
+      render: (st) => (
+        <span className="font-mono tabular-nums">
+          {st.total_marks !== null && st.total_marks !== undefined ? st.total_marks : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'sgpi',
+      header: 'SGPI',
+      width: '65px',
+      sortable: true,
+      align: 'right',
+      render: (st) => (
+        <span className="font-mono tabular-nums" style={{ fontWeight: 600 }}>
+          {st.sgpi !== null && st.sgpi !== undefined ? Number(st.sgpi).toFixed(2) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'result',
+      header: 'Result',
+      width: '85px',
+      sortable: true,
+      align: 'center',
+      render: (st) => {
+        const resUpper = (st.overall_result || '').toUpperCase()
+        const tone: 'pass' | 'fail' | 'warn' = resUpper.includes('PASS')
+          ? 'pass'
+          : resUpper.includes('FAIL')
+          ? 'fail'
+          : 'warn'
+        return <StatusBadge tone={tone} size="sm" label={resUpper || 'Pending'} />
+      },
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: '100px',
+      align: 'right',
+      render: (st) => (
+        <Link
+          to={`/students/${encodeURIComponent(st.student_id)}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            color: 'var(--text)',
+            textDecoration: 'none',
+            padding: '5px 10px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface-hover)',
+            border: '1px solid var(--border)',
+            transition: 'all var(--transition-fast)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <span>View</span>
+          <ArrowUpRight size={12} />
+        </Link>
+      ),
+    },
+  ]
+  return (
+    <div
+      style={{
+        maxWidth: '1280px',
+        margin: '0 auto',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 'var(--space-6)',
+      }}
+    >
+      {/* 1. Header & Actions */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 'var(--space-4)',
+        }}
+      >
+        <div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              fontSize: '11px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              color: 'var(--text-muted)',
+              marginBottom: 'var(--space-1)',
+            }}
+          >
+            <Compass size={14} />
+            <span>ACADEMIC INVESTIGATION ENGINE</span>
+          </div>
+          <h1
+            style={{
+              fontSize: 'var(--text-xl)',
+              fontWeight: 700,
+              color: 'var(--text)',
+              letterSpacing: '-0.02em',
+              margin: 0,
+            }}
+          >
+            Interactive Academic Investigation Engine
+          </h1>
+          <p
+            style={{
+              fontSize: 'var(--text-sm)',
+              color: 'var(--text-muted)',
+              margin: 'var(--space-1) 0 0 0',
+            }}
+          >
+            Build multi-condition queries across student performance, failure patterns, and score thresholds
+          </p>
+        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          {/* Level 2 Toggle: Add Filter */}
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handleOpenAddFilter}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+            icon={<Plus size={14} />}
           >
-            <Plus size={14} />
-            <span>Add Filter</span>
-          </button>
+            Add Filter
+          </Button>
 
-          {/* Level 3 Toggle: Filter Builder */}
-          <button
-            type="button"
-            className={`btn btn-sm ${builderOpen ? 'btn-primary' : 'btn-secondary'}`}
+          <Button
+            variant={builderOpen ? 'primary' : 'secondary'}
+            size="sm"
             onClick={() => setBuilderOpen(!builderOpen)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+            icon={<SlidersHorizontal size={14} />}
           >
-            <Filter size={14} />
             <span>{builderOpen ? 'Hide Builder' : 'Filter Builder'}</span>
             {conditions.length > 0 && (
               <span
                 style={{
-                  backgroundColor: builderOpen ? 'rgba(255,255,255,0.25)' : 'var(--primary)',
-                  color: '#ffffff',
-                  padding: '0.1rem 0.35rem',
+                  marginLeft: '4px',
+                  background: 'var(--surface-active)',
+                  padding: '1px 6px',
                   borderRadius: '10px',
-                  fontSize: '0.68rem',
+                  fontSize: '11px',
                   fontWeight: 700,
                 }}
               >
                 {conditions.length}
               </span>
             )}
-          </button>
+          </Button>
 
           {hasActiveFilters && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={handleClearAll}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+              icon={<RotateCcw size={13} />}
             >
-              <RotateCcw size={13} /> Clear
-            </button>
+              Clear
+            </Button>
           )}
 
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleExportExcel}
             disabled={exporting || total === 0}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+            loading={exporting}
+            icon={<Download size={14} />}
           >
-            <Download size={14} />
-            <span>{exporting ? 'Exporting...' : 'Export to Excel (.xlsx)'}</span>
-          </button>
+            Export to Excel (.xlsx)
+          </Button>
         </div>
       </div>
 
       {/* Level 2: Compact Add Filter Condition Editor Popover / Card */}
       {addFilterOpen && (
-        <div
-          className="card"
-          style={{
-            padding: '1rem 1.25rem',
-            backgroundColor: 'var(--surface-hover)',
-            border: '1px solid var(--border)',
-            boxShadow: 'var(--shadow-sm)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <GlassCard elevation={2} padding="md">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <SlidersHorizontal size={16} style={{ color: 'var(--text)' }} />
-              <strong style={{ fontSize: '0.85rem', color: 'var(--text)' }}>Add Investigation Filter Condition</strong>
+              <strong style={{ fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
+                Add Investigation Filter Condition
+              </strong>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setAddFilterOpen(false)}
-              className="btn btn-secondary btn-sm"
-              style={{ padding: '0.2rem 0.4rem', height: '26px' }}
               title="Close editor"
             >
-              <X size={13} />
-            </button>
+              <X size={14} />
+            </Button>
           </div>
 
-          <form onSubmit={handleApplySingleFilter} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+          <form onSubmit={handleApplySingleFilter} style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
             {/* Field */}
             <div style={{ flex: '1 1 180px' }}>
-              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
                 Field
               </label>
               <Listbox
@@ -538,7 +726,7 @@ export const ExplorePage: React.FC = () => {
 
             {/* Operator */}
             <div style={{ flex: '1 1 150px' }}>
-              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
                 Operator
               </label>
               <Listbox
@@ -553,10 +741,10 @@ export const ExplorePage: React.FC = () => {
               />
             </div>
 
-            {/* Value */}
+            {/* Target Value */}
             <div style={{ flex: '2 1 200px' }}>
-              <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-                Target Value
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                Value
               </label>
               {selectedFieldCap?.data_type === 'choice' ? (
                 <Listbox
@@ -568,7 +756,7 @@ export const ExplorePage: React.FC = () => {
                   value={newFilterValue}
                   onChange={(val) => setNewFilterValue(val)}
                   size="sm"
-                  ariaLabel="Filter target value"
+                  ariaLabel="Filter target value selector"
                 />
               ) : selectedFieldCap?.data_type === 'boolean' ? (
                 <Listbox
@@ -579,7 +767,7 @@ export const ExplorePage: React.FC = () => {
                   value={String(newFilterValue)}
                   onChange={(val) => setNewFilterValue(val === 'true')}
                   size="sm"
-                  ariaLabel="Filter boolean value"
+                  ariaLabel="Filter boolean value selector"
                 />
               ) : selectedFieldCap?.data_type === 'number' ? (
                 <input
@@ -587,164 +775,63 @@ export const ExplorePage: React.FC = () => {
                   className="input"
                   value={newFilterValue}
                   onChange={(e) => setNewFilterValue(parseFloat(e.target.value) || 0)}
-                  style={{ width: '100%', height: '34px', fontSize: '0.8rem' }}
+                  style={{ width: '100%', height: '36px', padding: '0 12px', borderRadius: 'var(--radius-input)', background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 'var(--text-sm)' }}
                 />
               ) : (
                 <input
                   type="text"
                   className="input"
-                  placeholder="Value..."
+                  placeholder="Target value..."
                   value={newFilterValue}
                   onChange={(e) => setNewFilterValue(e.target.value)}
-                  style={{ width: '100%', height: '34px', fontSize: '0.8rem' }}
+                  style={{ width: '100%', height: '36px', padding: '0 12px', borderRadius: 'var(--radius-input)', background: 'var(--surface-hover)', border: '1px solid var(--border)', color: 'var(--text)', fontSize: 'var(--text-sm)' }}
                 />
               )}
             </div>
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.4rem', marginTop: '1.25rem' }}>
-              <button type="submit" className="btn btn-primary btn-sm" style={{ height: '34px', padding: '0 0.85rem' }}>
-                <Check size={14} style={{ marginRight: '0.25rem' }} /> Apply Filter
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setAddFilterOpen(false)}
-                style={{ height: '34px' }}
-              >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Button type="submit" variant="primary" size="sm" icon={<Check size={14} />}>
+                Apply Filter
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setAddFilterOpen(false)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+        </GlassCard>
       )}
-
-      {/* Level 1: Immediate Exploration Strip (Search + Quick Presets) */}
-      <div className="card" style={{ padding: '0.85rem 1.15rem' }}>
-        <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ flex: '1 1 280px', position: 'relative' }}>
-            <Search
-              size={16}
-              style={{
-                position: 'absolute',
-                left: '0.75rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--text-muted)',
-              }}
-            />
-            <input
-              type="text"
-              className="input"
-              placeholder="Search by student identifier, name, roll no, seat no..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              style={{ paddingLeft: '2.25rem', width: '100%', height: '36px' }}
-            />
-          </div>
-
-          <button type="submit" className="btn btn-primary btn-sm" style={{ height: '36px', padding: '0 1rem' }}>
-            Search
-          </button>
-
-          {/* Quick Preset Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)' }}>Presets:</span>
-            <button
-              type="button"
-              onClick={handleClearAll}
-              className={`badge ${!hasActiveFilters ? 'badge-info' : 'badge-neutral'}`}
-              style={{ cursor: 'pointer', padding: '0.25rem 0.5rem' }}
-            >
-              All Students
-            </button>
-            <button
-              type="button"
-              onClick={() => applyQuickPreset('has_absent', 'eq', true)}
-              className={`badge ${
-                conditions.some((c) => c.field === 'has_absent' && c.value === true) ? 'badge-warning' : 'badge-neutral'
-              }`}
-              style={{
-                cursor: 'pointer',
-                padding: '0.25rem 0.5rem',
-                                                              }}
-            >
-              Students with Absences
-            </button>
-            <button
-              type="button"
-              onClick={() => applyQuickPreset('multi_fails', 'eq', true)}
-              className={`badge ${
-                conditions.some((c) => c.field === 'multi_fails' && c.value === true) ? 'badge-danger' : 'badge-neutral'
-              }`}
-              style={{ cursor: 'pointer', padding: '0.25rem 0.5rem' }}
-            >
-              Failing 2+ Subjects
-            </button>
-            <button
-              type="button"
-              onClick={() => applyQuickPreset('result', 'eq', 'FAILS')}
-              className={`badge ${
-                conditions.some((c) => c.field === 'result' && c.value === 'FAILS') ? 'badge-danger' : 'badge-neutral'
-              }`}
-              style={{ cursor: 'pointer', padding: '0.25rem 0.5rem' }}
-            >
-              All Failures
-            </button>
-            <button
-              type="button"
-              onClick={() => applyQuickPreset('result', 'eq', 'PASSES')}
-              className={`badge ${
-                conditions.some((c) => c.field === 'result' && c.value === 'PASSES') ? 'badge-success' : 'badge-neutral'
-              }`}
-              style={{ cursor: 'pointer', padding: '0.25rem 0.5rem' }}
-            >
-              Passed Students
-            </button>
-            <button
-              type="button"
-              onClick={() => applyQuickPreset('division', 'eq', 'A')}
-              className={`badge ${
-                conditions.some((c) => c.field === 'division' && c.value === 'A') ? 'badge-info' : 'badge-neutral'
-              }`}
-              style={{ cursor: 'pointer', padding: '0.25rem 0.5rem' }}
-            >
-              Division A
-            </button>
-            <button
-              type="button"
-              onClick={() => applyQuickPreset('division', 'eq', 'B')}
-              className={`badge ${
-                conditions.some((c) => c.field === 'division' && c.value === 'B') ? 'badge-info' : 'badge-neutral'
-              }`}
-              style={{ cursor: 'pointer', padding: '0.25rem 0.5rem' }}
-            >
-              Division B
-            </button>
-          </div>
-        </form>
-      </div>
 
       {/* Level 3: Reusable Multi-Condition Investigation Builder (Expandable) */}
       {builderOpen && (
-        <div className="card" style={{ padding: '1rem 1.25rem', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>
+        <GlassCard elevation={2} padding="md">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text)' }}>
                 Investigation Query Builder
               </span>
-              <div style={{ display: 'inline-flex', borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  borderRadius: 'var(--radius-input)',
+                  padding: '2px',
+                  background: 'var(--surface-hover)',
+                  border: '1px solid var(--border)',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => handleLogicToggle('AND')}
                   style={{
-                    padding: '0.2rem 0.6rem',
-                    fontSize: '0.72rem',
+                    padding: '3px 10px',
+                    fontSize: '11px',
                     fontWeight: 600,
-                    backgroundColor: logic === 'AND' ? 'var(--primary)' : '#ffffff',
-                    color: logic === 'AND' ? '#ffffff' : 'var(--text-main)',
+                    borderRadius: 'var(--radius-xs)',
+                    backgroundColor: logic === 'AND' ? 'var(--action-primary-bg)' : 'transparent',
+                    color: logic === 'AND' ? 'var(--action-primary-text)' : 'var(--text-muted)',
                     border: 'none',
                     cursor: 'pointer',
+                    transition: 'all var(--transition-fast)',
                   }}
                 >
                   Match ALL (AND)
@@ -753,13 +840,15 @@ export const ExplorePage: React.FC = () => {
                   type="button"
                   onClick={() => handleLogicToggle('OR')}
                   style={{
-                    padding: '0.2rem 0.6rem',
-                    fontSize: '0.72rem',
+                    padding: '3px 10px',
+                    fontSize: '11px',
                     fontWeight: 600,
-                    backgroundColor: logic === 'OR' ? 'var(--primary)' : '#ffffff',
-                    color: logic === 'OR' ? '#ffffff' : 'var(--text-main)',
+                    borderRadius: 'var(--radius-xs)',
+                    backgroundColor: logic === 'OR' ? 'var(--action-primary-bg)' : 'transparent',
+                    color: logic === 'OR' ? 'var(--action-primary-text)' : 'var(--text-muted)',
                     border: 'none',
                     cursor: 'pointer',
+                    transition: 'all var(--transition-fast)',
                   }}
                 >
                   Match ANY (OR)
@@ -767,24 +856,24 @@ export const ExplorePage: React.FC = () => {
               </div>
             </div>
 
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleAddCondition}
-              className="btn btn-secondary btn-sm"
               disabled={conditions.length >= 10}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}
+              icon={<Plus size={13} />}
             >
-              <Plus size={13} /> Add Condition
-            </button>
+              Add Condition
+            </Button>
           </div>
 
           {/* Condition Rows */}
           {conditions.length === 0 ? (
-            <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', border: '1px dashed var(--border)', borderRadius: 'var(--radius-sm)' }}>
+            <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--text-muted)', fontSize: 'var(--text-sm)', border: '1px dashed var(--border)', borderRadius: 'var(--radius-card)' }}>
               No custom conditions defined. Click <strong>+ Add Condition</strong> above to construct multi-field filters.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {conditions.map((cond, idx) => {
                 const fieldCap = availableFields.find((f) => f.field === cond.field)
                 const isChoice = fieldCap?.data_type === 'choice'
@@ -797,15 +886,15 @@ export const ExplorePage: React.FC = () => {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.5rem',
+                      gap: '8px',
                       flexWrap: 'wrap',
-                      backgroundColor: '#ffffff',
-                      padding: '0.5rem 0.75rem',
+                      backgroundColor: 'var(--surface-hover)',
+                      padding: '8px 12px',
                       borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-color)',
+                      border: '1px solid var(--border)',
                     }}
                   >
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', width: '24px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', width: '24px' }}>
                       #{idx + 1}
                     </span>
 
@@ -865,7 +954,7 @@ export const ExplorePage: React.FC = () => {
                           className="input"
                           value={cond.value}
                           onChange={(e) => handleUpdateCondition(idx, { value: parseFloat(e.target.value) || 0 })}
-                          style={{ width: '100%', height: '32px', fontSize: '0.8rem' }}
+                          style={{ width: '100%', height: '32px', fontSize: 'var(--text-xs)', padding: '0 8px', borderRadius: 'var(--radius-input)', background: 'var(--surface-card)', border: '1px solid var(--border)', color: 'var(--text)' }}
                         />
                       ) : (
                         <input
@@ -874,34 +963,192 @@ export const ExplorePage: React.FC = () => {
                           placeholder="Value..."
                           value={cond.value}
                           onChange={(e) => handleUpdateCondition(idx, { value: e.target.value })}
-                          style={{ width: '100%', height: '32px', fontSize: '0.8rem' }}
+                          style={{ width: '100%', height: '32px', fontSize: 'var(--text-xs)', padding: '0 8px', borderRadius: 'var(--radius-input)', background: 'var(--surface-card)', border: '1px solid var(--border)', color: 'var(--text)' }}
                         />
                       )}
                     </div>
 
                     {/* Remove Condition Button */}
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleRemoveCondition(idx)}
-                      className="btn btn-secondary btn-sm"
-                      style={{ padding: '0.2rem 0.4rem', height: '32px' }}
                       title="Remove condition"
                     >
-                      <X size={14} style={{ color: '#ef4444' }} />
-                    </button>
+                      <X size={14} style={{ color: 'var(--status-danger-text)' }} />
+                    </Button>
                   </div>
                 )
               })}
             </div>
           )}
-        </div>
+        </GlassCard>
       )}
 
-      {/* 4. Active Conditions Chips & Human-Readable Explanation Banner */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+      {/* Immediate Exploration Strip (Search + Quick Presets) */}
+      <GlassCard elevation={1} padding="md">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: 'var(--space-3)', width: '100%', alignItems: 'center' }}>
+            <div style={{ flex: 1 }}>
+              <SearchField
+                placeholder="Search by student identifier, name, roll no, seat no..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                aria-label="Search cohort students"
+              />
+            </div>
+            <Button type="submit" variant="secondary" size="sm">
+              Search
+            </Button>
+          </form>
+
+          {/* Quick Preset Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)' }}>
+              Presets:
+            </span>
+            <button
+              type="button"
+              onClick={handleClearAll}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: !hasActiveFilters ? 600 : 500,
+                background: !hasActiveFilters ? 'var(--action-primary-bg)' : 'var(--surface-hover)',
+                color: !hasActiveFilters ? 'var(--action-primary-text)' : 'var(--text-secondary)',
+                border: `1px solid ${!hasActiveFilters ? 'transparent' : 'var(--border)'}`,
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              All Students
+            </button>
+            <button
+              type="button"
+              onClick={() => applyQuickPreset('has_absent', 'eq', true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? 600 : 500,
+                background: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? 'var(--action-primary-bg)' : 'var(--surface-hover)',
+                color: conditions.some((c) => c.field === 'has_absent' && c.value === true) ? 'var(--action-primary-text)' : 'var(--text-secondary)',
+                border: `1px solid ${conditions.some((c) => c.field === 'has_absent' && c.value === true) ? 'transparent' : 'var(--border)'}`,
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              Students with Absences
+            </button>
+            <button
+              type="button"
+              onClick={() => applyQuickPreset('multi_fails', 'eq', true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: conditions.some((c) => c.field === 'multi_fails' && c.value === true) ? 600 : 500,
+                background: conditions.some((c) => c.field === 'multi_fails' && c.value === true) ? 'var(--action-primary-bg)' : 'var(--surface-hover)',
+                color: conditions.some((c) => c.field === 'multi_fails' && c.value === true) ? 'var(--action-primary-text)' : 'var(--text-secondary)',
+                border: `1px solid ${conditions.some((c) => c.field === 'multi_fails' && c.value === true) ? 'transparent' : 'var(--border)'}`,
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              Failing 2+ Subjects
+            </button>
+            <button
+              type="button"
+              onClick={() => applyQuickPreset('result', 'eq', 'FAILS')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: conditions.some((c) => c.field === 'result' && c.value === 'FAILS') ? 600 : 500,
+                background: conditions.some((c) => c.field === 'result' && c.value === 'FAILS') ? 'var(--action-primary-bg)' : 'var(--surface-hover)',
+                color: conditions.some((c) => c.field === 'result' && c.value === 'FAILS') ? 'var(--action-primary-text)' : 'var(--text-secondary)',
+                border: `1px solid ${conditions.some((c) => c.field === 'result' && c.value === 'FAILS') ? 'transparent' : 'var(--border)'}`,
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              All Failures
+            </button>
+            <button
+              type="button"
+              onClick={() => applyQuickPreset('result', 'eq', 'PASSES')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: conditions.some((c) => c.field === 'result' && c.value === 'PASSES') ? 600 : 500,
+                background: conditions.some((c) => c.field === 'result' && c.value === 'PASSES') ? 'var(--action-primary-bg)' : 'var(--surface-hover)',
+                color: conditions.some((c) => c.field === 'result' && c.value === 'PASSES') ? 'var(--action-primary-text)' : 'var(--text-secondary)',
+                border: `1px solid ${conditions.some((c) => c.field === 'result' && c.value === 'PASSES') ? 'transparent' : 'var(--border)'}`,
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              Passed Students
+            </button>
+            <button
+              type="button"
+              onClick={() => applyQuickPreset('division', 'eq', 'A')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: conditions.some((c) => c.field === 'division' && c.value === 'A') ? 600 : 500,
+                background: conditions.some((c) => c.field === 'division' && c.value === 'A') ? 'var(--action-primary-bg)' : 'var(--surface-hover)',
+                color: conditions.some((c) => c.field === 'division' && c.value === 'A') ? 'var(--action-primary-text)' : 'var(--text-secondary)',
+                border: `1px solid ${conditions.some((c) => c.field === 'division' && c.value === 'A') ? 'transparent' : 'var(--border)'}`,
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              Division A
+            </button>
+            <button
+              type="button"
+              onClick={() => applyQuickPreset('division', 'eq', 'B')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: conditions.some((c) => c.field === 'division' && c.value === 'B') ? 600 : 500,
+                background: conditions.some((c) => c.field === 'division' && c.value === 'B') ? 'var(--action-primary-bg)' : 'var(--surface-hover)',
+                color: conditions.some((c) => c.field === 'division' && c.value === 'B') ? 'var(--action-primary-text)' : 'var(--text-secondary)',
+                border: `1px solid ${conditions.some((c) => c.field === 'division' && c.value === 'B') ? 'transparent' : 'var(--border)'}`,
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              Division B
+            </button>
+          </div>
+        </div>
+      </GlassCard>
+
+      {/* Active Conditions Chips & Human-Readable Explanation Banner */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {conditions.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)' }}>Active Filters:</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Filters:</span>
             {conditions.map((c, i) => {
               const fLabel = availableFields.find((f) => f.field === c.field)?.label || c.field
               const opLabel = OPERATOR_LABELS[c.operator] || c.operator
@@ -912,13 +1159,13 @@ export const ExplorePage: React.FC = () => {
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '0.3rem',
-                    padding: '0.15rem 0.5rem',
-                    borderRadius: '12px',
-                    backgroundColor: 'var(--surface-hover)',
+                    gap: '6px',
+                    padding: '3px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-hover)',
                     color: 'var(--text)',
                     border: '1px solid var(--border)',
-                    fontSize: '0.72rem',
+                    fontSize: 'var(--text-xs)',
                     fontWeight: 600,
                   }}
                 >
@@ -945,25 +1192,25 @@ export const ExplorePage: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '0.5rem',
-            padding: '0.45rem 0.75rem',
-            backgroundColor: 'var(--surface-hover)',
+            gap: '8px',
+            padding: '8px 14px',
+            background: 'var(--surface-hover)',
             borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--border)',
-            fontSize: '0.8rem',
+            fontSize: 'var(--text-xs)',
             color: 'var(--text)',
           }}
         >
           <div>
             Showing <strong>{total}</strong> of <strong>{cohortTotal}</strong> matching cohort students{' '}
             {cohortTotal > 0 && (
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
                 ({((total / cohortTotal) * 100).toFixed(1)}% of total cohort)
               </span>
             )}
           </div>
 
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
             {data?.active_explanation || 'All cohort students'}
           </div>
         </div>
@@ -971,262 +1218,45 @@ export const ExplorePage: React.FC = () => {
 
       {error && <ErrorBanner error={error} title="Query Error" onRetry={fetchInvestigationResults} />}
 
-      {/* 5. Interactive Data Table with Sorting and Supporting Record Links */}
+      {/* Main Table / Empty / Loading */}
       {loading ? (
         <LoadingState message="Executing parameterized academic query..." />
+      ) : total === 0 ? (
+        <EmptyState
+          title="No records match the active investigation conditions"
+          description="Try adjusting your filters, clearing search criteria, or selecting a different preset."
+          action={
+            hasActiveFilters ? (
+              <Button variant="secondary" size="sm" onClick={handleClearAll}>
+                Reset Filters
+              </Button>
+            ) : undefined
+          }
+        />
       ) : (
-        <div className="card">
-          <div className="table-responsive">
-            <table className="table" style={{ width: '100%', tableLayout: 'fixed' }}>
-              <thead>
-                <tr>
-                  <th
-                    onClick={() => handleSort('seat_no')}
-                    style={{ width: '13%', cursor: 'pointer', userSelect: 'none' }}
-                    title="Sort by Seat / Roll"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <span>Seat / Roll No</span>
-                      <ArrowUpDown size={12} style={{ color: sortBy === 'seat_no' ? 'var(--primary)' : 'var(--text-muted)' }} />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort('name')}
-                    style={{ width: '21%', cursor: 'pointer', userSelect: 'none' }}
-                    title="Sort by Student Name"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <span>Student Name</span>
-                      <ArrowUpDown size={12} style={{ color: sortBy === 'name' ? 'var(--primary)' : 'var(--text-muted)' }} />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort('division')}
-                    style={{ width: '8%', cursor: 'pointer', userSelect: 'none' }}
-                    title="Sort by Division"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <span>Division</span>
-                      <ArrowUpDown size={12} style={{ color: sortBy === 'division' ? 'var(--primary)' : 'var(--text-muted)' }} />
-                    </div>
-                  </th>
-                  <th style={{ width: '9%', textAlign: 'center' }} title="Distinct passed curriculum subjects">
-                    <span>Passed</span>
-                  </th>
-                  <th style={{ width: '9%', textAlign: 'center' }} title="Distinct failed curriculum subjects">
-                    <span>Failed</span>
-                  </th>
-                  <th style={{ width: '9%', textAlign: 'center' }} title="Distinct subjects with verified absent marks">
-                    <span>Absent</span>
-                  </th>
-                  <th
-                    onClick={() => handleSort('total_marks')}
-                    style={{ width: '10%', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
-                    title="Sort by Total Marks"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.3rem' }}>
-                      <span>Total Marks</span>
-                      <ArrowUpDown size={12} style={{ color: sortBy === 'total_marks' ? 'var(--primary)' : 'var(--text-muted)' }} />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort('sgpi')}
-                    style={{ width: '8%', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
-                    title="Sort by SGPI"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.3rem' }}>
-                      <span>SGPI</span>
-                      <ArrowUpDown size={12} style={{ color: sortBy === 'sgpi' ? 'var(--primary)' : 'var(--text-muted)' }} />
-                    </div>
-                  </th>
-                  <th
-                    onClick={() => handleSort('result')}
-                    style={{ width: '11%', cursor: 'pointer', userSelect: 'none' }}
-                    title="Sort by Academic Outcome"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <span>Outcome</span>
-                      <ArrowUpDown size={12} style={{ color: sortBy === 'result' ? 'var(--primary)' : 'var(--text-muted)' }} />
-                    </div>
-                  </th>
-                  <th style={{ width: '7%', textAlign: 'right' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data?.items && data.items.length > 0 ? (
-                  data.items.map((st) => {
-                    const resUpper = (st.overall_result || '').toUpperCase()
-                    const statusType = resUpper.includes('PASS')
-                      ? 'passed'
-                      : resUpper.includes('FAIL')
-                      ? 'failed'
-                      : 'unresolved'
-
-                    return (
-                      <tr key={st.student_id}>
-                        <td style={{ fontFamily: 'monospace', fontSize: '0.82rem', fontWeight: 600 }}>
-                          <div>{st.roll_no || st.seat_no || st.student_id}</div>
-                          {st.roll_no && st.seat_no && (
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                              Seat: {st.seat_no}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <Link
-                            to={`/students/${encodeURIComponent(st.student_id)}`}
-                            style={{ fontWeight: 600, color: 'var(--text-main)', textDecoration: 'none' }}
-                            className="hover-underline"
-                          >
-                            {st.name}
-                          </Link>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
-                            {st.student_id}
-                          </div>
-                        </td>
-                        <td>
-                          {st.division ? (
-                            <span className="badge badge-neutral" style={{ fontSize: '0.72rem' }}>
-                              Div {st.division}
-                            </span>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span
-                            className="badge badge-success"
-                            style={{ fontSize: '0.75rem', fontWeight: 600, minWidth: '24px', display: 'inline-block' }}
-                            title={`${st.passed_subject_count ?? 0} distinct passed subjects`}
-                          >
-                            {st.passed_subject_count ?? 0}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span
-                            className={`badge ${(st.failed_subject_count ?? 0) > 0 ? 'badge-danger' : 'badge-neutral'}`}
-                            style={{ fontSize: '0.75rem', fontWeight: 600, minWidth: '24px', display: 'inline-block' }}
-                            title={`${st.failed_subject_count ?? 0} distinct failed subjects`}
-                          >
-                            {st.failed_subject_count ?? 0}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span
-                            className="badge"
-                            style={{
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              minWidth: '24px',
-                              display: 'inline-block',
-                              backgroundColor: (st.absent_subject_count ?? 0) > 0 ? 'var(--status-warning-fill)' : 'var(--surface-hover)',
-                              color: (st.absent_subject_count ?? 0) > 0 ? 'var(--status-warning-text)' : 'var(--text-muted)',
-                              border: (st.absent_subject_count ?? 0) > 0 ? '1px solid var(--status-warning-border)' : '1px solid var(--border)',
-                            }}
-                            title={`${st.absent_subject_count ?? 0} distinct subjects with absent marks`}
-                          >
-                            {st.absent_subject_count ?? 0}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
-                          {st.total_marks !== null ? st.total_marks.toLocaleString() : '—'}
-                        </td>
-                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
-                          {st.sgpi !== null ? st.sgpi.toFixed(2) : '—'}
-                        </td>
-                        <td>
-                          <StatusBadge status={statusType} text={st.overall_result || 'UNRESOLVED'} />
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <Link
-                            to={`/students/${encodeURIComponent(st.student_id)}`}
-                            className="btn btn-secondary btn-sm"
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.25rem',
-                              padding: '0.2rem 0.5rem',
-                              fontSize: '0.74rem',
-                            }}
-                          >
-                            <span>Inspect</span>
-                            <ArrowRight size={11} />
-                          </Link>
-                        </td>
-                      </tr>
-                    )
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '3.5rem 1rem', color: 'var(--text-muted)' }}>
-                      <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.35rem' }}>
-                        No records match the active investigation conditions
-                      </div>
-                      <div style={{ fontSize: '0.8rem', maxWidth: '420px', margin: '0 auto 1.25rem auto' }}>
-                        Try broadening numeric ranges, changing logic from AND to OR, or clearing specific condition tags.
-                      </div>
-                      {hasActiveFilters && (
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={handleClearAll}>
-                          Reset All Conditions
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination Footer */}
-          {totalPages > 1 && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '0.75rem 1.25rem',
-                borderTop: '1px solid var(--border-color)',
-                fontSize: '0.82rem',
-                flexWrap: 'wrap',
-                gap: '0.5rem',
-              }}
-            >
-              <div style={{ color: 'var(--text-muted)' }}>
-                Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({total} records)
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  disabled={offset === 0}
-                  onClick={() => {
-                    const newOffset = Math.max(0, offset - limit)
-                    setOffset(newOffset)
-                    updateUrl(searchInput, logic, conditions, newOffset, sortBy, sortDir)
-                  }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                >
-                  <ChevronLeft size={14} /> Previous
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  disabled={offset + limit >= total}
-                  onClick={() => {
-                    const newOffset = offset + limit
-                    setOffset(newOffset)
-                    updateUrl(searchInput, logic, conditions, newOffset, sortBy, sortDir)
-                  }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                >
-                  Next <ChevronRight size={14} />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        <DataTable<StudentSummaryItem>
+          columns={columns}
+          data={data?.items || []}
+          keyExtractor={(st) => st.student_id}
+          isLoading={loading}
+          showDensityToggle={true}
+          defaultDensity="comfortable"
+          showPagination={true}
+          initialSortKey={sortBy}
+          initialSortDirection={sortDir}
+          onSortChange={handleSort}
+          serverTotal={total}
+          currentPage={Math.floor(offset / limit) + 1}
+          pageSize={limit}
+          onPageChange={(newPage) => {
+            const nextOffset = (newPage - 1) * limit
+            setOffset(nextOffset)
+            updateUrl(searchInput, logic, conditions, nextOffset, sortBy, sortDir)
+          }}
+        />
       )}
     </div>
   )
 }
+
+export default ExplorePage

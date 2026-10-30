@@ -165,7 +165,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'seat_no',
       header: 'Seat No',
-      width: '110px',
+      width: '95px',
       sticky: true,
       sortable: true,
       render: (row) => (
@@ -177,7 +177,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'roll_no',
       header: 'Roll No',
-      width: '120px',
+      width: '95px',
       sortable: true,
       render: (row) => (
         <span className="tabular-nums font-mono" style={{ color: 'var(--text-secondary)' }}>
@@ -188,10 +188,12 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'name',
       header: 'Student Name',
-      width: '260px',
+      minWidth: '160px',
+      maxWidth: '260px',
+      wrap: true,
       sortable: true,
       render: (row) => (
-        <div style={{ fontWeight: 600, color: 'var(--text)' }} title={row.name}>
+        <div style={{ fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }} title={row.name}>
           {toTitleCase(row.name)}
         </div>
       ),
@@ -199,7 +201,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'division',
       header: 'Div',
-      width: '75px',
+      width: '55px',
       sortable: true,
       align: 'center',
       render: (row) => (
@@ -219,7 +221,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'total_marks',
       header: 'Total Marks',
-      width: '110px',
+      width: '90px',
       sortable: true,
       align: 'right',
       render: (row) => (
@@ -231,7 +233,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'sgpi',
       header: 'SGPI',
-      width: '90px',
+      width: '70px',
       sortable: true,
       align: 'right',
       render: (row) => (
@@ -243,7 +245,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'overall_result',
       header: 'Result',
-      width: '110px',
+      width: '90px',
       sortable: true,
       align: 'center',
       render: (row) => {
@@ -260,7 +262,7 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'actions',
       header: '',
-      width: '110px',
+      width: '105px',
       align: 'right',
       render: (row) => (
         <Link
@@ -268,21 +270,20 @@ export const StudentsPage: React.FC = () => {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '4px',
+            gap: '5px',
+            padding: '5px 10px',
+            borderRadius: 'var(--radius-sm)',
+            background: 'var(--surface-hover)',
+            border: '1px solid var(--border)',
             fontSize: 'var(--text-xs)',
             fontWeight: 600,
             color: 'var(--text)',
             textDecoration: 'none',
-            padding: '5px 12px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--surface-hover)',
-            border: '1px solid var(--border)',
-            transition: 'all var(--transition-fast)',
             whiteSpace: 'nowrap',
           }}
         >
-          <span>Audit</span>
-          <ArrowUpRight size={13} />
+          <span>View</span>
+          <ArrowUpRight size={12} />
         </Link>
       ),
     },
@@ -300,7 +301,6 @@ export const StudentsPage: React.FC = () => {
     { value: '', label: 'All Results' },
     { value: 'PASS', label: 'Pass Only' },
     { value: 'FAIL', label: 'Fail / Backlog' },
-    { value: 'ABSENT', label: 'Absenteeism' },
   ]
 
   return (

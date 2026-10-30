@@ -277,7 +277,10 @@ def list_absent_students(
     where_sql = " AND ".join(where_clauses)
 
     count_sql = f"""
-        SELECT COUNT(*)
+        SELECT 
+            COUNT(*),
+            COUNT(DISTINCT s.student_id),
+            COUNT(DISTINCT s.course_code)
         FROM scores s
         JOIN students st ON s.student_id = st.student_id
         LEFT JOIN courses c ON s.course_code = c.code
@@ -285,6 +288,8 @@ def list_absent_students(
     """
     count_row = con.execute(count_sql, params).fetchone()
     total_count = int(count_row[0]) if count_row else 0
+    total_students = int(count_row[1]) if count_row else 0
+    total_courses = int(count_row[2]) if count_row else 0
 
     select_sql = f"""
         SELECT 
@@ -346,6 +351,8 @@ def list_absent_students(
         limit=limit,
         offset=offset,
         items=items,
+        total_students=total_students,
+        total_courses=total_courses,
     )
 
 
