@@ -135,7 +135,7 @@ def run_pivot_visual_qa():
                 time.sleep(0.3)
 
                 # Confirm in dialog
-                confirm_btn = page.query_selector("button:has-text('Delete everything'), button:has-text('Confirm Delete')")
+                confirm_btn = page.query_selector("button:has-text('Delete session and data'), button:has-text('Delete everything'), button:has-text('Confirm Delete')")
                 if confirm_btn:
                     print("  Confirming session deletion in modal...")
                     confirm_btn.click()
@@ -146,7 +146,7 @@ def run_pivot_visual_qa():
                     sidebar_exists = page.query_selector("[aria-label='Main Navigation']")
                     assert is_opening_page is not None, "Failed to redirect to opening page after delete!"
                     assert sidebar_exists is None, "Sidebar should not be visible on opening page!"
-                    print("  ✓ Successfully redirected to opening page without sidebar/header.")
+                    print("  [OK] Successfully redirected to opening page without sidebar/header.")
 
                     # Test Browser Back Button
                     print("  Testing Browser Back navigation...")
@@ -154,7 +154,7 @@ def run_pivot_visual_qa():
                     time.sleep(0.5)
                     stale_sidebar = page.query_selector("[aria-label='Main Navigation']")
                     assert stale_sidebar is None, "Back button should not show stale session/sidebar!"
-                    print("  ✓ Back navigation verified: No stale data rendered.")
+                    print("  [OK] Back navigation verified: No stale data rendered.")
                     results["delete_flow_verified"] = True
                 else:
                     print("  Could not find confirmation delete button.")

@@ -9,7 +9,7 @@ import {
   Users,
   Printer,
 } from 'lucide-react'
-import { getSubjectStudents, downloadSubjectStudentsExcel } from '../api/client'
+import { getSubjectStudents, downloadSubjectStudentsExcel, saveBlobAsFile } from '../api/client'
 import { exportSubjectRoster } from '../utils/excelExport'
 import {
   ApiError,
@@ -149,14 +149,7 @@ export const SubjectDetailPage: React.FC = () => {
           type,
           divisionParam.trim() || null
         )
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `EduQuery_${courseCode}_${type}.xlsx`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
+        saveBlobAsFile(blob, `EduQuery_${courseCode}_${type}.xlsx`)
         return
       } catch (serverErr) {
         console.warn('Server-side subject xlsx export failed, falling back to client CSV export', serverErr)

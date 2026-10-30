@@ -192,10 +192,10 @@ export const DataQualityPage: React.FC = () => {
                 letterSpacing: '-0.02em',
               }}
             >
-              Data Quality & Pre-Declaration Audit
+              Data Quality Checks
             </h1>
             <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-              Audit component sum reconciliation, verify unusual score combinations, and sign off before final declaration.
+              Verify marks totals, check for missing grades, and review flagged records before declaring results.
             </p>
           </div>
 

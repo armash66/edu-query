@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from app.services.overview_service import clear_overview_cache
 import os
 import re
 import secrets
@@ -368,6 +369,7 @@ async def create_temporary_session(
 
 
 def confirm_temporary_session(session_id: str, settings: Settings) -> dict[str, Any]:
+    clear_overview_cache()
     """Confirm a validated preview and activate the temporary session for analysis."""
     session_dir = get_session_dir(session_id, settings)
     meta_path = session_dir / "meta.json"
@@ -481,6 +483,7 @@ def get_session_status(session_id: str | None, settings: Settings) -> dict[str, 
 
 
 def delete_temporary_session(session_id: str | None, settings: Settings) -> bool:
+    clear_overview_cache()
     """Permanently delete a temporary session workspace and all associated artifacts.
     
     Idempotent: returns True even if already deleted.

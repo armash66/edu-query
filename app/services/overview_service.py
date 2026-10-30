@@ -54,7 +54,7 @@ def get_overview_summary(
 ) -> OverviewSummaryResponse:
     """Aggregate all overview metrics into a single response, cached per dataset."""
     dataset_id = _get_dataset_id_from_con(con)
-    if dataset_id in _OVERVIEW_CACHE:
+    if not is_temporary_hint and not dataset_id.startswith("session_") and dataset_id in _OVERVIEW_CACHE:
         return _OVERVIEW_CACHE[dataset_id]
 
     # 1. Cohort totals and counts

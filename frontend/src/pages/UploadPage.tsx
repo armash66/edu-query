@@ -2,15 +2,10 @@ import React, { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   UploadCloud,
-  ShieldCheck,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
   Sparkles,
-  Info,
-  Lock,
-  Layers,
-  FileSpreadsheet,
 } from 'lucide-react'
 import { useSession } from '../context/SessionContext'
 import { useHealth } from '../context/HealthContext'
@@ -201,7 +196,7 @@ export const UploadPage: React.FC = () => {
         background: 'var(--bg-app)',
       }}
     >
-      {/* Top Brand Bar */}
+      {/* Top Header — Clean Logo + Theme toggle only (No "Local Ephemeral Sandbox") */}
       <header
         className="glass-1"
         style={{
@@ -211,60 +206,53 @@ export const UploadPage: React.FC = () => {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 var(--space-4)',
+          padding: '0 var(--space-6)',
           flexShrink: 0,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div
             style={{
-              width: '32px',
-              height: '32px',
+              width: '28px',
+              height: '28px',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--action-primary-bg)',
               color: 'var(--action-primary-text)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: 800,
             }}
           >
             EQ
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-            <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em' }}>
-              EduQuery
-            </span>
-            <span className="hide-on-mobile" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-              &bull; Academic Result Management
-            </span>
-          </div>
+          <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em' }}>
+            EduQuery
+          </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-          <span className="hide-on-mobile">
-            <StatusBadge tone="info" size="sm" label="Local Ephemeral Sandbox" />
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <ThemeMenu align="right" direction="down" />
         </div>
       </header>
 
-      {/* Main Page Workspace */}
+      {/* Main Workspace — Calm, Centered Minimalism (Claude / GPT inspired) */}
       <main
         style={{
-          maxWidth: '1280px',
+          maxWidth: '720px',
           margin: '0 auto',
           width: '100%',
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          gap: 'var(--space-8)',
-          padding: 'var(--space-8) var(--space-6)',
+          justifyContent: 'center',
+          padding: 'var(--space-8) var(--space-4)',
+          boxSizing: 'border-box',
         }}
       >
-        {/* Existing Session Alert */}
-        {hasActiveSession && (
+        {/* Active Session Alert if returning */}
+        {hasActiveSession && !isPreviewReady && (
           <GlassCard
             variant="glass-1"
             padding="sm"
@@ -273,12 +261,13 @@ export const UploadPage: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 'var(--space-3)',
+              marginBottom: 'var(--space-6)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--text-xs)' }}>
               <StatusBadge tone="pass" size="sm" label="Active Dataset" />
               <span style={{ color: 'var(--text-secondary)' }}>
-                Current cohort is active ({session?.filename || 'Result_anonymized.xlsx'}). Drop a new file below to replace it.
+                {session?.filename || 'Result_anonymized.xlsx'} is currently loaded.
               </span>
             </div>
             <Link
@@ -296,46 +285,6 @@ export const UploadPage: React.FC = () => {
           </GlassCard>
         )}
 
-        {/* Hero Section */}
-        <div>
-          <div
-            style={{
-              fontSize: '11px',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--text-muted)',
-              marginBottom: 'var(--space-2)',
-            }}
-          >
-            EXAMINATION CELL & FACULTY RESULT PORTAL
-          </div>
-          <h1
-            style={{
-              fontSize: 'clamp(1.75rem, 3.2vw, 2.4rem)',
-              fontWeight: 700,
-              color: 'var(--text)',
-              margin: '0 0 var(--space-2) 0',
-              letterSpacing: '-0.03em',
-              lineHeight: 1.15,
-            }}
-          >
-            Academic Result Management & Verification
-          </h1>
-          <p
-            style={{
-              fontSize: 'var(--text-base)',
-              color: 'var(--text-secondary)',
-              margin: 0,
-              lineHeight: 1.6,
-              maxWidth: '820px',
-            }}
-          >
-            Audit semester marksheets, reconcile component marks (ISA/MSE/ESE), detect backlogs,
-            and generate institutional HOD briefs with mathematical certainty.
-          </p>
-        </div>
-
         {/* Error Notice */}
         {errorMsg && (
           <GlassCard
@@ -348,6 +297,7 @@ export const UploadPage: React.FC = () => {
               display: 'flex',
               flexDirection: 'column',
               gap: 'var(--space-2)',
+              marginBottom: 'var(--space-6)',
             }}
           >
             <div
@@ -392,820 +342,377 @@ export const UploadPage: React.FC = () => {
           </GlassCard>
         )}
 
-        {/* Dynamic State: Confirmation Studio OR Workspace Starting Grid */}
+        {/* PREVIEW READY (File dropped/selected) */}
         {isPreviewReady && preview ? (
-          /* Preview Card (3-Number Confirmation) */
-          <div style={{ maxWidth: '960px', width: '100%', margin: '0 auto' }}>
-            <GlassCard
-              variant="glass-2"
-              padding="lg"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--space-6)',
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  borderBottom: '1px solid var(--border)',
-                  paddingBottom: 'var(--space-4)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-                  <div
-                    style={{
-                      width: '36px',
-                      height: '36px',
-                      borderRadius: 'var(--radius-sm)',
-                      background: isActivationBlocked ? 'var(--status-danger-bg)' : 'var(--status-success-bg)',
-                      color: isActivationBlocked ? 'var(--status-danger-text)' : 'var(--status-success-text)',
-                      border: `1px solid ${isActivationBlocked ? 'var(--status-danger-border)' : 'var(--status-success-border)'}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {isActivationBlocked ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}
-                  </div>
-                  <div>
-                    <h2
-                      style={{
-                        fontSize: 'var(--text-md)',
-                        fontWeight: 700,
-                        color: 'var(--text)',
-                        margin: 0,
-                      }}
-                    >
-                      Marksheet Structure Detected
-                    </h2>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                      {session?.filename || 'Uploaded Marksheet'} &bull; Ready for verification
-                    </div>
-                  </div>
-                </div>
-
-                <Button size="sm" variant="secondary" onClick={handleCancelPreview}>
-                  Choose different file
-                </Button>
-              </div>
-
-              {/* 3-Number Confirmation Grid */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                  gap: 'var(--space-4)',
-                  padding: 'var(--space-2) 0',
-                }}
-              >
-                <div
-                  className="data-surface"
-                  style={{
-                    padding: 'var(--space-4)',
-                    borderRadius: 'var(--radius-sm)',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--text-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Students Detected
-                  </div>
-                  <div
-                    className="tabular-nums font-mono"
-                    style={{
-                      fontSize: 'var(--text-2xl)',
-                      fontWeight: 800,
-                      color: 'var(--text)',
-                      marginTop: 'var(--space-1)',
-                    }}
-                  >
-                    {preview.detected_students ?? preview.students_count ?? session?.students_count ?? 0}
-                  </div>
-                </div>
-
-                <div
-                  className="data-surface"
-                  style={{
-                    padding: 'var(--space-4)',
-                    borderRadius: 'var(--radius-sm)',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--text-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Courses / Subjects
-                  </div>
-                  <div
-                    className="tabular-nums font-mono"
-                    style={{
-                      fontSize: 'var(--text-2xl)',
-                      fontWeight: 800,
-                      color: 'var(--text)',
-                      marginTop: 'var(--space-1)',
-                    }}
-                  >
-                    {preview.detected_subjects ?? preview.courses_count ?? session?.courses_count ?? 0}
-                  </div>
-                </div>
-
-                <div
-                  className="data-surface"
-                  style={{
-                    padding: 'var(--space-4)',
-                    borderRadius: 'var(--radius-sm)',
-                    textAlign: 'center',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--text-muted)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Divisions / Result
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 'var(--text-md)',
-                      fontWeight: 700,
-                      color: 'var(--text)',
-                      marginTop: 'var(--space-1)',
-                    }}
-                  >
-                    {preview.divisions && preview.divisions.length > 0 ? preview.divisions.join(', ') : 'All Divisions'}
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    {(preview.passed_count !== undefined && preview.failed_count !== undefined)
-                      ? `${preview.passed_count} Passed • ${preview.failed_count} Failed`
-                      : 'Records ready for verification'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Actionable Notes */}
-              {preview.format_notes && preview.format_notes.length > 0 && (
-                <div
-                  style={{
-                    fontSize: 'var(--text-xs)',
-                    color: 'var(--text-secondary)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-1)',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      color: 'var(--text)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 'var(--space-1)',
-                    }}
-                  >
-                    <Info size={14} /> Marksheet characteristics:
-                  </div>
-                  <ul style={{ margin: '0 0 0 var(--space-4)', padding: 0 }}>
-                    {preview.format_notes.map((note, idx) => (
-                      <li key={idx}>{note}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Diagnostics: Blocking Errors */}
-              {isActivationBlocked && (
-                <GlassCard
-                  variant="glass-2"
-                  padding="md"
-                  style={{
-                    borderColor: 'var(--status-danger-border)',
-                    background: 'var(--status-danger-bg)',
-                    color: 'var(--status-danger-text)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-2)',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      borderBottom: '1px solid var(--status-danger-border)',
-                      paddingBottom: 'var(--space-2)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--space-2)',
-                        fontSize: 'var(--text-sm)',
-                      }}
-                    >
-                      <AlertTriangle size={16} />
-                      <span>Activation Blocked: Validation Errors Detected</span>
-                    </div>
-                    <StatusBadge tone="fail" size="sm" label="Action Required" />
-                  </div>
-
-                  <div style={{ fontSize: 'var(--text-xs)', lineHeight: 1.4 }}>
-                    The following critical validation errors must be resolved before cohort analysis can begin:
-                  </div>
-
-                  <ul style={{ margin: '0 0 0 var(--space-4)', padding: 0, lineHeight: 1.5, fontSize: 'var(--text-xs)' }}>
-                    {session?.blocking_errors && session.blocking_errors.length > 0
-                      ? session.blocking_errors.map((err, idx) => (
-                          <li key={idx} style={{ fontWeight: 500 }}>
-                            {err}
-                          </li>
-                        ))
-                      : preview.findings
-                          ?.filter((f) => f.severity === 'error')
-                          .map((err, idx) => (
-                            <li key={idx} style={{ fontWeight: 500 }}>
-                              {err.title}: {err.problem}
-                            </li>
-                          ))}
-                  </ul>
-
-                  <div
-                    style={{
-                      marginTop: 'var(--space-1)',
-                      padding: 'var(--space-2) var(--space-3)',
-                      backgroundColor: 'var(--surface-card)',
-                      borderRadius: 'var(--radius-xs)',
-                      border: '1px solid var(--status-danger-border)',
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--status-danger-text)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px',
-                    }}
-                  >
-                    <span style={{ fontWeight: 600 }}>Suggested Recovery:</span>
-                    <span>
-                      Inspect the source Excel sheet and remove duplicate rows or ensure each student has
-                      a distinct Seat Number or Student ID before re-uploading.
-                    </span>
-                  </div>
-                </GlassCard>
-              )}
-
-              {/* Warnings Preview */}
-              {!isActivationBlocked && warningFindings.length > 0 && (
-                <GlassCard
-                  variant="glass-2"
-                  padding="md"
-                  style={{
-                    borderColor: 'var(--status-warning-border)',
-                    background: 'var(--status-warning-bg)',
-                    color: 'var(--status-warning-text)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-2)',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      borderBottom: '1px solid var(--status-warning-border)',
-                      paddingBottom: 'var(--space-2)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--space-2)',
-                        fontSize: 'var(--text-sm)',
-                      }}
-                    >
-                      <Info size={16} />
-                      <span>Pre-check Anomalies Detected ({warningFindings.length})</span>
-                    </div>
-                    <StatusBadge tone="warn" size="sm" label="Review Advised" />
-                  </div>
-
-                  <div style={{ fontSize: 'var(--text-xs)', lineHeight: 1.4 }}>
-                    The marksheet contains {warningFindings.length} non-blocking anomalies that can be reviewed in the Data Quality checklist:
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-                    {warningFindings.slice(0, 3).map((w, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          fontSize: 'var(--text-xs)',
-                          padding: 'var(--space-2)',
-                          backgroundColor: 'var(--surface-hover)',
-                          borderRadius: 'var(--radius-xs)',
-                        }}
-                      >
-                        <strong>{w.title}:</strong> {w.problem}
-                        {w.details && w.details.length > 0 && (
-                          <details style={{ marginTop: '4px' }}>
-                            <summary style={{ cursor: 'pointer' }}>View issue details</summary>
-                            <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-                              {w.details.map((d, dIdx) => (
-                                <li key={dIdx}>{d}</li>
-                              ))}
-                            </ul>
-                          </details>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </GlassCard>
-              )}
-
-              {/* Retention Mode Controls (Accessible for test and faculty preferences) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-4)' }}>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text)' }}>
-                  Session Retention Mode
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', fontSize: 'var(--text-xs)' }}>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="retention_mode"
-                      value="temporary"
-                      checked={privacyMode === 'temporary'}
-                      onChange={() => setPrivacyMode('temporary')}
-                    />
-                    <span>Temporary Analysis</span>
-                  </label>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                    <input
-                      type="radio"
-                      name="retention_mode"
-                      value="persistent"
-                      checked={privacyMode === 'persistent'}
-                      onChange={() => setPrivacyMode('persistent')}
-                    />
-                    <span>Save to Institutional Storage</span>
-                  </label>
-                </div>
-                {privacyMode === 'persistent' && (
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: 'var(--text-xs)', marginTop: 'var(--space-2)' }}>
-                    <span>Institutional Dataset Label</span>
-                    <input
-                      type="text"
-                      aria-label="Institutional Dataset Label"
-                      value={saveDatasetName}
-                      onChange={(e) => setSaveDatasetName(e.target.value)}
-                      placeholder="e.g. Sem4_BE_2026_Final"
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border)',
-                        background: 'var(--surface-hover)',
-                        color: 'var(--text)',
-                      }}
-                    />
-                  </label>
-                )}
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Default • Zero Persistence</span>
-              </div>
-
-              {/* Open Analysis Action Button */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: isActivationBlocked ? 'space-between' : 'flex-end',
-                  flexWrap: 'wrap',
-                  gap: 'var(--space-3)',
-                  borderTop: '1px solid var(--border)',
-                  paddingTop: 'var(--space-4)',
-                }}
-              >
-                {isActivationBlocked && (
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--status-danger-text)', fontWeight: 500 }}>
-                    Activation is blocked due to critical validation errors above.
-                  </span>
-                )}
-                <Button
-                  size="lg"
-                  variant="primary"
-                  onClick={handleConfirm}
-                  loading={confirming}
-                  disabled={isActivationBlocked || confirming}
-                  icon={<ArrowRight size={16} />}
-                  aria-label="Confirm & Start Analysis"
-                >
-                  Confirm & Start Analysis
-                </Button>
-              </div>
-            </GlassCard>
-          </div>
-        ) : (
-          /* Workspace Starting Layout (2-Column Grid) */
-          <div className="welcome-workspace-grid">
-            {/* Left Column: Direct Intake & Sample Launcher */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-              {/* Dropzone Card */}
-              <GlassCard
-                variant="glass-2"
-                padding="lg"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--space-4)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-                  <FileSpreadsheet size={18} style={{ color: 'var(--text-muted)' }} />
-                  <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text)' }}>
-                    Ingest Semester Marksheet
-                  </span>
-                </div>
-
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    border: dragActive
-                      ? '2px dashed var(--action-primary-bg)'
-                      : '2px dashed var(--border-strong)',
-                    borderRadius: 'var(--radius-card)',
-                    background: dragActive ? 'var(--surface-active)' : 'var(--surface-hover)',
-                    padding: 'var(--space-8) var(--space-6)',
-                    textAlign: 'center',
-                    cursor: uploading ? 'wait' : 'pointer',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 'var(--space-3)',
-                    transition: 'all var(--transition-fast)',
-                  }}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    onChange={handleFileInputChange}
-                    style={{ display: 'none' }}
-                    disabled={uploading}
-                    aria-label="Upload marksheet file"
-                  />
-
-                  <div
-                    style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: 'var(--radius-pill)',
-                      background: 'var(--surface-card)',
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: 'var(--text)',
-                    }}
-                  >
-                    <UploadCloud size={24} />
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text)' }}>
-                      {uploading
-                        ? 'Processing and validating marksheet...'
-                        : 'Drop your Excel marksheet here, or browse'}
-                    </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Supports standard university marksheet workbooks (.xlsx) up to 25 MiB
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center', marginTop: 'var(--space-1)' }}>
-                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                      Multi-Component (ISA/MSE/ESE)
-                    </span>
-                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                      Grade Letters & Credits
-                    </span>
-                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                      Cohort Divisions
-                    </span>
-                  </div>
-
-                  {uploading && (
-                    <div
-                      style={{
-                        width: '200px',
-                        height: '4px',
-                        borderRadius: '2px',
-                        background: 'var(--surface-hover)',
-                        overflow: 'hidden',
-                        marginTop: 'var(--space-2)',
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: '60%',
-                          height: '100%',
-                          background: 'var(--action-primary-bg)',
-                          animation: 'indeterminate-bar 1.5s infinite ease-in-out',
-                        }}
-                      />
-                    </div>
-                  )}
-                </div>
-              </GlassCard>
-
-              {/* Sample Data 1-Click Launch Card */}
-              <GlassCard
-                variant="glass-2"
-                padding="lg"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--space-3)',
-                  border: '1px solid var(--border-strong)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Sparkles size={16} style={{ color: 'var(--text)' }} />
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text)' }}>
-                      Try with Sample Institutional Data
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-hover)', color: 'var(--text-muted)' }}>
-                    1-Click Instant Demo
-                  </span>
-                </div>
-
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                  Instantly load an anonymized engineering cohort (145 students) to inspect result reconciliation,
-                  failure analysis, at-risk early warnings, and notice drafting immediately.
-                </p>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', margin: 'var(--space-1) 0' }}>
-                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                    145 Students
-                  </span>
-                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                    27 Courses
-                  </span>
-                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-card)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-                    Sample Backlogs & Absences
-                  </span>
-                </div>
-
-                <Button
-                  size="md"
-                  variant="primary"
-                  onClick={handleLoadSample}
-                  disabled={uploading}
-                  loading={uploading}
-                  icon={<ArrowRight size={15} />}
-                  style={{ alignSelf: 'flex-start', marginTop: 'var(--space-1)' }}
-                >
-                  Launch Sample Workspace
-                </Button>
-              </GlassCard>
-            </div>
-
-            {/* Right Column: Platform Overview & Result Lifecycle */}
-            <GlassCard
-              variant="glass-2"
-              padding="lg"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--space-5)',
-              }}
-            >
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <Layers size={18} style={{ color: 'var(--text-muted)' }} />
-                  <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
-                    The Result Management Pipeline
-                  </h3>
-                </div>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.5 }}>
-                  Deterministic verification built specifically for faculty and examination committees.
-                </p>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-                {/* Step 1 */}
-                <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-                  <div
-                    style={{
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: 'var(--radius-pill)',
-                      background: 'var(--surface-hover)',
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      color: 'var(--text)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    1
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text)' }}>
-                      Automated Marks Invariant Check & Reconciliation
-                    </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: '2px' }}>
-                      Validates continuous assessments (ISA), mid-terms (MSE), and end-semesters (ESE) against letter grades.
-                      Invariant checks ensure failed subjects &le; evaluated subjects.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 2 */}
-                <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-                  <div
-                    style={{
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: 'var(--radius-pill)',
-                      background: 'var(--surface-hover)',
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      color: 'var(--text)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    2
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text)' }}>
-                      Pre-ESE Early Warning & Backlog Triage
-                    </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: '2px' }}>
-                      Identifies students at risk before final examinations using continuous internal assessments
-                      (documented 76.9% recall backtest). Groups single-subject vs critical backlogs.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 3 */}
-                <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-                  <div
-                    style={{
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: 'var(--radius-pill)',
-                      background: 'var(--surface-hover)',
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      color: 'var(--text)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    3
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text)' }}>
-                      Pre-Declaration Quality Audit
-                    </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: '2px' }}>
-                      Formal verification checklist surfaces grade anomalies, conflicting records, and component absences.
-                      Faculty record decisions before results are marked &quot;Ready to Declare&quot;.
-                    </div>
-                  </div>
-                </div>
-
-                {/* Step 4 */}
-                <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-                  <div
-                    style={{
-                      width: '26px',
-                      height: '26px',
-                      borderRadius: 'var(--radius-pill)',
-                      background: 'var(--surface-hover)',
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      color: 'var(--text)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    4
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text)' }}>
-                      Remedial Pairing & Institutional Reports
-                    </div>
-                    <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', lineHeight: 1.4, marginTop: '2px' }}>
-                      Automatically matches struggling students with top-scoring peers for remedial mentoring,
-                      and generates printable result slips and audit-ready HOD executive briefs.
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </GlassCard>
-          </div>
-        )}
-
-        {/* Bottom Trust & Privacy Section */}
-        <div
-          style={{
-            borderTop: '1px solid var(--border)',
-            paddingTop: 'var(--space-6)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-3)',
-          }}
-        >
-          <div
+          <GlassCard
+            variant="glass-2"
+            padding="lg"
             style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              color: 'var(--text)',
-              fontSize: 'var(--text-xs)',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
+              flexDirection: 'column',
+              gap: 'var(--space-5)',
             }}
           >
-            <ShieldCheck size={16} />
-            <span>Privacy & Data Handling</span>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid var(--border)',
+                paddingBottom: 'var(--space-3)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+                <CheckCircle2 size={18} style={{ color: 'var(--status-success-text)' }} />
+                <div>
+                  <h2 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--text)', margin: 0 }}>
+                    Marksheet Structure Detected
+                  </h2>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    {session?.filename || 'Uploaded Marksheet'}
+                  </div>
+                </div>
+              </div>
+
+              <Button size="sm" variant="secondary" onClick={handleCancelPreview}>
+                Choose different file
+              </Button>
+            </div>
+
+            {/* 3 Stats Overview */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 'var(--space-3)',
+                textAlign: 'center',
+              }}
+            >
+              <div style={{ padding: 'var(--space-3)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-hover)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Students
+                </div>
+                <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--text)', marginTop: '2px' }}>
+                  {preview.detected_students ?? preview.students_count ?? session?.students_count ?? 0}
+                </div>
+              </div>
+
+              <div style={{ padding: 'var(--space-3)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-hover)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Courses
+                </div>
+                <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-xl)', fontWeight: 700, color: 'var(--text)', marginTop: '2px' }}>
+                  {preview.detected_subjects ?? preview.courses_count ?? session?.courses_count ?? 0}
+                </div>
+              </div>
+
+              <div style={{ padding: 'var(--space-3)', borderRadius: 'var(--radius-sm)', background: 'var(--surface-hover)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
+                  Divisions
+                </div>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text)', marginTop: '4px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {preview.divisions && preview.divisions.length > 0 ? preview.divisions.join(', ') : 'All'}
+                </div>
+              </div>
+            </div>
+
+            {/* Non-blocking warnings */}
+            {!isActivationBlocked && warningFindings.length > 0 && (
+              <div
+                style={{
+                  fontSize: 'var(--text-xs)',
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--surface-hover)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  lineHeight: 1.5,
+                }}
+              >
+                <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+                  {warningFindings[0]?.title || 'Data quality warning: Score entries need review'}
+                </div>
+                <div>{warningFindings[0]?.problem || 'Some entries fall outside the expected marks range.'}</div>
+                {warningFindings[0]?.details && warningFindings[0].details.length > 0 && (
+                  <details style={{ marginTop: '6px' }}>
+                    <summary style={{ cursor: 'pointer', color: 'var(--text)', fontWeight: 600 }}>View issue details</summary>
+                    <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                      {warningFindings[0].details.map((d, dIdx) => (
+                        <li key={dIdx}>{d}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            )}
+
+            {/* Critical Blocking Errors */}
+            {isActivationBlocked && (
+              <div
+                style={{
+                  fontSize: 'var(--text-xs)',
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--status-danger-bg)',
+                  border: '1px solid var(--status-danger-border)',
+                  color: 'var(--status-danger-text)',
+                  lineHeight: 1.5,
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: '4px' }}>
+                  Activation Blocked: Validation Errors Detected
+                </div>
+                <div>
+                  {session?.blocking_errors && session.blocking_errors.length > 0
+                    ? session.blocking_errors.join(' ')
+                    : 'Please check that each student row has a unique seat or student ID.'}
+                </div>
+                <div style={{ marginTop: '6px', fontWeight: 600 }}>Suggested Recovery:</div>
+                <div>Inspect the source Excel sheet and remove duplicate rows or ensure distinct seat numbers.</div>
+              </div>
+            )}
+
+            {/* Retention Mode */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid var(--border)', paddingTop: 'var(--space-3)' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-4)', fontSize: 'var(--text-xs)' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text)' }}>
+                  <input
+                    type="radio"
+                    name="retention_mode"
+                    value="temporary"
+                    checked={privacyMode === 'temporary'}
+                    onChange={() => setPrivacyMode('temporary')}
+                  />
+                  <span>Temporary Analysis</span>
+                </label>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                  <input
+                    type="radio"
+                    name="retention_mode"
+                    value="persistent"
+                    checked={privacyMode === 'persistent'}
+                    onChange={() => setPrivacyMode('persistent')}
+                  />
+                  <span>Save to Institutional Storage</span>
+                </label>
+              </div>
+
+              {privacyMode === 'persistent' && (
+                <input
+                  type="text"
+                  aria-label="Institutional Dataset Label"
+                  value={saveDatasetName}
+                  onChange={(e) => setSaveDatasetName(e.target.value)}
+                  placeholder="Dataset name (e.g. Sem4_BE_Final)"
+                  style={{
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface-hover)',
+                    color: 'var(--text)',
+                    fontSize: 'var(--text-xs)',
+                    marginTop: '4px',
+                  }}
+                />
+              )}
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Default • Zero Persistence</span>
+            </div>
+
+            {/* Confirm Button */}
+            {isActivationBlocked && (
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--status-danger-text)', fontWeight: 500 }}>
+                Activation is blocked due to critical validation errors above.
+              </span>
+            )}
+            <Button
+              size="lg"
+              variant="primary"
+              onClick={handleConfirm}
+              loading={confirming}
+              disabled={isActivationBlocked || confirming}
+              icon={<ArrowRight size={16} />}
+              aria-label="Confirm & Start Analysis"
+              style={{ width: '100%', justifyContent: 'center' }}
+            >
+              Confirm & Start Analysis
+            </Button>
+          </GlassCard>
+        ) : (
+          /* INITIAL VIEW — Claude / GPT Inspired Pure Minimalism */
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <h1
+              style={{
+                fontSize: 'clamp(1.75rem, 3.2vw, 2.25rem)',
+                fontWeight: 600,
+                color: 'var(--text)',
+                margin: '0 0 var(--space-2) 0',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.2,
+              }}
+            >
+              Academic Result Management
+            </h1>
+            <p
+              style={{
+                fontSize: 'var(--text-sm)',
+                color: 'var(--text-secondary)',
+                margin: '0 0 var(--space-8) 0',
+                lineHeight: 1.6,
+                maxWidth: '520px',
+              }}
+            >
+              Upload an Excel marksheet to view student results, check passes and backlogs, and generate reports.
+            </p>
+
+            {/* Dropzone */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: '100%',
+                border: dragActive
+                  ? '2px dashed var(--action-primary-bg)'
+                  : '1px dashed var(--border-strong)',
+                borderRadius: 'var(--radius-card)',
+                background: dragActive ? 'var(--surface-active)' : 'var(--surface-card)',
+                padding: 'var(--space-10) var(--space-6)',
+                textAlign: 'center',
+                cursor: uploading ? 'wait' : 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 'var(--space-3)',
+                transition: 'all var(--transition-fast)',
+                boxSizing: 'border-box',
+              }}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={handleFileInputChange}
+                style={{ display: 'none' }}
+                disabled={uploading}
+                aria-label="Upload marksheet file"
+              />
+
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: 'var(--radius-pill)',
+                  background: 'var(--surface-hover)',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--text)',
+                }}
+              >
+                <UploadCloud size={20} />
+              </div>
+
+              <div>
+                <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text)' }}>
+                  {uploading
+                    ? 'Processing and validating marksheet...'
+                    : 'Drop your Excel marksheet here, or browse'}
+                </div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Supports standard university marksheet workbooks (.xlsx) up to 25 MiB
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center', marginTop: 'var(--space-2)' }}>
+                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-hover)', color: 'var(--text-secondary)' }}>
+                  Multi-Component (ISA/MSE/ESE)
+                </span>
+                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-hover)', color: 'var(--text-secondary)' }}>
+                  Grade Letters & Credits
+                </span>
+                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: 'var(--surface-hover)', color: 'var(--text-secondary)' }}>
+                  Cohort Divisions
+                </span>
+              </div>
+
+              {uploading && (
+                <div
+                  style={{
+                    width: '180px',
+                    height: '3px',
+                    borderRadius: '2px',
+                    background: 'var(--surface-hover)',
+                    overflow: 'hidden',
+                    marginTop: 'var(--space-2)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '60%',
+                      height: '100%',
+                      background: 'var(--action-primary-bg)',
+                      animation: 'indeterminate-bar 1.5s infinite ease-in-out',
+                    }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Sample Data 1-Click Option */}
+            <div
+              style={{
+                marginTop: 'var(--space-4)',
+                fontSize: 'var(--text-xs)',
+                color: 'var(--text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>Don't have a marksheet on hand?</span>
+              <button
+                type="button"
+                onClick={handleLoadSample}
+                disabled={uploading}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text)',
+                  fontWeight: 600,
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: 'var(--text-xs)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Sparkles size={12} />
+                <span>Use sample data (145 students)</span>
+              </button>
+            </div>
+
+            {/* Privacy & Data Handling — Minimal Understated Note */}
+            <div
+              style={{
+                marginTop: 'var(--space-10)',
+                paddingTop: 'var(--space-4)',
+                borderTop: '1px solid var(--border-hairline)',
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                lineHeight: 1.6,
+                maxWidth: '560px',
+              }}
+            >
+              <strong style={{ color: 'var(--text-secondary)' }}>Privacy & Data Handling:</strong>{' '}
+              Isolated temporary workspace on your computer. Instant full deletion available anytime. Zero student PII retained permanently.
+            </div>
           </div>
-
-          <div className="welcome-trust-grid">
-            <GlassCard variant="glass-1" padding="sm">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <ShieldCheck size={15} style={{ color: 'var(--text)' }} />
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text)' }}>
-                  Zero Student PII Retained
-                </span>
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Student names and roll numbers remain local within your active browser session; zero student PII is transmitted or saved.
-              </div>
-            </GlassCard>
-
-            <GlassCard variant="glass-1" padding="sm">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <Lock size={15} style={{ color: 'var(--text)' }} />
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text)' }}>
-                  Isolated Temporary Workspace
-                </span>
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                Marksheet records are ingested into an ephemeral, sandboxed session that expires automatically.
-              </div>
-            </GlassCard>
-
-            <GlassCard variant="glass-1" padding="sm">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <CheckCircle2 size={15} style={{ color: 'var(--text)' }} />
-                <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--text)' }}>
-                  Instant Full Deletion
-                </span>
-              </div>
-              <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                You can purge all data at any time from the sidebar footer menu. Calculations run locally inside your session boundary.
-              </div>
-            </GlassCard>
-          </div>
-        </div>
+        )}
       </main>
     </div>
   )

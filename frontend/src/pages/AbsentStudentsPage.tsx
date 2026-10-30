@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   UserX,
+  Mail,
   Download,
   Printer,
   AlertTriangle,
@@ -414,30 +415,73 @@ export const AbsentStudentsPage: React.FC = () => {
     {
       key: 'actions',
       header: '',
-      width: '105px',
+      width: '180px',
       align: 'right',
       render: (row) => (
-        <Link
-          to={`/students/${encodeURIComponent(row.student_id)}`}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: 'var(--text-xs)',
-            fontWeight: 600,
-            color: 'var(--text)',
-            textDecoration: 'none',
-            padding: '5px 10px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--surface-hover)',
-            border: '1px solid var(--border)',
-            transition: 'all var(--transition-fast)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span>View</span>
-          <ArrowUpRight size={12} />
-        </Link>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            type="button"
+            title={`Open notice for ${row.name} in Outlook`}
+            onClick={(e) => {
+              e.preventDefault()
+              const email = (row as any).email || `${row.roll_no || row.student_id}@university.edu`
+              const subject = `Examination Absence Notice: ${row.course_code} (${row.component}) - ${row.name}`
+              const body = `Dear ${row.name},
+
+University examination records indicate your absence during recent examinations:
+- Course: ${row.course_name} (${row.course_code})
+- Component: ${row.component}
+- Seat Number: ${row.seat_no || 'N/A'}
+- Roll Number: ${row.roll_no || 'N/A'}
+- Division: ${row.division || 'N/A'}
+
+If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the examination cell within 5 business days to confirm your make-up evaluation eligibility.
+
+Sincerely,
+Examination Cell & Department Faculty`
+              window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
+              cursor: 'pointer',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Mail size={12} />
+            <span>Email</span>
+          </button>
+
+          <Link
+            to={`/students/${encodeURIComponent(row.student_id)}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
+              color: 'var(--text)',
+              textDecoration: 'none',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              transition: 'all var(--transition-fast)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>View</span>
+            <ArrowUpRight size={12} />
+          </Link>
+        </div>
       ),
     },
   ]

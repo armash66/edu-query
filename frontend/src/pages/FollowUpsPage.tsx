@@ -13,7 +13,7 @@ import {
   Check,
   Info,
 } from 'lucide-react'
-import { getEarlyWarningStudents, getStudents, getAbsentStudents } from '../api/client'
+import { getEarlyWarningStudents, getStudents, getAbsentStudents, saveBlobAsFile } from '../api/client'
 import type { StudentSummaryItem, EarlyWarningResponse } from '../api/types'
 
 export const FollowUpsPage: React.FC = () => {
@@ -199,6 +199,69 @@ With warm congratulations,
 Head of Department`
   }, [selectedTemplate, activeRecipient])
 
+  const handleOpenInOutlook = (targetRecipient?: typeof activeRecipient) => {
+    const target = targetRecipient || activeRecipient
+    if (!target) return
+
+    let subject = ''
+    let body = ''
+
+    if (selectedTemplate === 'failed') {
+      subject = `Academic Notice: Mandatory Remedial Mentoring - ${target.name} (${target.seatNo})`
+      body = `Dear ${target.name},
+
+Official review of your recent semester results indicates that you have pending backlog evaluations in:
+${target.detail}
+
+You have been paired with an academic peer mentor for weekly problem-solving clinics.
+Please report to your department coordinator by Monday at 10:00 AM to finalize your remedial timetable.
+
+Student Information:
+- Student Name: ${target.name}
+- Seat / Roll No: ${target.seatNo}
+- Course Backlogs: ${target.detail}
+
+Sincerely,
+Examination Cell & Academic Review Committee`
+    } else if (selectedTemplate === 'absent') {
+      subject = `Academic Notice: Missed Examination Documentation - ${target.name} (${target.seatNo})`
+      body = `Dear ${target.name},
+
+University examination records indicate your absence during recent examinations:
+${target.detail}
+
+If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the exam cell within 5 business days to confirm your make-up evaluation eligibility.
+
+Student Information:
+- Student Name: ${target.name}
+- Seat / Roll No: ${target.seatNo}
+- Missed Components: ${target.detail}
+
+Sincerely,
+Office of the Dean (Academic Affairs)`
+    } else {
+      subject = `Congratulatory Letter: Dean's Merit List - ${target.name} (${target.seatNo})`
+      body = `Dear ${target.name},
+
+It is with great pleasure that we commend your outstanding academic performance:
+${target.detail}
+
+In recognition of your exceptional mastery and leadership, the department formally invites you to serve as a Senior Peer Mentor for the upcoming academic semester.
+
+Student Information:
+- Student Name: ${target.name}
+- Seat / Roll No: ${target.seatNo}
+- Performance: ${target.detail}
+
+With warm congratulations,
+Head of Department`
+    }
+
+    const email = target.email || `${target.seatNo}@university.edu`
+    const mailtoUrl = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.location.href = mailtoUrl
+  }
+
   const handleCopyNotice = () => {
     if (!noticeBody) return
     navigator.clipboard.writeText(noticeBody)
@@ -216,14 +279,7 @@ Head of Department`
     ].join('\r\n')
 
     const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `EduQuery_${selectedTemplate.toUpperCase()}_Notices_MailMerge.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    window.URL.revokeObjectURL(url)
+    saveBlobAsFile(blob, `EduQuery_${selectedTemplate.toUpperCase()}_Notices_MailMerge.csv`)
   }
 
   return (
@@ -533,14 +589,7 @@ Head of Department`
                   ),
                 ].join('\r\n')
                 const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
-                const url = window.URL.createObjectURL(blob)
-                const a = document.createElement('a')
-                a.href = url
-                a.download = 'EduQuery_Remedial_Pairings.csv'
-                document.body.appendChild(a)
-                a.click()
-                document.body.removeChild(a)
-                window.URL.revokeObjectURL(url)
+                saveBlobAsFile(blob, 'EduQuery_Remedial_Pairings.csv')
               }}
             >
               Export Pairing (CSV)
@@ -715,7 +764,17 @@ Head of Department`
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => handleOpenInOutlook()}
+                    icon={<Mail size={14} />}
+                    title="Open draft letter in Outlook or your default email client"
+                  >
+                    Open in Outlook
+                  </Button>
+
                   <Button
                     size="sm"
                     variant="secondary"

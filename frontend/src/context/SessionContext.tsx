@@ -194,7 +194,20 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 export function useSession(): SessionContextType {
   const context = useContext(SessionContext)
   if (!context) {
-    throw new Error('useSession must be used within a SessionProvider')
+    return {
+      session: null,
+      preview: null,
+      loading: false,
+      hasActiveSession: false,
+      isPreviewReady: false,
+      uploadMarksheet: async () => ({} as any),
+      loadSampleSession: async () => ({} as any),
+      confirmSession: async () => ({} as any),
+      deleteSession: async () => {},
+      saveSession: async () => ({} as any),
+      refreshStatus: async () => {},
+      clearPreview: () => {},
+    }
   }
   return context
 }

@@ -9,7 +9,7 @@ import {
   List,
   Info,
 } from 'lucide-react'
-import { getStudents, downloadStudentsRosterExcel, type StudentListParams } from '../api/client'
+import { getStudents, saveBlobAsFile, downloadStudentsRosterExcel, type StudentListParams } from '../api/client'
 import { exportStudentsRoster } from '../utils/excelExport'
 import { ApiError, type StudentSummaryItem, type PaginatedResponse } from '../api/types'
 import { GlassCard } from '../ui/GlassCard'
@@ -183,14 +183,7 @@ export const StudentsPage: React.FC = () => {
           division: divisionFilter.trim() || undefined,
           result: resultFilter.trim() || undefined,
         })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = activeTab === 'merit' ? 'EduQuery_Merit_List.xlsx' : 'EduQuery_Students.xlsx'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
+        saveBlobAsFile(blob, activeTab === 'merit' ? 'EduQuery_Merit_List.xlsx' : 'EduQuery_Students.xlsx')
         return
       } catch (serverErr) {
         console.warn('Server-side xlsx export failed, falling back to client CSV export', serverErr)
@@ -214,14 +207,7 @@ export const StudentsPage: React.FC = () => {
       }
 
       const { blob, filename } = exportStudentsRoster(recordsToExport, false)
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
+      saveBlobAsFile(blob, filename)
     } catch {
       alert('Failed to generate export.')
     } finally {

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
+  Mail,
   User,
   CheckCircle,
   AlertTriangle,
@@ -61,6 +62,63 @@ export const StudentDetailPage: React.FC = () => {
     } finally {
       setExporting(false)
     }
+  }
+
+  const handleEmailStudent = () => {
+    const student = data?.student
+    if (!student) return
+    const recipientEmail = student.email || `${student.roll_no || student.student_id}@university.edu`
+    const isPass = (student.overall_result || '').toUpperCase().includes('PASS')
+    const failedSubjects = (data?.subjects || [])
+      .filter((s) => (s.recorded_result || '').toUpperCase().includes('FAIL') || (s.letter_grade || '').toUpperCase() === 'F')
+      .map((s) => `${s.course_name} (${s.course_code})`)
+
+    let subject = ''
+    let body = ''
+
+    if (isPass) {
+      subject = `Semester Examination Result: ${toTitleCase(student.name)} (${student.seat_no || student.student_id})`
+      body = `Dear ${toTitleCase(student.name)},
+
+This is an official communication regarding your semester examination results.
+
+Academic Summary:
+- Student Name: ${toTitleCase(student.name)}
+- Seat Number: ${student.seat_no || 'N/A'}
+- Roll Number: ${student.roll_no || 'N/A'}
+- Division: ${student.division || 'N/A'}
+- Total Marks: ${student.total_marks ?? 'N/A'}
+- SGPI: ${student.sgpi !== null && student.sgpi !== undefined ? Number(student.sgpi).toFixed(2) : 'N/A'}
+- CGPA: ${student.cgpa !== null && student.cgpa !== undefined ? Number(student.cgpa).toFixed(2) : 'N/A'}
+- Overall Result: ${student.overall_result || 'PASSED'}
+
+Congratulations on your successful completion of the semester examinations.
+
+Sincerely,
+Examination Cell & Department Faculty`
+    } else {
+      subject = `Academic Notice: Examination Result & Backlog Review - ${toTitleCase(student.name)} (${student.seat_no || student.student_id})`
+      body = `Dear ${toTitleCase(student.name)},
+
+This is an official communication regarding your semester examination results and academic standing.
+
+Academic Summary:
+- Student Name: ${toTitleCase(student.name)}
+- Seat Number: ${student.seat_no || 'N/A'}
+- Roll Number: ${student.roll_no || 'N/A'}
+- Division: ${student.division || 'N/A'}
+- Overall Result: ${student.overall_result || 'FAILED'}
+- Backlog Subjects:
+  ${failedSubjects.length > 0 ? failedSubjects.map((s: string) => `• ${s}`).join('\n  ') : '• Pending evaluation'}
+
+Please contact your academic advisor or examination cell coordinator to discuss remedial sessions and schedule your re-examination applications.
+
+Sincerely,
+Examination Cell & Academic Review Committee`
+    }
+
+    const mailtoUrl = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    window.location.href = mailtoUrl
   }
 
   const handleExportExcel = async () => {
@@ -266,11 +324,22 @@ export const StudentDetailPage: React.FC = () => {
           <span>Back to Student Roster</span>
         </Link>
 
-        <div style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => setIsExportMenuOpen((prev) => !prev)}
+            onClick={handleEmailStudent}
+            icon={<Mail size={14} />}
+            title="Open pre-filled letter in Outlook"
+          >
+            Email Student
+          </Button>
+
+          <div style={{ position: 'relative' }}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setIsExportMenuOpen((prev) => !prev)}
             icon={<Download size={14} />}
             aria-haspopup="menu"
             aria-expanded={isExportMenuOpen}
@@ -376,6 +445,7 @@ export const StudentDetailPage: React.FC = () => {
               </button>
             </div>
           )}
+          </div>
         </div>
       </div>
 

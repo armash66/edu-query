@@ -7,6 +7,7 @@ import {
   Layers,
   Info,
 } from 'lucide-react'
+import { useSession } from '../context/SessionContext'
 import {
   getSubjects,
   getSubjectFailureSummary,
@@ -34,6 +35,7 @@ export const SubjectsCatalogPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const tabParam = searchParams.get('tab')
   const activeTab = tabParam === 'failures' ? 'failures' : tabParam === 'electives' ? 'electives' : 'catalog'
+  const { session } = useSession()
 
   const [courses, setCourses] = useState<CourseItem[]>([])
   const [total, setTotal] = useState<number>(0)
@@ -95,7 +97,8 @@ export const SubjectsCatalogPage: React.FC = () => {
     getOverviewSummary()
       .then(setOverviewSummary)
       .catch(() => {})
-  }, [])
+    fetchFailures()
+  }, [session?.session_id, fetchFailures])
 
   useEffect(() => {
     if (activeTab === 'catalog') {
@@ -426,7 +429,7 @@ export const SubjectsCatalogPage: React.FC = () => {
           }}
         >
           <BookOpen size={14} />
-          <span>Academic Curriculum Roster</span>
+          <span>Curriculum</span>
         </div>
         <h1
           style={{
@@ -437,14 +440,14 @@ export const SubjectsCatalogPage: React.FC = () => {
             letterSpacing: '-0.02em',
           }}
         >
-          Curriculum Subjects & Failure Ranking
+          Subjects & Courses
         </h1>
         <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: '4px 0 0 0' }}>
-          Evaluate course outcomes, track failure rates across subjects, and audit elective distribution.
+          Overview of courses, enrollment counts, pass rates, and failures.
         </p>
       </div>
 
-      {/* 2. Catalog Cards (Requirement 5) */}
+      {/* 2. Catalog Cards */}
       <div
         style={{
           display: 'grid',
@@ -455,60 +458,64 @@ export const SubjectsCatalogPage: React.FC = () => {
         {/* Card 1: Total Courses */}
         <GlassCard variant="glass-1" padding="md">
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Total Curriculum Courses
+            Total Courses
           </div>
           <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text)', marginTop: '4px' }}>
-            {total || overviewSummary?.kpis?.total_courses || courses.length} Courses
+            {total || courses.length || overviewSummary?.kpis?.total_courses || 0} Courses
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            {overviewSummary?.kpis?.total_students !== undefined ? `${overviewSummary.kpis.total_students} students enrolled class-wide` : 'Enrolled cohort candidates'}
+            {session?.students_count || overviewSummary?.kpis?.total_students
+              ? `${session?.students_count || overviewSummary?.kpis?.total_students} students enrolled`
+              : 'Enrolled students'}
           </div>
         </GlassCard>
 
         {/* Card 2: Pass Rate */}
         <GlassCard variant="glass-1" padding="md">
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Class-Wide Pass Rate
+            Pass Rate
           </div>
           <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text)', marginTop: '4px' }}>
             {overviewSummary?.kpis?.pass_rate_percent !== undefined ? `${overviewSummary.kpis.pass_rate_percent.toFixed(1)}%` : '—'}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            {overviewSummary?.kpis ? `${overviewSummary.kpis.passed_students} of ${overviewSummary.kpis.total_students} students passed all courses` : 'Student pass status'}
+            {overviewSummary?.kpis ? `${overviewSummary.kpis.passed_students} of ${overviewSummary.kpis.total_students} students passed all subjects` : 'Pass rate'}
           </div>
         </GlassCard>
 
         {/* Card 3: Highest Failure Subject */}
         <GlassCard variant="glass-1" padding="md">
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Highest Failure Subject
+            Most Failed Subject
           </div>
           <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--status-danger-text)', marginTop: '4px' }}>
-            {failuresSummary.length > 0
+            {failuresSummary.length > 0 && failuresSummary[0].confirmed_failures_count > 0
               ? `${failuresSummary[0].course_code} (${failuresSummary[0].confirmed_failures_count})`
-              : overviewSummary?.hardest_subjects?.[0]
+              : overviewSummary?.hardest_subjects?.[0] && overviewSummary.hardest_subjects[0].failed_count > 0
               ? `${overviewSummary.hardest_subjects[0].course_code} (${overviewSummary.hardest_subjects[0].failed_count})`
               : 'None'}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            {failuresSummary.length > 0
-              ? `${failuresSummary[0].course_name} · ${failuresSummary[0].failure_rate_percent.toFixed(1)}% failure rate`
-              : overviewSummary?.hardest_subjects?.[0]
-              ? `${overviewSummary.hardest_subjects[0].course_title} · ${overviewSummary.hardest_subjects[0].failure_rate_percent.toFixed(1)}% failure rate`
-              : 'Zero course failures detected'}
+            {failuresSummary.length > 0 && failuresSummary[0].confirmed_failures_count > 0
+              ? `${failuresSummary[0].course_name} · ${failuresSummary[0].failure_rate_percent.toFixed(1)}% failed`
+              : overviewSummary?.hardest_subjects?.[0] && overviewSummary.hardest_subjects[0].failed_count > 0
+              ? `${overviewSummary.hardest_subjects[0].course_title} · ${overviewSummary.hardest_subjects[0].failure_rate_percent.toFixed(1)}% failed`
+              : 'No subject failures'}
           </div>
         </GlassCard>
 
         {/* Card 4: Electives */}
         <GlassCard variant="glass-1" padding="md">
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>
-            Elective Offerings
+            Elective Courses
           </div>
           <div className="tabular-nums font-mono" style={{ fontSize: 'var(--text-2xl)', fontWeight: 700, color: 'var(--text)', marginTop: '4px' }}>
-            {electiveCourses.length > 0 ? `${electiveCourses.length} Electives` : 'Core Curriculum'}
+            {electiveCourses.length > 0 ? `${electiveCourses.length} Elective${electiveCourses.length === 1 ? '' : 's'}` : 'Core Curriculum'}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            {electiveCourses.length > 0 ? 'Elective tracks detected in marksheet' : 'Common required subjects'}
+            {electiveCourses.length > 0
+              ? `${electiveCourses.length} elective courses found`
+              : 'All courses are required'}
           </div>
         </GlassCard>
       </div>
