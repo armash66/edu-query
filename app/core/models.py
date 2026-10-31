@@ -47,6 +47,7 @@ class CourseBlock:
     credits_col: int | None
     total_col: int | None
     grade_col: int | None
+    header_credits: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

@@ -80,7 +80,7 @@
   --orb-2: rgba(189, 189, 189, 0.06);
 
   /* Focus Ring */
-  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #000000;
+  --focus-ring: 0 0 0 2px rgba(0, 0, 0, 0.20);
 }
 
 /* -------------------------------------------------------------------------
@@ -139,7 +139,7 @@
   --orb-1: rgba(255, 255, 255, 0.05);
   --orb-2: rgba(255, 255, 255, 0.03);
 
-  --focus-ring: 0 0 0 2px #000000, 0 0 0 4px #ffffff;
+  --focus-ring: 0 0 0 2px rgba(255, 255, 255, 0.22);
 }
 
 /* -------------------------------------------------------------------------
@@ -166,6 +166,7 @@
   --radius-card: 16px;
   --radius-panel: 24px;
   --radius-full: 9999px;
+  --radius-pill: 9999px;
 
   /* Spacing Scale (4px Base Unit) */
   --space-1: 0.25rem;  /* 4px */
@@ -760,6 +761,75 @@ button:disabled {
   thead {
     display: table-header-group !important;
   }
+
+  /* Roster directory printable tabular formatting */
+  .responsive-data-table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  .responsive-data-table thead {
+    display: table-header-group !important;
+  }
+  .responsive-data-table tbody {
+    display: table-row-group !important;
+  }
+  .responsive-data-table tr {
+    display: table-row !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border-bottom: 1px solid #cccccc !important;
+  }
+  .responsive-data-table th,
+  .responsive-data-table td {
+    display: table-cell !important;
+    padding: 3px 5px !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+    border: 1px solid #dddddd !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+  }
+  .responsive-data-table td::before {
+    display: none !important;
+    content: none !important;
+  }
+  .no-print,
+  button,
+  .table-actions {
+    display: none !important;
+  }
+  /* Result Slips Multi-Page Print Rules */
+  body.printing-result-slips #root {
+    display: none !important;
+  }
+  body.printing-result-slips #print-slips-portal {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  body.printing-result-slips .single-student-slip {
+    page-break-after: always !important;
+    break-after: page !important;
+    padding: 32px;
+    box-sizing: border-box;
+    background: #ffffff !important;
+    color: #000000 !important;
+    min-height: 96vh;
+    border: none !important;
+    margin: 0 !important;
+  }
+
+}
+
+/* Result Slips Portal hidden in screen view */
+#print-slips-portal {
+  display: none;
 }
 
 /* Overview Page Responsive Grid & Ordering */
@@ -789,7 +859,7 @@ button:disabled {
 /* -------------------------------------------------------------------------
    DataTable Responsive: Card List (<768px) and Tablet Sticky Column (768-1024px)
    ------------------------------------------------------------------------- */
-@media (max-width: 767px) {
+@media screen and (max-width: 767px) {
   .responsive-data-table {
     display: block !important;
     width: 100% !important;
@@ -847,3 +917,51 @@ button:disabled {
   }
 }
 
+
+
+.data-quality-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  min-width: 0;
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .data-quality-grid {
+    grid-template-columns: 5fr 7fr;
+  }
+}
+
+/* Welcome / Opening Page Grid */
+.welcome-workspace-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+@media (min-width: 960px) {
+  .welcome-workspace-grid {
+    grid-template-columns: 1.25fr 1fr;
+  }
+}
+
+.welcome-trust-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .welcome-trust-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}

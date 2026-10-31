@@ -92,8 +92,8 @@ describe('AbsentStudentsPage', () => {
     })
 
     // Check subjects and components
-    expect(screen.getByText('CS101')).toBeInTheDocument()
-    expect(screen.getByText('CS102')).toBeInTheDocument()
+    expect(screen.getAllByText('CS101').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('CS102').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('ESE').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('LAB').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('AB')).toBeInTheDocument()
@@ -102,8 +102,8 @@ describe('AbsentStudentsPage', () => {
     // Check KPI overview cards and results
     expect(screen.getByText('Absent Students')).toBeInTheDocument()
     expect(screen.getByText('Absence Incidents')).toBeInTheDocument()
-    expect(screen.getByText('FAIL')).toBeInTheDocument()
-    expect(screen.getByText('PASS')).toBeInTheDocument()
+    expect(screen.getAllByText('FAIL').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('PASS').length).toBeGreaterThanOrEqual(1)
   })
 
   it('filters absent records by division, subject, and search query', async () => {
@@ -271,4 +271,24 @@ describe('AbsentStudentsPage', () => {
       expect(window.print).toHaveBeenCalled()
     })
   })
+
+  it('renders absence severity groups (1-2 subjects vs 5+ subjects) and Draft Notice action', async () => {
+    vi.spyOn(client, 'getAbsentStudents').mockResolvedValue({
+      total: 1,
+      limit: 25,
+      offset: 0,
+      items: [],
+    })
+
+    render(
+      <MemoryRouter>
+        <AbsentStudentsPage />
+      </MemoryRouter>
+    )
+
+    expect(screen.getByText('Absent in 1–2 Subjects')).toBeInTheDocument()
+    expect(screen.getByText('Absent in 3+ Subjects (Multiple / Critical)')).toBeInTheDocument()
+    expect(screen.getByText('Draft Notice')).toBeInTheDocument()
+  })
+
 })

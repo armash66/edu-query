@@ -16,6 +16,7 @@ import {
   downloadInvestigationExcel,
   saveBlobAsFile,
   getSubjects,
+  askAi,
   ApiError,
 } from '../api/client'
 import type {
@@ -28,7 +29,9 @@ import type {
   InvestigationQueryRequest,
   InvestigationQueryResponse,
   StudentSummaryItem,
+  AskAiResponse,
 } from '../api/types'
+import { Sparkles, AlertCircle } from 'lucide-react'
 import { GlassCard } from '../ui/GlassCard'
 import { Button } from '../ui/Button'
 import { SearchField } from '../ui/SearchField'
@@ -52,6 +55,31 @@ const OPERATOR_LABELS: Record<InvestigationOperator, string> = {
 
 export const ExplorePage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams()
+  const [aiResponse, setAiResponse] = useState<AskAiResponse | null>(null)
+  const [aiLoading, setAiLoading] = useState<boolean>(false)
+
+  const aiQuery = searchParams.get('ai_query') || (searchParams.get('source') === 'ai' ? searchParams.get('search') : null)
+
+  useEffect(() => {
+    if (aiQuery && aiQuery.trim()) {
+      setAiLoading(true)
+      askAi({ query: aiQuery.trim() })
+        .then((res) => {
+          setAiResponse(res)
+          if (!res.is_refused && res.predicate_ast?.conditions && res.predicate_ast.conditions.length > 0) {
+            setConditions(res.predicate_ast.conditions)
+            if (res.query_request?.sort_by) {
+              setSortBy(res.query_request.sort_by as any)
+            }
+            if (res.query_request?.sort_dir) {
+              setSortDir(res.query_request.sort_dir)
+            }
+          }
+        })
+        .catch(() => {})
+        .finally(() => setAiLoading(false))
+    }
+  }, [aiQuery])
 
   // Capabilities loaded from dataset
   const [capabilities, setCapabilities] = useState<InvestigationCapabilitiesResponse | null>(null)
@@ -368,7 +396,7 @@ export const ExplorePage: React.FC = () => {
 
   const hasActiveFilters = conditions.length > 0 || Boolean(searchInput.trim())
   const total = data?.total ?? 0
-  const cohortTotal = data?.cohort_total ?? 145
+  const cohortTotal = data?.cohort_total ?? data?.total ?? 0
 
   // List of capabilities fields
   const availableFields = capabilities?.fields ?? [
@@ -689,6 +717,68 @@ export const ExplorePage: React.FC = () => {
         </div>
       </div>
 
+      {/* Ask AI Interpreted Query Banner (Requirement 7 & 11.1) */}
+      {(searchParams.get('source') === 'ai' || searchParams.get('from_ai') === 'true' || Boolean(aiQuery)) && (
+        <div
+          style={{
+            padding: '12px 16px',
+            borderRadius: 'var(--radius-sm)',
+            background: aiResponse?.is_refused ? 'rgba(239, 68, 68, 0.08)' : 'var(--surface-hover)',
+            border: `1px solid ${aiResponse?.is_refused ? 'var(--status-danger)' : 'var(--border-strong)'}`,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            fontSize: 'var(--text-xs)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {aiResponse?.is_refused ? (
+                <AlertCircle size={16} style={{ color: 'var(--status-danger)', flexShrink: 0 }} />
+              ) : (
+                <Sparkles size={16} style={{ color: 'var(--text)', flexShrink: 0 }} />
+              )}
+              <span>
+                <strong style={{ color: 'var(--text)' }}>
+                  {aiResponse?.is_refused ? 'Prohibited Analysis Refused' : 'Interpreted from Ask AI query:'}
+                </strong>{' '}
+                {aiQuery ? `"${aiQuery}"` : 'Natural language query translated into predicate AST'}
+              </span>
+            </div>
+            <Link
+              to="/explore"
+              onClick={() => {
+                setAiResponse(null)
+                handleClearAll()
+              }}
+              style={{ fontSize: '11px', color: 'var(--text-secondary)', textDecoration: 'underline' }}
+            >
+              Reset Query
+            </Link>
+          </div>
+
+          {aiLoading && (
+            <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+              Translating natural language into schema-only predicate AST...
+            </div>
+          )}
+
+          {aiResponse?.is_refused ? (
+            <div style={{ color: 'var(--status-danger)', fontSize: '12px', fontWeight: 500 }}>
+              {aiResponse.refusal}
+            </div>
+          ) : aiResponse?.explanation ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: 1.4 }}>
+              {aiResponse.explanation}
+            </div>
+          ) : (
+            <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+              Natural language translated into predicate filter conditions. Click any chip below to edit or remove.
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Level 2: Compact Add Filter Condition Editor Popover / Card */}
       {addFilterOpen && (
         <GlassCard elevation={2} padding="md">
@@ -994,7 +1084,7 @@ export const ExplorePage: React.FC = () => {
                 placeholder="Search by student identifier, name, roll no, seat no..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                aria-label="Search cohort students"
+                aria-label="Search enrolled students"
               />
             </div>
             <Button type="submit" variant="secondary" size="sm">
@@ -1202,16 +1292,16 @@ export const ExplorePage: React.FC = () => {
           }}
         >
           <div>
-            Showing <strong>{total}</strong> of <strong>{cohortTotal}</strong> matching cohort students{' '}
+            Showing <strong>{total}</strong> of <strong>{cohortTotal}</strong> matching division students{' '}
             {cohortTotal > 0 && (
               <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                ({((total / cohortTotal) * 100).toFixed(1)}% of total cohort)
+                ({((total / cohortTotal) * 100).toFixed(1)}% of total enrolled students)
               </span>
             )}
           </div>
 
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-            {data?.active_explanation || 'All cohort students'}
+            {data?.active_explanation || 'All enrolled students'}
           </div>
         </div>
       </div>

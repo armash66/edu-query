@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   UserX,
+  Mail,
   Download,
   Printer,
   AlertTriangle,
@@ -216,6 +217,44 @@ export const AbsentStudentsPage: React.FC = () => {
   const distinctCourses = totalCourses || new Set(records.map((r) => r.course_code)).size
   const recordsToPrint = printRecords && printRecords.length > 0 ? printRecords : records
 
+  // Dynamically group distinct absent candidates from records
+  const groupedAbsentees = useMemo(() => {
+    const map = new Map<string, {
+      student_id: string
+      name: string
+      seat_no: string | null
+      roll_no: string | null
+      division: string | null
+      overall_result: string | null
+      courses: Set<string>
+      components: string[]
+    }>()
+
+    records.forEach((r) => {
+      if (!map.has(r.student_id)) {
+        map.set(r.student_id, {
+          student_id: r.student_id,
+          name: r.name,
+          seat_no: r.seat_no,
+          roll_no: r.roll_no,
+          division: r.division,
+          overall_result: r.overall_result,
+          courses: new Set<string>(),
+          components: [],
+        })
+      }
+      const entry = map.get(r.student_id)!
+      if (r.course_code) entry.courses.add(r.course_code)
+      if (r.component) entry.components.push(r.component)
+    })
+
+    const all = Array.from(map.values())
+    const isolated = all.filter((s) => s.courses.size <= 2)
+    const extended = all.filter((s) => s.courses.size > 2)
+
+    return { isolated, extended, totalStudents: all.length }
+  }, [records])
+
   const columns: Column<AbsentStudentItem>[] = [
     {
       key: 'roll_no',
@@ -376,30 +415,73 @@ export const AbsentStudentsPage: React.FC = () => {
     {
       key: 'actions',
       header: '',
-      width: '105px',
+      width: '180px',
       align: 'right',
       render: (row) => (
-        <Link
-          to={`/students/${encodeURIComponent(row.student_id)}`}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: 'var(--text-xs)',
-            fontWeight: 600,
-            color: 'var(--text)',
-            textDecoration: 'none',
-            padding: '5px 10px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--surface-hover)',
-            border: '1px solid var(--border)',
-            transition: 'all var(--transition-fast)',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span>View</span>
-          <ArrowUpRight size={12} />
-        </Link>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            type="button"
+            title={`Open notice for ${row.name} in Outlook`}
+            onClick={(e) => {
+              e.preventDefault()
+              const email = (row as any).email || `${row.roll_no || row.student_id}@university.edu`
+              const subject = `Examination Absence Notice: ${row.course_code} (${row.component}) - ${row.name}`
+              const body = `Dear ${row.name},
+
+University examination records indicate your absence during recent examinations:
+- Course: ${row.course_name} (${row.course_code})
+- Component: ${row.component}
+- Seat Number: ${row.seat_no || 'N/A'}
+- Roll Number: ${row.roll_no || 'N/A'}
+- Division: ${row.division || 'N/A'}
+
+If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the examination cell within 5 business days to confirm your make-up evaluation eligibility.
+
+Sincerely,
+Examination Cell & Department Faculty`
+              window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
+              cursor: 'pointer',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Mail size={12} />
+            <span>Email</span>
+          </button>
+
+          <Link
+            to={`/students/${encodeURIComponent(row.student_id)}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
+              color: 'var(--text)',
+              textDecoration: 'none',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              transition: 'all var(--transition-fast)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>View</span>
+            <ArrowUpRight size={12} />
+          </Link>
+        </div>
       ),
     },
   ]
@@ -537,6 +619,24 @@ export const AbsentStudentsPage: React.FC = () => {
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', flexWrap: 'wrap' }}>
+          <Link
+            to="/follow-ups"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            <span>Draft Notice</span>
+          </Link>
           <Button
             variant="secondary"
             size="sm"
@@ -765,6 +865,124 @@ export const AbsentStudentsPage: React.FC = () => {
           onRetry={fetchAbsentList}
         />
       )}
+
+      {/* Grouped Absence Severity Breakdown (Dynamic Division Partition) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-4)' }}>
+        {/* Group 1: Absent in 1-2 subjects */}
+        <GlassCard variant="glass-2" padding="md">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
+              Absent in 1–2 Subjects
+            </div>
+            <StatusBadge
+              tone={groupedAbsentees.isolated.length > 0 ? 'warn' : 'info'}
+              size="sm"
+              label={`${groupedAbsentees.isolated.length} Candidate${groupedAbsentees.isolated.length === 1 ? '' : 's'}`}
+            />
+          </div>
+          <p style={{ margin: '0 0 12px 0', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+            Isolated component absence. Candidates may be eligible for immediate make-up re-evaluation.
+          </p>
+          {groupedAbsentees.isolated.length === 0 ? (
+            <div style={{ padding: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              No candidates with isolated absences in the active filter.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+              {groupedAbsentees.isolated.map((s) => (
+                <div
+                  key={s.student_id}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-hover)',
+                    border: '1px solid var(--border)',
+                    fontSize: '11px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong style={{ color: 'var(--text)' }}>
+                      {s.name} {s.seat_no ? `(${s.seat_no})` : ''} {s.division ? `· Div ${s.division}` : ''}
+                    </strong>
+                    <StatusBadge
+                      tone={(s.overall_result || '').toUpperCase().includes('PASS') ? 'pass' : 'fail'}
+                      size="sm"
+                      label={s.overall_result || 'Pending'}
+                    />
+                  </div>
+                  <div style={{ color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Missed in: <strong>{Array.from(s.courses).join(', ')}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </GlassCard>
+
+        {/* Group 2: Absent in 5+ subjects (Critical) */}
+        <GlassCard variant="glass-2" padding="md">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
+              Absent in 3+ Subjects (Multiple / Critical)
+            </div>
+            <StatusBadge
+              tone={groupedAbsentees.extended.length > 0 ? 'fail' : 'info'}
+              size="sm"
+              label={`${groupedAbsentees.extended.length} Candidate${groupedAbsentees.extended.length === 1 ? '' : 's'}`}
+            />
+          </div>
+          <p style={{ margin: '0 0 12px 0', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
+            Chronic or extended absence across multiple course units. Requires administrative consultation.
+          </p>
+          {groupedAbsentees.extended.length === 0 ? (
+            <div style={{ padding: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
+              No candidates with chronic/extended absences in the active filter.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
+              {groupedAbsentees.extended.map((s) => (
+                <div
+                  key={s.student_id}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--surface-hover)',
+                    border: '1px solid var(--border)',
+                    fontSize: '11px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <strong style={{ color: 'var(--text)' }}>
+                      {s.name} {s.seat_no ? `(${s.seat_no})` : ''} {s.division ? `· Div ${s.division}` : ''}
+                    </strong>
+                    <StatusBadge
+                      tone={(s.overall_result || '').toUpperCase().includes('PASS') ? 'pass' : 'fail'}
+                      size="sm"
+                      label={s.overall_result || 'Pending'}
+                    />
+                  </div>
+                  <div style={{ color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    Missed {s.courses.size} subjects: <strong>{Array.from(s.courses).join(', ')}</strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ marginTop: '8px' }}>
+            <Link
+              to="/follow-ups"
+              style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: 'var(--text)',
+                textDecoration: 'underline',
+              }}
+            >
+              Draft Notice &rarr;
+            </Link>
+          </div>
+        </GlassCard>
+      </div>
 
       {/* Main Table / Empty / Loading */}
       {loading && !records.length ? (

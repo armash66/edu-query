@@ -1,1246 +1,1626 @@
 import React, { useState, useRef } from 'react'
+
 import { useNavigate } from 'react-router-dom'
+
 import {
+
   UploadCloud,
-  ShieldCheck,
+
   CheckCircle2,
+
   AlertTriangle,
-  ArrowRight,
-  Database,
-  Lock,
-  Trash2,
+
   Info,
+
+  ArrowRight,
+
 } from 'lucide-react'
+
 import { useSession } from '../context/SessionContext'
+
 import { useHealth } from '../context/HealthContext'
+
 import { ApiError } from '../api/client'
+
 import { GlassCard } from '../ui/GlassCard'
+
 import { Button } from '../ui/Button'
-import { StatusBadge } from '../ui/StatusBadge'
+
+import { ThemeMenu } from '../components/ThemeMenu'
+
+
 
 const MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024 // 25 MiB
 
+
+
 export const UploadPage: React.FC = () => {
+
   const navigate = useNavigate()
+
   const {
+
     session,
+
     preview,
-    hasActiveSession,
+
     isPreviewReady,
+
     uploadMarksheet,
+
     confirmSession,
+
     deleteSession,
+
     saveSession,
+
     clearPreview,
+
   } = useSession()
+
   const { refreshHealth } = useHealth()
 
+
+
   const [dragActive, setDragActive] = useState<boolean>(false)
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+
+  const [, setSelectedFile] = useState<File | null>(null)
+
   const [privacyMode, setPrivacyMode] = useState<'temporary' | 'persistent'>('temporary')
+
   const [saveDatasetName, setSaveDatasetName] = useState<string>('')
+
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
   const [errorDetails, setErrorDetails] = useState<string[]>([])
+
   const [uploading, setUploading] = useState<boolean>(false)
+
   const [confirming, setConfirming] = useState<boolean>(false)
+
+
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
+
+
   const validateAndProcessFile = async (file: File) => {
+
     if (uploading) return
+
     setErrorMsg(null)
+
     setErrorDetails([])
+
     setPrivacyMode('temporary')
+
     setSaveDatasetName('')
+
+
 
     // 1. Extension check
+
     const isXlsx = file.name.toLowerCase().endsWith('.xlsx')
+
     if (!isXlsx) {
+
       setSelectedFile(null)
+
       setErrorMsg('Invalid file format. Please upload an Excel workbook (.xlsx).')
+
       return
+
     }
+
+
 
     // 2. Size check
+
     if (file.size > MAX_FILE_SIZE_BYTES) {
+
       setSelectedFile(null)
+
       setErrorMsg(
+
         `File size (${(file.size / (1024 * 1024)).toFixed(1)} MiB) exceeds the 25 MiB maximum limit.`
+
       )
+
       return
+
     }
+
+
 
     if (file.size === 0) {
+
       setSelectedFile(null)
+
       setErrorMsg('The selected workbook is empty (0 bytes).')
+
       return
+
     }
+
+
 
     setSelectedFile(file)
+
     setUploading(true)
 
+
+
     try {
+
       await uploadMarksheet(file)
+
     } catch (err: unknown) {
+
       setSelectedFile(null)
+
       if (err instanceof ApiError) {
+
         setErrorMsg(err.message || 'Could not parse workbook structure.')
+
         setErrorDetails(err.details || [])
+
       } else {
+
         const msg =
+
           err instanceof Error ? err.message : 'Please verify the file is a valid Excel spreadsheet.'
+
         setErrorMsg(`Failed to process workbook: ${msg}`)
+
       }
+
     } finally {
+
       setUploading(false)
+
     }
+
   }
+
+
 
   const handleDragOver = (e: React.DragEvent) => {
+
     e.preventDefault()
+
     e.stopPropagation()
+
     if (!uploading) {
+
       setDragActive(true)
+
     }
+
   }
+
+
 
   const handleDragLeave = (e: React.DragEvent) => {
+
     e.preventDefault()
+
     e.stopPropagation()
+
     setDragActive(false)
+
   }
+
+
 
   const handleDrop = (e: React.DragEvent) => {
+
     e.preventDefault()
+
     e.stopPropagation()
+
     setDragActive(false)
+
     if (uploading) return
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+
       validateAndProcessFile(e.dataTransfer.files[0])
+
     }
+
   }
+
+
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
     const file = e.target.files?.[0]
-    // Reset target value so choosing the same file triggers onChange
+
     e.target.value = ''
+
     if (file) {
+
       validateAndProcessFile(file)
+
     }
+
   }
+
+
 
   const handleConfirm = async () => {
+
     setConfirming(true)
+
     setErrorMsg(null)
+
     try {
+
       await confirmSession()
+
       if (privacyMode === 'persistent') {
+
         await saveSession(saveDatasetName.trim() || undefined)
+
       }
+
       await refreshHealth()
+
       navigate('/')
+
     } catch (err: unknown) {
+
       if (err instanceof ApiError) {
+
         setErrorMsg(err.message || 'Could not confirm session.')
+
         setErrorDetails(err.details || [])
+
       } else {
+
         setErrorMsg('Failed to activate session.')
+
       }
+
     } finally {
+
       setConfirming(false)
+
     }
+
   }
+
+
 
   const handleCancelPreview = async () => {
+
     setSelectedFile(null)
+
     setErrorMsg(null)
+
     setErrorDetails([])
+
     setPrivacyMode('temporary')
+
     setSaveDatasetName('')
+
     if (fileInputRef.current) fileInputRef.current.value = ''
+
     await deleteSession()
+
     clearPreview()
+
   }
 
+
+
+  const isActivationBlocked = Boolean(
+
+    session?.can_confirm === false ||
+
+      (session?.blocking_errors && session.blocking_errors.length > 0)
+
+  )
+
+
+
+  const rawFindings = preview?.findings || []
+
+  const warningFindings = rawFindings.filter((f) => f.severity === 'warning')
+
+
+
   return (
+
     <div
+
       style={{
-        maxWidth: '840px',
-        margin: '0 auto',
+
+        minHeight: '100vh',
+
+        width: '100%',
+
         display: 'flex',
+
         flexDirection: 'column',
-        gap: 'var(--space-6)',
-        padding: 'var(--space-6) var(--space-4)',
+
+        background: 'var(--bg-app)',
+
       }}
+
     >
-      {/* Header Banner */}
-      <div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 'var(--space-2)',
-            marginBottom: 'var(--space-1)',
-          }}
-        >
-          <div
-            style={{
-              fontSize: 'var(--text-xs)',
-              fontWeight: 700,
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            Academic Marksheet Analysis
-          </div>
-          {hasActiveSession && <StatusBadge tone="pass" size="sm" label="Active Cohort Loaded" />}
-        </div>
-        <h1
-          style={{
-            fontSize: 'var(--text-2xl)',
-            fontWeight: 700,
-            color: 'var(--text)',
-            margin: '0 0 var(--space-1) 0',
-            letterSpacing: '-0.02em',
-          }}
-        >
-          Analyze a marksheet
-        </h1>
-        <p
-          style={{
-            fontSize: 'var(--text-sm)',
-            color: 'var(--text-secondary)',
-            margin: 0,
-            lineHeight: 1.5,
-          }}
-        >
-          Upload an Excel marksheet (.xlsx) to review cohort outcomes, subject failure rates, and
-          records requiring faculty verification.
-        </p>
-      </div>
 
-      {/* Error Notice */}
-      {errorMsg && (
-        <GlassCard
-          variant="glass-2"
-          padding="md"
-          style={{
-            borderColor: 'var(--status-danger-border)',
-            background: 'var(--status-danger-bg)',
-            color: 'var(--status-danger-text)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-2)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-              fontWeight: 600,
-              fontSize: 'var(--text-sm)',
-            }}
-          >
-            <AlertTriangle size={16} />
-            <span>{errorMsg}</span>
-          </div>
+      {/* Top Header */}
 
-          {errorDetails.length > 0 && (
-            <ul
-              style={{
-                margin: '0 0 0 var(--space-4)',
-                padding: 0,
-                fontSize: 'var(--text-xs)',
-                lineHeight: 1.5,
-              }}
-            >
-              {errorDetails.map((detail, idx) => (
-                <li key={idx}>{detail}</li>
-              ))}
-            </ul>
-          )}
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              setErrorMsg(null)
-              setErrorDetails([])
-              if (fileInputRef.current) fileInputRef.current.value = ''
-            }}
-            style={{ alignSelf: 'flex-start', marginTop: 'var(--space-1)' }}
-          >
-            Try another file
-          </Button>
-        </GlassCard>
-      )}
+      <header
 
-      {/* Preview Card (Shown after successful upload) */}
-      {isPreviewReady && preview ? (
-        <GlassCard
-          variant="glass-2"
-          padding="lg"
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 'var(--space-6)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderBottom: '1px solid var(--border)',
-              paddingBottom: 'var(--space-4)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-              <div
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--status-success-bg)',
-                  color: 'var(--status-success-text)',
-                  border: '1px solid var(--status-success-border)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <CheckCircle2 size={20} />
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text)' }}>
-                  Marksheet Structure Detected
-                </div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  {session?.filename || selectedFile?.name} &bull; Ready for confirmation
-                </div>
-              </div>
-            </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={handleCancelPreview}
-              icon={<Trash2 size={14} />}
-            >
-              Cancel
-            </Button>
-          </div>
+        className="glass-1"
 
-          {/* Metric Summary Grid */}
+        style={{
+
+          width: '100%',
+
+          height: '56px',
+
+          borderBottom: '1px solid var(--border)',
+
+          display: 'flex',
+
+          alignItems: 'center',
+
+          justifyContent: 'space-between',
+
+          padding: '0 var(--space-6)',
+
+          flexShrink: 0,
+
+        }}
+
+      >
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+
           <div
+
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: 'var(--space-4)',
-              background: 'var(--surface-hover)',
-              padding: 'var(--space-4)',
+
+              width: '28px',
+
+              height: '28px',
+
               borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                Students Detected
-              </div>
-              <div
-                className="tabular-nums font-mono"
-                style={{
-                  fontSize: 'var(--text-xl)',
-                  fontWeight: 700,
-                  color: 'var(--text)',
-                  marginTop: 'var(--space-1)',
-                }}
-              >
-                {preview.detected_students ?? session?.students_count ?? 0}
-              </div>
-            </div>
 
-            <div>
-              <div
-                style={{
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                Courses / Subjects
-              </div>
-              <div
-                className="tabular-nums font-mono"
-                style={{
-                  fontSize: 'var(--text-xl)',
-                  fontWeight: 700,
-                  color: 'var(--text)',
-                  marginTop: 'var(--space-1)',
-                }}
-              >
-                {preview.detected_subjects ?? session?.courses_count ?? 0}
-              </div>
-            </div>
+              background: 'var(--action-primary-bg)',
 
-            <div>
-              <div
-                style={{
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                Divisions
-              </div>
-              <div
-                style={{
-                  fontSize: 'var(--text-md)',
-                  fontWeight: 600,
-                  color: 'var(--text)',
-                  marginTop: 'var(--space-1)',
-                }}
-              >
-                {preview.divisions && preview.divisions.length > 0
-                  ? preview.divisions.join(', ')
-                  : 'None / Whole Class'}
-              </div>
-            </div>
+              color: 'var(--action-primary-text)',
 
-            <div>
-              <div
-                style={{
-                  fontSize: 'var(--text-xs)',
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                Detected Sheets
-              </div>
-              <div
-                style={{
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 500,
-                  color: 'var(--text)',
-                  marginTop: 'var(--space-1)',
-                }}
-              >
-                {preview.sheets && preview.sheets.length > 0
-                  ? preview.sheets.join(', ')
-                  : 'Default Sheet'}
-              </div>
-            </div>
-          </div>
-
-          {/* Actionable Format Notes */}
-          {preview.format_notes && preview.format_notes.length > 0 && (
-            <div
-              style={{
-                fontSize: 'var(--text-xs)',
-                color: 'var(--text-secondary)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--space-1)',
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 600,
-                  color: 'var(--text)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 'var(--space-1)',
-                }}
-              >
-                <Info size={14} /> Marksheet layout characteristics:
-              </div>
-              <ul style={{ margin: '0 0 0 var(--space-4)', padding: 0 }}>
-                {preview.format_notes.map((note, idx) => (
-                  <li key={idx}>{note}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Privacy Retention Mode Selection */}
-          <div
-            style={{
-              borderTop: '1px solid var(--border)',
-              paddingTop: 'var(--space-5)',
               display: 'flex',
-              flexDirection: 'column',
-              gap: 'var(--space-3)',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text)' }}>
-                Select Retention Mode for this Analysis:
-              </div>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                Institutional persistence is strictly opt-in
-              </span>
-            </div>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: 'var(--space-3)',
-              }}
-            >
-              {/* Temporary Option */}
-              <label
-                htmlFor="retention-mode-temporary"
-                className="glass-1"
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 'var(--space-3)',
-                  padding: 'var(--space-4)',
-                  borderRadius: 'var(--radius-sm)',
-                  border:
-                    privacyMode === 'temporary'
-                      ? '2px solid var(--text)'
-                      : '1px solid var(--border)',
-                  background:
-                    privacyMode === 'temporary'
-                      ? 'var(--surface-active)'
-                      : 'var(--surface-glass-1)',
-                  cursor: 'pointer',
-                  transition: 'all var(--transition-fast)',
-                }}
-              >
-                <input
-                  id="retention-mode-temporary"
-                  type="radio"
-                  name="retentionMode"
-                  value="temporary"
-                  checked={privacyMode === 'temporary'}
-                  onChange={() => setPrivacyMode('temporary')}
-                  style={{ marginTop: '3px', accentColor: 'var(--text)' }}
-                />
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-1)',
-                    width: '100%',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 'var(--space-2)',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 'var(--text-sm)',
-                        fontWeight: 600,
-                        color: 'var(--text)',
-                      }}
-                    >
-                      Temporary Analysis
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        borderRadius: 'var(--radius-xs)',
-                        background: 'var(--status-success-bg)',
-                        color: 'var(--status-success-text)',
-                        border: '1px solid var(--status-success-border)',
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      Default &bull; Zero Persistence
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--text-muted)',
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    Stored in an isolated temporary DuckDB workspace (/tmp). Raw .xlsx file is unlinked immediately.
-                    Erased automatically after 1 hour (3,600s), or instantly when clicking &quot;Delete session and data&quot;.
-                  </div>
-                </div>
-              </label>
-
-              {/* Persistent Option */}
-              <label
-                htmlFor="retention-mode-persistent"
-                className="glass-1"
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: 'var(--space-3)',
-                  padding: 'var(--space-4)',
-                  borderRadius: 'var(--radius-sm)',
-                  border:
-                    privacyMode === 'persistent'
-                      ? '2px solid var(--text)'
-                      : '1px solid var(--border)',
-                  background:
-                    privacyMode === 'persistent'
-                      ? 'var(--surface-active)'
-                      : 'var(--surface-glass-1)',
-                  cursor: 'pointer',
-                  transition: 'all var(--transition-fast)',
-                }}
-              >
-                <input
-                  id="retention-mode-persistent"
-                  type="radio"
-                  name="retentionMode"
-                  value="persistent"
-                  checked={privacyMode === 'persistent'}
-                  onChange={() => setPrivacyMode('persistent')}
-                  style={{ marginTop: '3px', accentColor: 'var(--text)' }}
-                />
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 'var(--space-1)',
-                    width: '100%',
-                  }}
-                >
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 'var(--space-2)',
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 'var(--text-sm)',
-                        fontWeight: 600,
-                        color: 'var(--text)',
-                      }}
-                    >
-                      Save to Institutional Storage
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        borderRadius: 'var(--radius-xs)',
-                        background: 'var(--surface-hover)',
-                        color: 'var(--text-muted)',
-                        border: '1px solid var(--border)',
-                        letterSpacing: '0.04em',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      Opt-In Storage
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--text-muted)',
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    Promotes the parsed DuckDB database to institutional storage (/app/data/datasets/).
-                    Retained indefinitely across sessions and container restarts. Deletable and mutable only by authenticated administrators.
-                  </div>
-                </div>
-              </label>
-            </div>
-
-            {privacyMode === 'persistent' && (
-              <div
-                style={{
-                  marginTop: 'var(--space-2)',
-                  padding: 'var(--space-3) var(--space-4)',
-                  background: 'var(--surface-hover)',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <label
-                  htmlFor="save-dataset-name-input"
-                  style={{
-                    display: 'block',
-                    fontSize: 'var(--text-xs)',
-                    fontWeight: 600,
-                    color: 'var(--text)',
-                    marginBottom: 'var(--space-1)',
-                  }}
-                >
-                  Institutional Dataset Label (Optional)
-                </label>
-                <input
-                  id="save-dataset-name-input"
-                  type="text"
-                  value={saveDatasetName}
-                  onChange={(e) => setSaveDatasetName(e.target.value)}
-                  placeholder="e.g. Sem 4 Examination - May 2026"
-                  className="data-surface"
-                  style={{
-                    width: '100%',
-                    maxWidth: '380px',
-                    fontSize: 'var(--text-sm)',
-                    padding: 'var(--space-2) var(--space-3)',
-                    borderRadius: 'var(--radius-input)',
-                    border: '1px solid var(--border)',
-                    color: 'var(--text)',
-                  }}
-                />
-                <div
-                  style={{
-                    fontSize: '11px',
-                    color: 'var(--text-muted)',
-                    marginTop: 'var(--space-1)',
-                  }}
-                >
-                  A descriptive name helps faculty locate this cohort in institutional reports.
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Validation Diagnostics Panels */}
-          {(() => {
-            const hasBlockingErrors = Boolean(
-              session?.can_confirm === false ||
-                (session?.blocking_errors && session.blocking_errors.length > 0)
-            )
-            const rawFindings = preview.findings || []
-            const warningFindings = rawFindings.filter((f) => f.severity === 'warning')
-            const infoFindings = rawFindings.filter((f) => f.severity === 'info')
-
-            return (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                {/* 1. Blocking Errors */}
-                {hasBlockingErrors && (
-                  <GlassCard
-                    variant="glass-2"
-                    padding="md"
-                    style={{
-                      borderColor: 'var(--status-danger-border)',
-                      background: 'var(--status-danger-bg)',
-                      color: 'var(--status-danger-text)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 'var(--space-2)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        borderBottom: '1px solid var(--status-danger-border)',
-                        paddingBottom: 'var(--space-2)',
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 'var(--space-2)',
-                          fontSize: 'var(--text-sm)',
-                        }}
-                      >
-                        <AlertTriangle size={16} />
-                        <span>Activation Blocked: Validation Errors Detected</span>
-                      </div>
-                      <StatusBadge tone="fail" size="sm" label="Action Required" />
-                    </div>
-
-                    <div style={{ fontSize: 'var(--text-xs)', lineHeight: 1.4 }}>
-                      The following critical validation errors must be resolved before cohort
-                      analysis can begin:
-                    </div>
-
-                    <ul
-                      style={{
-                        margin: '0 0 0 var(--space-4)',
-                        padding: 0,
-                        lineHeight: 1.5,
-                        fontSize: 'var(--text-xs)',
-                      }}
-                    >
-                      {session?.blocking_errors && session.blocking_errors.length > 0 ? (
-                        session.blocking_errors.map((err, idx) => (
-                          <li key={idx} style={{ fontWeight: 500 }}>
-                            {err}
-                          </li>
-                        ))
-                      ) : (
-                        <li>Workbook failed data quality gates and cannot be activated safely.</li>
-                      )}
-                    </ul>
-
-                    <div
-                      style={{
-                        marginTop: 'var(--space-1)',
-                        padding: 'var(--space-2) var(--space-3)',
-                        backgroundColor: 'var(--surface-card)',
-                        borderRadius: 'var(--radius-xs)',
-                        border: '1px solid var(--status-danger-border)',
-                        fontSize: 'var(--text-xs)',
-                        color: 'var(--status-danger-text)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '2px',
-                      }}
-                    >
-                      <span style={{ fontWeight: 600 }}>Suggested Recovery:</span>
-                      <span>
-                        Correct the flagged marks or identifiers in your original spreadsheet, then
-                        click &quot;Choose different file&quot; below to upload the corrected
-                        workbook.
-                      </span>
-                    </div>
-                  </GlassCard>
-                )}
-
-                {/* 2. Validation Warnings (Non-Blocking Data Quality Notice) */}
-                {warningFindings.length > 0 && (
-                  <GlassCard
-                    variant="glass-2"
-                    padding="md"
-                    style={{
-                      borderColor: 'var(--status-warning-border)',
-                      background: 'var(--status-warning-bg)',
-                      color: 'var(--status-warning-text)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 'var(--space-2)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        borderBottom: '1px solid var(--status-warning-border)',
-                        paddingBottom: 'var(--space-2)',
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 'var(--space-2)',
-                          fontSize: 'var(--text-sm)',
-                        }}
-                      >
-                        <AlertTriangle size={16} />
-                        <span>
-                          Data Quality Notice ({warningFindings.length} advisory issue
-                          {warningFindings.length > 1 ? 's' : ''}) &bull; Analysis Permitted
-                        </span>
-                      </div>
-                      <StatusBadge tone="warn" size="sm" label="Review Advised" />
-                    </div>
-
-                    <div
-                      style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}
-                    >
-                      {warningFindings.map((f, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            padding: 'var(--space-2) var(--space-3)',
-                            background: 'var(--surface-card)',
-                            borderRadius: 'var(--radius-xs)',
-                            border: '1px solid var(--status-warning-border)',
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontWeight: 700,
-                              color: 'var(--text)',
-                              fontSize: 'var(--text-xs)',
-                              marginBottom: '2px',
-                            }}
-                          >
-                            {f.title}
-                          </div>
-                          <div
-                            style={{
-                              fontSize: 'var(--text-xs)',
-                              color: 'var(--text-secondary)',
-                              lineHeight: 1.45,
-                            }}
-                          >
-                            &quot;{f.problem}&quot;
-                          </div>
-                          {f.details && f.details.length > 0 && (
-                            <details
-                              style={{
-                                marginTop: 'var(--space-1)',
-                                fontSize: '11px',
-                                color: 'var(--text-muted)',
-                              }}
-                            >
-                              <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
-                                View issue details ({f.details.length} sample entries)
-                              </summary>
-                              <ul style={{ margin: 'var(--space-1) 0 0 var(--space-4)', padding: 0 }}>
-                                {f.details.map((d, dIdx) => (
-                                  <li key={dIdx}>{d}</li>
-                                ))}
-                              </ul>
-                            </details>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{ fontSize: '11px', color: 'var(--status-warning-text)' }}>
-                      You can proceed to explore the cohort. These warnings will remain accessible
-                      in the Data Quality tab.
-                    </div>
-                  </GlassCard>
-                )}
-
-                {/* 3. Informational Notes & Verified Extended-Scale */}
-                {infoFindings.length > 0 && (
-                  <GlassCard
-                    variant="glass-1"
-                    padding="sm"
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 'var(--space-1)',
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--text-secondary)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--space-1)',
-                        color: 'var(--text)',
-                      }}
-                    >
-                      <Info size={14} />
-                      <span>Curriculum & Assessment Characteristics:</span>
-                    </div>
-                    <ul style={{ margin: '0 0 0 var(--space-4)', padding: 0, lineHeight: 1.45 }}>
-                      {infoFindings.map((f, idx) => (
-                        <li key={idx}>
-                          <strong>{f.title}:</strong> {f.problem}
-                        </li>
-                      ))}
-                    </ul>
-                  </GlassCard>
-                )}
-              </div>
-            )
-          })()}
-
-          {/* Confirmation Action Buttons */}
-          {(() => {
-            const isActivationBlocked = Boolean(
-              session?.can_confirm === false ||
-                (session?.blocking_errors && session.blocking_errors.length > 0)
-            )
-
-            return (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--space-2)',
-                  marginTop: 'var(--space-2)',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'flex-end',
-                    gap: 'var(--space-3)',
-                  }}
-                >
-                  <Button
-                    variant="secondary"
-                    onClick={handleCancelPreview}
-                    disabled={confirming}
-                  >
-                    Choose different file
-                  </Button>
-                  <Button
-                    variant="primary"
-                    onClick={handleConfirm}
-                    disabled={confirming || isActivationBlocked}
-                    loading={confirming}
-                    icon={<ArrowRight size={16} />}
-                    iconPosition="right"
-                    title={
-                      isActivationBlocked
-                        ? 'Resolve blocking validation errors before activating'
-                        : undefined
-                    }
-                  >
-                    Confirm & Start Analysis
-                  </Button>
-                </div>
-                {isActivationBlocked && (
-                  <div
-                    style={{
-                      textAlign: 'right',
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--status-danger-text)',
-                      fontWeight: 500,
-                    }}
-                  >
-                    Activation is blocked due to critical validation errors above. Please correct
-                    the workbook to continue.
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-        </GlassCard>
-      ) : (
-        /* Upload Area */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Drag & Drop Zone */}
-          <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            onClick={() => {
-              if (!uploading) {
-                fileInputRef.current?.click()
-              }
-            }}
-            className="glass-2"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
+
               justifyContent: 'center',
-              padding: 'var(--space-12) var(--space-6)',
-              borderRadius: 'var(--radius-card)',
-              border: dragActive
-                ? '2px dashed var(--text)'
-                : '2px dashed var(--border-strong)',
-              background: dragActive ? 'var(--surface-active)' : 'var(--surface-glass-2)',
-              cursor: uploading ? 'wait' : 'pointer',
-              transition: 'all var(--transition-fast)',
-              textAlign: 'center',
-              boxShadow: dragActive ? 'var(--shadow-md)' : 'var(--shadow-sm)',
+
+              fontSize: '12px',
+
+              fontWeight: 800,
+
             }}
+
           >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              onChange={handleFileInputChange}
-              style={{ display: 'none' }}
-              disabled={uploading}
-            />
 
-            <div
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                background: 'var(--surface-hover)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text)',
-                marginBottom: 'var(--space-4)',
-                border: '1px solid var(--border)',
-              }}
-            >
-              {uploading ? (
-                <svg
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    animation: 'spin 1s linear infinite',
-                  }}
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeDasharray="40 60"
-                  />
-                </svg>
-              ) : (
-                <UploadCloud size={30} />
-              )}
-            </div>
+            EQ
 
-            <div
-              style={{
-                fontSize: 'var(--text-lg)',
-                fontWeight: 600,
-                color: 'var(--text)',
-                marginBottom: 'var(--space-1)',
-              }}
-            >
-              {uploading
-                ? 'Processing and validating marksheet...'
-                : 'Drop your Excel marksheet here, or browse'}
-            </div>
-
-            <div
-              style={{
-                fontSize: 'var(--text-xs)',
-                color: 'var(--text-muted)',
-                maxWidth: '420px',
-                lineHeight: 1.5,
-              }}
-            >
-              Supports Microsoft Excel OpenXML (.xlsx) up to 25 MiB.
-              <br />
-              Headers and multi-row formats are automatically detected.
-            </div>
-
-            {!uploading && (
-              <Button
-                variant="primary"
-                size="sm"
-                style={{ marginTop: '24px', pointerEvents: 'none' }}
-              >
-                Browse file
-              </Button>
-            )}
           </div>
 
-          {/* Privacy Statement Card */}
+          <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em' }}>
+
+            EduQuery
+
+          </span>
+
+        </div>
+
+
+
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+
+          <ThemeMenu align="right" direction="down" />
+
+        </div>
+
+      </header>
+
+
+
+      {/* Main Workspace — Swiss Minimalist Center */}
+
+      <main
+
+        style={{
+
+          maxWidth: '680px',
+
+          margin: '0 auto',
+
+          width: '100%',
+
+          flex: 1,
+
+          display: 'flex',
+
+          flexDirection: 'column',
+
+          justifyContent: 'center',
+
+          alignItems: 'center',
+
+          padding: 'var(--space-8) var(--space-4)',
+
+          boxSizing: 'border-box',
+
+        }}
+
+      >
+
+        {/* Error Notice */}
+
+        {errorMsg && (
+
           <GlassCard
-            variant="glass-1"
+
+            variant="glass-2"
+
             padding="md"
+
             style={{
+
+              width: '100%',
+
+              borderColor: 'var(--status-danger-border)',
+
+              background: 'var(--status-danger-bg)',
+
+              color: 'var(--status-danger-text)',
+
               display: 'flex',
+
               flexDirection: 'column',
-              gap: 'var(--space-3)',
+
+              gap: 'var(--space-2)',
+
+              marginBottom: 'var(--space-6)',
+
+              boxSizing: 'border-box',
+
             }}
+
           >
+
             <div
+
               style={{
+
                 display: 'flex',
+
                 alignItems: 'center',
+
                 gap: 'var(--space-2)',
-                fontSize: 'var(--text-sm)',
+
                 fontWeight: 600,
-                color: 'var(--text)',
+
+                fontSize: 'var(--text-sm)',
+
               }}
+
             >
-              <ShieldCheck size={18} />
-              <span>Privacy & Data Handling</span>
+
+              <AlertTriangle size={16} />
+
+              <span>{errorMsg}</span>
+
             </div>
+
+
+
+            {errorDetails.length > 0 && (
+
+              <ul
+
+                style={{
+
+                  margin: '0 0 0 var(--space-4)',
+
+                  padding: 0,
+
+                  fontSize: 'var(--text-xs)',
+
+                  lineHeight: 1.5,
+
+                }}
+
+              >
+
+                {errorDetails.map((detail, idx) => (
+
+                  <li key={idx}>{detail}</li>
+
+                ))}
+
+              </ul>
+
+            )}
+
+            <Button
+
+              size="sm"
+
+              variant="secondary"
+
+              onClick={() => {
+
+                setErrorMsg(null)
+
+                setErrorDetails([])
+
+                if (fileInputRef.current) fileInputRef.current.value = ''
+
+              }}
+
+              style={{ alignSelf: 'flex-start', marginTop: 'var(--space-1)' }}
+
+            >
+
+              Try another file
+
+            </Button>
+
+          </GlassCard>
+
+        )}
+
+
+
+        {/* PREVIEW READY (Real data detected from uploaded Excel file) */}
+
+        {isPreviewReady && preview ? (
+
+          <GlassCard
+
+            variant="glass-2"
+
+            padding="xl"
+
+            style={{
+
+              width: '100%',
+
+              maxWidth: '620px',
+
+              margin: '0 auto',
+
+              padding: '32px',
+
+              display: 'flex',
+
+              flexDirection: 'column',
+
+              gap: '28px',
+
+              boxSizing: 'border-box',
+
+            }}
+
+          >
+
+            {/* Header */}
+
+            <div
+
+              style={{
+
+                display: 'flex',
+
+                alignItems: 'center',
+
+                justifyContent: 'space-between',
+
+                paddingBottom: '20px',
+
+                borderBottom: '1px solid var(--border)',
+
+                flexWrap: 'wrap',
+
+                gap: '16px',
+
+              }}
+
+            >
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+
+                <div
+
+                  style={{
+
+                    width: '34px',
+
+                    height: '34px',
+
+                    borderRadius: '50%',
+
+                    background: 'rgba(255, 255, 255, 0.05)',
+
+                    border: '1px solid var(--border)',
+
+                    display: 'flex',
+
+                    alignItems: 'center',
+
+                    justifyContent: 'center',
+
+                    flexShrink: 0,
+
+                  }}
+
+                >
+
+                  <CheckCircle2 size={16} style={{ color: 'var(--text)' }} />
+
+                </div>
+
+                <div>
+
+                  <h2 style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)', margin: 0, letterSpacing: '-0.01em' }}>
+
+                    Marksheet Structure Detected
+
+                  </h2>
+
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
+
+                    {session?.filename || 'Uploaded Marksheet'}
+
+                  </div>
+
+                </div>
+
+              </div>
+
+
+
+              <Button size="sm" variant="secondary" onClick={handleCancelPreview} style={{ fontSize: '12px' }}>
+
+                Choose different file
+
+              </Button>
+
+            </div>
+
+
+
+            {/* Metrics Band — Hairline Divided Swiss Layout with Generous Spacing */}
+
+            <div
+
+              style={{
+
+                display: 'grid',
+
+                gridTemplateColumns: 'repeat(3, 1fr)',
+
+                border: '1px solid var(--border)',
+
+                borderRadius: 'var(--radius-sm)',
+
+                overflow: 'hidden',
+
+                background: 'rgba(255, 255, 255, 0.02)',
+
+              }}
+
+            >
+
+              <div
+
+                style={{
+
+                  padding: '22px 16px',
+
+                  borderRight: '1px solid var(--border)',
+
+                  textAlign: 'center',
+
+                }}
+
+              >
+
+                <div
+
+                  style={{
+
+                    fontSize: '11px',
+
+                    color: 'var(--text-muted)',
+
+                    textTransform: 'uppercase',
+
+                    letterSpacing: '0.06em',
+
+                    fontWeight: 500,
+
+                  }}
+
+                >
+
+                  Students
+
+                </div>
+
+                <div
+
+                  className="tabular-nums font-mono"
+
+                  style={{
+
+                    fontSize: '2rem',
+
+                    fontWeight: 600,
+
+                    color: 'var(--text)',
+
+                    marginTop: '6px',
+
+                    lineHeight: 1.1,
+
+                  }}
+
+                >
+
+                  {preview.detected_students ?? preview.students_count ?? session?.students_count ?? 0}
+
+                </div>
+
+              </div>
+
+
+
+              <div
+
+                style={{
+
+                  padding: '22px 16px',
+
+                  borderRight: '1px solid var(--border)',
+
+                  textAlign: 'center',
+
+                }}
+
+              >
+
+                <div
+
+                  style={{
+
+                    fontSize: '11px',
+
+                    color: 'var(--text-muted)',
+
+                    textTransform: 'uppercase',
+
+                    letterSpacing: '0.06em',
+
+                    fontWeight: 500,
+
+                  }}
+
+                >
+
+                  Courses
+
+                </div>
+
+                <div
+
+                  className="tabular-nums font-mono"
+
+                  style={{
+
+                    fontSize: '2rem',
+
+                    fontWeight: 600,
+
+                    color: 'var(--text)',
+
+                    marginTop: '6px',
+
+                    lineHeight: 1.1,
+
+                  }}
+
+                >
+
+                  {preview.detected_subjects ?? preview.courses_count ?? session?.courses_count ?? 0}
+
+                </div>
+
+              </div>
+
+
+
+              <div
+
+                style={{
+
+                  padding: '22px 16px',
+
+                  textAlign: 'center',
+
+                  display: 'flex',
+
+                  flexDirection: 'column',
+
+                  justifyContent: 'center',
+
+                }}
+
+              >
+
+                <div
+
+                  style={{
+
+                    fontSize: '11px',
+
+                    color: 'var(--text-muted)',
+
+                    textTransform: 'uppercase',
+
+                    letterSpacing: '0.06em',
+
+                    fontWeight: 500,
+
+                  }}
+
+                >
+
+                  Divisions
+
+                </div>
+
+                <div
+
+                  style={{
+
+                    fontSize: 'var(--text-sm)',
+
+                    fontWeight: 500,
+
+                    color: 'var(--text)',
+
+                    marginTop: '10px',
+
+                    textOverflow: 'ellipsis',
+
+                    overflow: 'hidden',
+
+                    whiteSpace: 'nowrap',
+
+                    lineHeight: 1.2,
+
+                  }}
+
+                  title={preview.divisions && preview.divisions.length > 0 ? preview.divisions.join(', ') : 'All'}
+
+                >
+
+                  {preview.divisions && preview.divisions.length > 0 ? preview.divisions.join(', ') : 'All'}
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+
+            {/* Non-blocking warnings — Pure Monochrome Minimalism (No Yellow) */}
+
+            {!isActivationBlocked && warningFindings.length > 0 && (
+
+              <div
+
+                style={{
+
+                  fontSize: 'var(--text-xs)',
+
+                  padding: '16px 18px',
+
+                  borderRadius: 'var(--radius-sm)',
+
+                  background: 'rgba(255, 255, 255, 0.02)',
+
+                  border: '1px solid var(--border)',
+
+                  color: 'var(--text-secondary)',
+
+                  lineHeight: 1.6,
+
+                }}
+
+              >
+
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+
+                  <Info size={16} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: '2px' }} />
+
+                  <div style={{ flex: 1 }}>
+
+                    <div style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '4px' }}>
+
+                      {warningFindings[0]?.title || 'Data quality warning: Score entries need review'}
+
+                    </div>
+
+                    <div style={{ color: 'var(--text-muted)' }}>
+
+                      {warningFindings[0]?.problem || 'Some entries fall outside the expected marks range.'}
+
+                    </div>
+
+                    {warningFindings[0]?.details && warningFindings[0].details.length > 0 && (
+
+                      <details style={{ marginTop: '8px' }}>
+
+                        <summary style={{ cursor: 'pointer', color: 'var(--text-secondary)', fontWeight: 500, userSelect: 'none' }}>
+
+                          View issue details
+
+                        </summary>
+
+                        <ul style={{ margin: '6px 0 0 16px', padding: 0, color: 'var(--text-muted)' }}>
+
+                          {warningFindings[0].details.map((d, dIdx) => (
+
+                            <li key={dIdx} style={{ marginTop: '2px' }}>{d}</li>
+
+                          ))}
+
+                        </ul>
+
+                      </details>
+
+                    )}
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            )}
+
+
+
+            {/* Critical Blocking Errors */}
+
+            {isActivationBlocked && (
+
+              <div
+
+                style={{
+
+                  fontSize: 'var(--text-xs)',
+
+                  padding: '16px 18px',
+
+                  borderRadius: 'var(--radius-sm)',
+
+                  background: 'var(--status-danger-bg)',
+
+                  border: '1px solid var(--status-danger-border)',
+
+                  color: 'var(--status-danger-text)',
+
+                  lineHeight: 1.6,
+
+                }}
+
+              >
+
+                <div style={{ fontWeight: 700, marginBottom: '4px' }}>
+
+                  Activation Blocked: Validation Errors Detected
+
+                </div>
+
+                <div>
+
+                  {session?.blocking_errors && session.blocking_errors.length > 0
+
+                    ? session.blocking_errors.join(' ')
+
+                    : 'Please check that each student row has a unique seat or student ID.'}
+
+                </div>
+
+                <div style={{ marginTop: '8px', fontWeight: 600 }}>Suggested Recovery:</div>
+
+                <div>Inspect the source Excel sheet and remove duplicate rows or ensure distinct seat numbers.</div>
+
+              </div>
+
+            )}
+
+
+
+            {/* Retention Mode — Generous Spacing */}
+
+            <div
+
+              style={{
+
+                display: 'flex',
+
+                flexDirection: 'column',
+
+                gap: '8px',
+
+              }}
+
+            >
+
+              <div
+
+                style={{
+
+                  display: 'grid',
+
+                  gridTemplateColumns: '1fr 1fr',
+
+                  gap: '12px',
+
+                }}
+
+              >
+
+                <label
+
+                  style={{
+
+                    display: 'flex',
+
+                    alignItems: 'center',
+
+                    gap: '10px',
+
+                    padding: '12px 16px',
+
+                    borderRadius: 'var(--radius-sm)',
+
+                    border: `1px solid ${privacyMode === 'temporary' ? 'var(--text)' : 'var(--border)'}`,
+
+                    background: privacyMode === 'temporary' ? 'var(--surface-hover)' : 'transparent',
+
+                    cursor: 'pointer',
+
+                    transition: 'border-color 0.15s ease',
+
+                  }}
+
+                >
+
+                  <input
+
+                    type="radio"
+
+                    name="retention_mode"
+
+                    value="temporary"
+
+                    checked={privacyMode === 'temporary'}
+
+                    onChange={() => setPrivacyMode('temporary')}
+
+                    style={{ accentColor: 'var(--text)', cursor: 'pointer' }}
+
+                  />
+
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 500, color: 'var(--text)' }}>
+
+                    Temporary Analysis
+
+                  </span>
+
+                </label>
+
+
+
+                <label
+
+                  style={{
+
+                    display: 'flex',
+
+                    alignItems: 'center',
+
+                    gap: '10px',
+
+                    padding: '12px 16px',
+
+                    borderRadius: 'var(--radius-sm)',
+
+                    border: `1px solid ${privacyMode === 'persistent' ? 'var(--text)' : 'var(--border)'}`,
+
+                    background: privacyMode === 'persistent' ? 'var(--surface-hover)' : 'transparent',
+
+                    cursor: 'pointer',
+
+                    transition: 'border-color 0.15s ease',
+
+                  }}
+
+                >
+
+                  <input
+
+                    type="radio"
+
+                    name="retention_mode"
+
+                    value="persistent"
+
+                    checked={privacyMode === 'persistent'}
+
+                    onChange={() => setPrivacyMode('persistent')}
+
+                    style={{ accentColor: 'var(--text)', cursor: 'pointer' }}
+
+                  />
+
+                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 500, color: 'var(--text-secondary)' }}>
+
+                    Save to Institutional Storage
+
+                  </span>
+
+                </label>
+
+              </div>
+
+
+
+              {privacyMode === 'persistent' && (
+
+                <input
+
+                  type="text"
+
+                  aria-label="Institutional Dataset Label"
+
+                  value={saveDatasetName}
+
+                  onChange={(e) => setSaveDatasetName(e.target.value)}
+
+                  placeholder="Dataset name (e.g. Sem4_BE_Final)"
+
+                  style={{
+
+                    padding: '10px 14px',
+
+                    borderRadius: 'var(--radius-sm)',
+
+                    border: '1px solid var(--border)',
+
+                    background: 'var(--surface-hover)',
+
+                    color: 'var(--text)',
+
+                    fontSize: 'var(--text-xs)',
+
+                    marginTop: '4px',
+
+                    outline: 'none',
+
+                  }}
+
+                />
+
+              )}
+
+
+
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+
+                Default • Zero Persistence
+
+              </span>
+
+            </div>
+
+
+
+            {/* Confirm Button */}
+
+            {isActivationBlocked && (
+
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--status-danger-text)', fontWeight: 500 }}>
+
+                Activation is blocked due to critical validation errors above.
+
+              </span>
+
+            )}
+
+            <Button
+
+              size="lg"
+
+              variant="primary"
+
+              onClick={handleConfirm}
+
+              loading={confirming}
+
+              disabled={isActivationBlocked || confirming}
+
+              icon={<ArrowRight size={15} />}
+
+              aria-label="Confirm & Start Analysis"
+
+              style={{
+
+                width: '100%',
+
+                height: '46px',
+
+                fontSize: '13px',
+
+                fontWeight: 600,
+
+                justifyContent: 'center',
+
+                borderRadius: 'var(--radius-sm)',
+
+                marginTop: '4px',
+
+              }}
+
+            >
+
+              Confirm & Start Analysis
+
+            </Button>
+
+          </GlassCard>
+
+        ) : (
+
+          /* INITIAL VIEW — Pure Swiss Minimalism: Focused Upload Only (No Clutter) */
+
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+
+            <h1
+
+              style={{
+
+                fontSize: 'clamp(1.75rem, 3.2vw, 2.25rem)',
+
+                fontWeight: 600,
+
+                color: 'var(--text)',
+
+                margin: '0 0 var(--space-2) 0',
+
+                letterSpacing: '-0.02em',
+
+                lineHeight: 1.2,
+
+              }}
+
+            >
+
+              Academic Result Management
+
+            </h1>
 
             <p
+
               style={{
-                fontSize: 'var(--text-xs)',
+
+                fontSize: 'var(--text-sm)',
+
                 color: 'var(--text-secondary)',
-                margin: 0,
-                lineHeight: 1.5,
+
+                margin: '0 0 var(--space-8) 0',
+
+                lineHeight: 1.6,
+
+                maxWidth: '500px',
+
               }}
+
             >
-              Uploaded Excel workbooks are processed on the server and immediately deleted from disk after
-              ingestion into an isolated temporary DuckDB workspace. Data is never shared or retained beyond
-              your session lifetime.
+
+              Upload an Excel marksheet to view student results, check passes and backlogs, and generate reports.
+
             </p>
 
+
+
+            {/* Clean, Focused Dropzone */}
+
             <div
+
+              onDragOver={handleDragOver}
+
+              onDragLeave={handleDragLeave}
+
+              onDrop={handleDrop}
+
+              onClick={() => fileInputRef.current?.click()}
+
               style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+
+                width: '100%',
+
+                border: dragActive
+
+                  ? '1.5px dashed var(--action-primary-bg)'
+
+                  : '1px dashed var(--border-strong)',
+
+                borderRadius: 'var(--radius-card)',
+
+                background: dragActive ? 'var(--surface-active)' : 'var(--surface-card)',
+
+                padding: 'var(--space-12) var(--space-6)',
+
+                textAlign: 'center',
+
+                cursor: uploading ? 'wait' : 'pointer',
+
+                display: 'flex',
+
+                flexDirection: 'column',
+
+                alignItems: 'center',
+
+                justifyContent: 'center',
+
                 gap: 'var(--space-3)',
-                fontSize: 'var(--text-xs)',
-                color: 'var(--text-secondary)',
-                marginTop: 'var(--space-1)',
+
+                transition: 'all var(--transition-fast)',
+
+                boxSizing: 'border-box',
+
               }}
+
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)' }}>
-                <Lock
-                  size={14}
-                  style={{
-                    color: 'var(--text-muted)',
-                    marginTop: '2px',
-                    flexShrink: 0,
-                  }}
-                />
-                <span>
-                  <strong>Isolated temporary workspace:</strong> Raw .xlsx files are unlinked from disk immediately
-                  after parsing. Only relational tables in an isolated session DuckDB are retained.
-                </span>
+
+              <input
+
+                ref={fileInputRef}
+
+                type="file"
+
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+                onChange={handleFileInputChange}
+
+                style={{ display: 'none' }}
+
+                disabled={uploading}
+
+                aria-label="Upload marksheet file"
+
+              />
+
+
+
+              {/* Refined Icon Badge */}
+
+              <div
+
+                style={{
+
+                  width: '52px',
+
+                  height: '52px',
+
+                  borderRadius: '50%',
+
+                  background: 'var(--surface-hover)',
+
+                  border: '1px solid var(--border)',
+
+                  display: 'flex',
+
+                  alignItems: 'center',
+
+                  justifyContent: 'center',
+
+                  color: 'var(--text)',
+
+                  marginBottom: 'var(--space-1)',
+
+                  transition: 'transform var(--transition-fast)',
+
+                }}
+
+              >
+
+                <UploadCloud size={24} strokeWidth={1.75} />
+
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)' }}>
-                <Trash2
-                  size={14}
-                  style={{
-                    color: 'var(--text-muted)',
-                    marginTop: '2px',
-                    flexShrink: 0,
-                  }}
-                />
-                <span>
-                  <strong>Instant full deletion:</strong> Sessions automatically expire and purge after 1 hour (3,600s),
-                  or instantly when clicking &quot;Delete session and data&quot;.
-                </span>
+
+
+              <div>
+
+                <div style={{ fontSize: '15px', fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>
+
+                  {uploading
+
+                    ? 'Processing and validating marksheet...'
+
+                    : 'Drop your Excel marksheet here, or browse'}
+
+                </div>
+
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+
+                  Supports standard university marksheet workbooks (.xlsx) up to 25 MiB
+
+                </div>
+
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 'var(--space-2)' }}>
-                <Database
-                  size={14}
-                  style={{
-                    color: 'var(--text-muted)',
-                    marginTop: '2px',
-                    flexShrink: 0,
-                  }}
-                />
-                <span>
-                  <strong>Deterministic Processing:</strong> Zero external AI/LLM APIs. Classification, reconciliation,
-                  and anomaly detection run entirely deterministically within your container.
+
+
+              {/* Refined Metadata Dot-Separators (Replaces clunky rectangular badges) */}
+
+              <div
+
+                style={{
+
+                  display: 'flex',
+
+                  alignItems: 'center',
+
+                  justifyContent: 'center',
+
+                  flexWrap: 'wrap',
+
+                  gap: '12px',
+
+                  marginTop: 'var(--space-2)',
+
+                  fontSize: '11px',
+
+                  color: 'var(--text-muted)',
+
+                }}
+
+              >
+
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+
+                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+
+                  Multi-Component (ISA/MSE/ESE)
+
                 </span>
+
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+
+                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+
+                  Grade Letters & Credits
+
+                </span>
+
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+
+                  <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--text-muted)' }} />
+
+                  Class Divisions
+
+                </span>
+
               </div>
+
+
+
+              {uploading && (
+
+                <div
+
+                  style={{
+
+                    width: '180px',
+
+                    height: '3px',
+
+                    borderRadius: '2px',
+
+                    background: 'var(--surface-hover)',
+
+                    overflow: 'hidden',
+
+                    marginTop: 'var(--space-2)',
+
+                  }}
+
+                >
+
+                  <div
+
+                    style={{
+
+                      width: '60%',
+
+                      height: '100%',
+
+                      background: 'var(--action-primary-bg)',
+
+                      animation: 'indeterminate-bar 1.5s infinite ease-in-out',
+
+                    }}
+
+                  />
+
+                </div>
+
+              )}
+
             </div>
-          </GlassCard>
-        </div>
-      )}
+
+
+
+            {/* Subtle, Understated Privacy Note (Zero Clutter) */}
+
+            <div
+
+              style={{
+
+                marginTop: 'var(--space-8)',
+
+                paddingTop: 'var(--space-4)',
+
+                borderTop: '1px solid var(--border-hairline)',
+
+                fontSize: '11px',
+
+                color: 'var(--text-muted)',
+
+                lineHeight: 1.6,
+
+                maxWidth: '540px',
+
+              }}
+
+            >
+
+              <strong style={{ color: 'var(--text-secondary)' }}>Privacy & Data Handling:</strong>{' '}
+
+              Isolated temporary workspace on your machine. Instant full deletion available anytime. Zero student PII retained permanently.
+
+            </div>
+
+          </div>
+
+        )}
+
+      </main>
+
     </div>
+
   )
+
 }
 
+
+
 export default UploadPage
+

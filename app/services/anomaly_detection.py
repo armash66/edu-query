@@ -65,8 +65,13 @@ def _get_dataset_id_from_con(con: duckdb.DuckDBPyConnection | None) -> str:
         for _, name, path in rows:
             if path and str(path).endswith(".duckdb"):
                 p = Path(path)
-                if p.stem == "session" and p.parent.parent.name == "sessions":
-                    return f"session_{p.parent.name}"
+                parts_lower = [part.lower() for part in p.parts]
+                if "sessions" in parts_lower:
+                    idx = parts_lower.index("sessions")
+                    if idx + 1 < len(p.parts) - 1:
+                        return f"session_{p.parts[idx + 1]}"
+                    elif p.parent.name and p.parent.name != "sessions":
+                        return f"session_{p.parent.name}"
                 return p.stem
         lp = con.execute("SELECT fingerprint FROM layout_profiles LIMIT 1").fetchone()
         if lp and lp[0]:
@@ -477,9 +482,13 @@ def detect_all_anomalies(
     student_mismatch_map: dict[str, float] = {}
     student_fail_map: dict[str, int] = {}
 
+    student_enrolled_count: dict[str, int] = {}
+
     for sid, ccode, printed, computed, grade in con.execute(
         "SELECT student_id, course_code, printed_total, computed_total, grade FROM reconciliation"
     ).fetchall():
+        s_id = str(sid)
+        student_enrolled_count[s_id] = student_enrolled_count.get(s_id, 0) + 1
         s_id = str(sid)
         if computed is not None and float(computed) > 0:
             student_course_map.setdefault(s_id, []).append(float(computed))
@@ -512,7 +521,8 @@ def detect_all_anomalies(
         mean_score = float(np.mean(courses)) / 100.0  # normalize
         std_dispersion = float(np.std(courses)) / 100.0
         max_mismatch = float(student_mismatch_map.get(sid, 0.0))
-        fail_ratio = float(student_fail_map.get(sid, 0)) / float(len(courses))
+        total_eval = max(student_enrolled_count.get(sid, len(courses)), len(courses), student_fail_map.get(sid, 0))
+        fail_ratio = float(student_fail_map.get(sid, 0)) / float(total_eval) if total_eval > 0 else 0.0
         tot_ratio = float(smeta["total_marks"] or 0.0) / cohort_max_marks
 
         valid_sids.append(sid)
@@ -578,7 +588,8 @@ def detect_all_anomalies(
                 high_mismatch = X[i][2] > 0.5
                 tot_marks = smeta.get("total_marks")
                 fail_cnt = student_fail_map.get(sid, 0)
-                enrolled_cnt = len(student_course_map.get(sid, []))
+                # Enforce invariant: failed_subjects <= evaluated_subjects
+                enrolled_cnt = max(student_enrolled_count.get(sid, len(student_course_map.get(sid, []))), len(student_course_map.get(sid, [])), fail_cnt)
 
                 if high_mismatch:
                     plain_title = "Discrepancy Between Component Sum and Printed Total"

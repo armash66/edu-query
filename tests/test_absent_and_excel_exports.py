@@ -17,6 +17,9 @@ from app.services.export_service import (
     _safe_int,
     export_absent_students_excel,
     export_students_roster_excel,
+    export_merit_list_excel,
+    export_student_slips_pdf,
+    export_analysis_report_pdf,
     export_subject_students_excel,
     sanitize_cell_text,
 )
@@ -200,3 +203,41 @@ def test_absent_students_excel_export_all(db_conn):
 
     # Verify row count matches
     assert ws.max_row > 4
+
+
+def test_merit_list_excel_export_ranks_students_and_not_empty(db_conn):
+    """Verify merit list Excel contains ranked student rows and is not empty."""
+    filename, excel_bytes = export_merit_list_excel(db_conn)
+    assert "merit_list" in filename.lower()
+    assert len(excel_bytes) > 1000
+
+    wb = openpyxl.load_workbook(io.BytesIO(excel_bytes))
+    ws = wb.active
+    assert ws.title == "Cohort Merit List"
+    assert ws.max_row > 1, "Merit list Excel must not be empty"
+
+    header = [cell.value for cell in ws[1]]
+    assert header[0] == "Rank"
+    assert header[1] == "Student ID"
+    assert header[2] == "Name"
+
+    first_student = [cell.value for cell in ws[2]]
+    assert first_student[0] == 1  # Rank 1
+    assert first_student[1] is not None  # Student ID
+    assert first_student[2] is not None  # Name
+
+
+def test_student_result_slips_pdf_generation(db_conn):
+    """Verify multi-page printable student result slips PDF generates without error."""
+    filename, pdf_bytes = export_student_slips_pdf(db_conn)
+    assert "Result_Slips" in filename
+    assert len(pdf_bytes) > 2000
+    assert pdf_bytes.startswith(b"%PDF")
+
+
+def test_analysis_report_pdf_generation(db_conn):
+    """Verify institutional result analysis PDF report generates with report title."""
+    filename, pdf_bytes = export_analysis_report_pdf(db_conn)
+    assert "Result_Analysis" in filename
+    assert len(pdf_bytes) > 1000
+    assert pdf_bytes.startswith(b"%PDF")

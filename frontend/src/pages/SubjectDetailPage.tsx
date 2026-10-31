@@ -9,7 +9,7 @@ import {
   Users,
   Printer,
 } from 'lucide-react'
-import { getSubjectStudents, downloadSubjectStudentsExcel } from '../api/client'
+import { getSubjectStudents, downloadSubjectStudentsExcel, saveBlobAsFile } from '../api/client'
 import { exportSubjectRoster } from '../utils/excelExport'
 import {
   ApiError,
@@ -36,7 +36,7 @@ export const SubjectDetailPage: React.FC = () => {
     searchParams.get('result') ||
     'all'
   ).toLowerCase()
-  const statusParam = rawStatus as 'all' | 'passed' | 'failed' | 'absent'
+  const statusParam = rawStatus as 'all' | 'passed' | 'failed' | 'absent' | 'toppers'
   const searchParam = searchParams.get('search') || ''
   const pageParam = parseInt(searchParams.get('page') || '1', 10)
 
@@ -91,7 +91,7 @@ export const SubjectDetailPage: React.FC = () => {
     }
   }, [fetchCourseStudents])
 
-  const handleStatusChange = (newStatus: 'all' | 'passed' | 'failed' | 'absent') => {
+  const handleStatusChange = (newStatus: 'all' | 'passed' | 'failed' | 'absent' | 'toppers') => {
     const nextParams = new URLSearchParams(searchParams)
     if (newStatus !== 'all') {
       nextParams.set('status', newStatus)
@@ -117,6 +117,11 @@ export const SubjectDetailPage: React.FC = () => {
   const visibleStudents = useMemo(() => {
     if (!data?.students) return []
     if (statusParam === 'all') return data.students
+    if (statusParam === 'toppers') {
+      return [...data.students]
+        .sort((a, b) => (b.total_marks ?? 0) - (a.total_marks ?? 0))
+        .slice(0, 5)
+    }
     return data.students.filter((s) => {
       const st = (s.status || '').toLowerCase()
       if (statusParam === 'passed') return st === 'passed'
@@ -144,14 +149,7 @@ export const SubjectDetailPage: React.FC = () => {
           type,
           divisionParam.trim() || null
         )
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `EduQuery_${courseCode}_${type}.xlsx`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
+        saveBlobAsFile(blob, `EduQuery_${courseCode}_${type}.xlsx`)
         return
       } catch (serverErr) {
         console.warn('Server-side subject xlsx export failed, falling back to client CSV export', serverErr)
@@ -645,6 +643,22 @@ export const SubjectDetailPage: React.FC = () => {
               onClick={() => handleStatusChange('failed')}
             >
               Failed ({data.failed_count})
+            </Button>
+            {(data.absent_count ?? 0) > 0 && (
+              <Button
+                size="sm"
+                variant={statusParam === 'absent' ? 'primary' : 'secondary'}
+                onClick={() => handleStatusChange('absent')}
+              >
+                Absent ({data.absent_count})
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant={statusParam === 'toppers' ? 'primary' : 'secondary'}
+              onClick={() => handleStatusChange('toppers')}
+            >
+              Toppers (Top 5)
             </Button>
           </div>
         </div>

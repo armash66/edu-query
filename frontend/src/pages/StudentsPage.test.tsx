@@ -199,4 +199,88 @@ describe('StudentsPage', () => {
       )
     })
   })
+
+  it('switches to Merit List tab and renders tie-breaking policy', async () => {
+    vi.spyOn(client, 'getStudents').mockResolvedValue({
+      total: 2,
+      limit: 25,
+      offset: 0,
+      items: [
+        {
+          student_id: 'STU001',
+          name: 'Alice Johnson',
+          roll_no: '101',
+          seat_no: 'SEAT_A1',
+          division: 'A',
+          level: 'UG',
+          total_marks: 450,
+          overall_result: 'PASS',
+          sgpi: 9.8,
+          cgpa: 9.6,
+        },
+      ],
+    })
+
+    render(
+      <MemoryRouter>
+        <StudentsPage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Alice Johnson')).toBeInTheDocument()
+    })
+
+    // Click Merit List tab
+    const meritTab = screen.getByRole('tab', { name: /Merit List/i })
+    fireEvent.click(meritTab)
+
+    expect(screen.getByText(/Documented Tie-Break Rule/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText(/#1/i)).toBeInTheDocument()
+    })
+  })
+
+  it('filters by preset chips', async () => {
+    const getStudentsSpy = vi.spyOn(client, 'getStudents').mockResolvedValue({
+      total: 1,
+      limit: 25,
+      offset: 0,
+      items: [
+        {
+          student_id: 'STU002',
+          name: 'Bob Smith',
+          roll_no: '102',
+          seat_no: 'SEAT_B2',
+          division: 'B',
+          level: 'UG',
+          total_marks: 320,
+          overall_result: 'FAIL',
+          sgpi: 4.8,
+          cgpa: 5.1,
+        },
+      ],
+    })
+
+    render(
+      <MemoryRouter>
+        <StudentsPage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Failed' })).toBeInTheDocument()
+    })
+
+    // Click 'Failed' preset chip
+    fireEvent.click(screen.getByRole('button', { name: 'Failed' }))
+
+    await waitFor(() => {
+      expect(getStudentsSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ result: 'FAIL' }),
+        expect.any(AbortSignal)
+      )
+    })
+  })
+
 })

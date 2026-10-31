@@ -2,9 +2,11 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import {
   getSessionStatus,
   uploadSession,
+  createSampleSession,
   confirmSession as apiConfirmSession,
   deleteSession as apiDeleteSession,
   saveSession as apiSaveSession,
+  setSessionToken,
   clearSessionToken,
 } from '../api/client'
 import type {
@@ -22,6 +24,7 @@ export interface SessionContextType {
   hasActiveSession: boolean
   isPreviewReady: boolean
   uploadMarksheet: (file: File) => Promise<SessionUploadResponse>
+  loadSampleSession: () => Promise<SessionUploadResponse>
   confirmSession: () => Promise<SessionConfirmResponse>
   deleteSession: () => Promise<void>
   saveSession: (datasetName?: string) => Promise<SessionSaveResponse>
@@ -40,6 +43,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const status = await getSessionStatus()
       setSession(status)
+      if (status.session_id && (status.active || status.state === 'preview_ready')) {
+        setSessionToken(status.session_id)
+      }
       if (status.preview) {
         setPreview(status.preview)
       }
@@ -61,6 +67,30 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const uploadMarksheet = async (file: File): Promise<SessionUploadResponse> => {
     const res = await uploadSession(file)
+    if (res.session_id) {
+      setSessionToken(res.session_id)
+    }
+    setPreview(res.preview)
+    setSession({
+      active: false,
+      state: res.state,
+      session_id: res.session_id,
+      mode: res.mode,
+      filename: res.filename,
+      students_count: res.students_count,
+      courses_count: res.courses_count,
+      preview: res.preview,
+      can_confirm: res.can_confirm,
+      blocking_errors: res.blocking_errors,
+    })
+    return res
+  }
+
+  const loadSampleSession = async (): Promise<SessionUploadResponse> => {
+    const res = await createSampleSession()
+    if (res.session_id) {
+      setSessionToken(res.session_id)
+    }
     setPreview(res.preview)
     setSession({
       active: false,
@@ -79,6 +109,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const confirmSession = async (): Promise<SessionConfirmResponse> => {
     const res = await apiConfirmSession(session?.session_id)
+    if (res.session_id) {
+      setSessionToken(res.session_id)
+    }
     setSession((prev) => ({
       active: true,
       state: 'active',
@@ -99,6 +132,15 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Idempotent
     } finally {
       clearSessionToken()
+      try {
+        sessionStorage.clear()
+        // Retain theme preference if stored
+        const theme = localStorage.getItem('eduquery_theme')
+        localStorage.clear()
+        if (theme) localStorage.setItem('eduquery_theme', theme)
+      } catch {
+        // Ignore
+      }
       setSession(null)
       setPreview(null)
     }
@@ -136,6 +178,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         hasActiveSession,
         isPreviewReady,
         uploadMarksheet,
+        loadSampleSession,
         confirmSession,
         deleteSession,
         saveSession,
@@ -151,7 +194,20 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 export function useSession(): SessionContextType {
   const context = useContext(SessionContext)
   if (!context) {
-    throw new Error('useSession must be used within a SessionProvider')
+    return {
+      session: null,
+      preview: null,
+      loading: false,
+      hasActiveSession: false,
+      isPreviewReady: false,
+      uploadMarksheet: async () => ({} as any),
+      loadSampleSession: async () => ({} as any),
+      confirmSession: async () => ({} as any),
+      deleteSession: async () => {},
+      saveSession: async () => ({} as any),
+      refreshStatus: async () => {},
+      clearPreview: () => {},
+    }
   }
   return context
 }

@@ -53,7 +53,10 @@ export function sanitizeSheetName(name: string, fallback = 'Sheet1'): string {
 
 export function sanitizeFilename(filename: string, fallback = 'EduQuery_Export.csv'): string {
   let name = (filename || fallback).trim().replace(/[\\/:*?"<>|]/g, '_')
-  if (!name.toLowerCase().endsWith('.csv') && !name.toLowerCase().endsWith('.xlsx')) {
+  if (name.toLowerCase().endsWith('.xlsx')) {
+    name = name.slice(0, -5) + '.csv'
+  }
+  if (!name.toLowerCase().endsWith('.csv')) {
     name += '.csv'
   }
   return name

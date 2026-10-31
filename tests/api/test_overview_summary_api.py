@@ -31,7 +31,7 @@ def test_overview_summary_endpoint_success(client: TestClient) -> None:
     assert kpis["total_courses"] == 27
     assert kpis["passed_students"] == 132
     assert kpis["failed_students"] == 13
-    assert kpis["absent_students"] == 0
+    assert kpis["absent_students"] == 7
     assert kpis["pass_rate_percent"] == 91.0
     assert kpis["divisions_count"] == 2
     assert kpis["needs_attention_count"] == 8
@@ -60,8 +60,8 @@ def test_overview_summary_endpoint_success(client: TestClient) -> None:
     assert results["passed"]["percentage"] == 91.0
     assert results["failed"]["count"] == 13
     assert results["failed"]["percentage"] == 9.0
-    assert results["absent"]["count"] == 0
-    assert results["absent"]["percentage"] == 0.0
+    assert results["absent"]["count"] == 7
+    assert results["absent"]["percentage"] == 4.8
 
     divs = {d["division_code"]: d for d in results["divisions"]}
     assert "A" in divs and "B" in divs

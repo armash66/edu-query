@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+from app.services.overview_service import clear_overview_cache
 import os
 import re
 import secrets
@@ -274,10 +275,16 @@ async def create_temporary_session(
 
     # 5. Ingest into isolated session DuckDB
     divisions: list[str] = []
+    passed_count = 0
+    failed_count = 0
     try:
         con, report = ingest(input_path=quarantine_path, db_path=session_db_path)
         div_rows = con.execute("SELECT DISTINCT division FROM students WHERE division IS NOT NULL ORDER BY division").fetchall()
         divisions = [str(r[0]) for r in div_rows if r[0]]
+        p_row = con.execute("SELECT count(*) FROM students WHERE UPPER(TRIM(COALESCE(result, ''))) LIKE '%PASS%'").fetchone()
+        f_row = con.execute("SELECT count(*) FROM students WHERE UPPER(TRIM(COALESCE(result, ''))) LIKE '%FAIL%'").fetchone()
+        passed_count = int(p_row[0]) if p_row else 0
+        failed_count = int(f_row[0]) if f_row else 0
         con.close()
     except Exception as exc:
         shutil.rmtree(session_dir, ignore_errors=True)
@@ -317,6 +324,10 @@ async def create_temporary_session(
         "sheets_skipped": report.sheets_skipped,
         "students_count": report.students_count,
         "courses_count": report.courses_count,
+        "detected_students": report.students_count,
+        "detected_subjects": report.courses_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
         "divisions": divisions,
         "layout_profiles": report.layouts_by_sheet,
         "quality_health": dq_dict.get("health_status", "Good"),
@@ -343,6 +354,8 @@ async def create_temporary_session(
         "sha256": file_hash,
         "students_count": report.students_count,
         "courses_count": report.courses_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
         "can_confirm": can_confirm,
         "blocking_errors": blocking_errors,
         "preview": preview_payload,
@@ -356,6 +369,7 @@ async def create_temporary_session(
 
 
 def confirm_temporary_session(session_id: str, settings: Settings) -> dict[str, Any]:
+    clear_overview_cache()
     """Confirm a validated preview and activate the temporary session for analysis."""
     session_dir = get_session_dir(session_id, settings)
     meta_path = session_dir / "meta.json"
@@ -469,6 +483,7 @@ def get_session_status(session_id: str | None, settings: Settings) -> dict[str, 
 
 
 def delete_temporary_session(session_id: str | None, settings: Settings) -> bool:
+    clear_overview_cache()
     """Permanently delete a temporary session workspace and all associated artifacts.
     
     Idempotent: returns True even if already deleted.
@@ -607,3 +622,69 @@ def save_session_to_permanent(
         "activated_at": now_iso,
         "message": "Dataset has been successfully saved to persistent institutional storage.",
     }
+
+
+def create_sample_session(settings: Settings) -> tuple[str, dict[str, Any]]:
+    """Create an isolated temporary session from the bundled anonymized sample marksheet."""
+    cleanup_expired_sessions(settings=settings)
+    sample_path = Path("data/Result_anonymized.xlsx").resolve()
+    if not sample_path.is_file():
+        sample_path = Path(settings.data_dir).resolve() / "Result_anonymized.xlsx"
+    if not sample_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"status": "error", "message": "Sample marksheet Result_anonymized.xlsx not found on server."},
+        )
+
+    session_id = secrets.token_urlsafe(24).replace("-", "_")
+    session_dir = get_session_dir(session_id, settings)
+    session_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        os.chmod(session_dir, 0o700)
+    except Exception:
+        pass
+
+    quarantine_path = session_dir / "quarantine.xlsx"
+    session_db_path = session_dir / "session.duckdb"
+    meta_path = session_dir / "meta.json"
+
+    shutil.copy2(sample_path, quarantine_path)
+
+    con, report = ingest(input_path=str(quarantine_path), db_path=str(session_db_path))
+    try:
+        students_count = con.execute("SELECT count(*) FROM students").fetchone()[0]
+        courses_count = con.execute("SELECT count(*) FROM courses").fetchone()[0]
+        passed_count = con.execute("SELECT count(*) FROM students WHERE UPPER(TRIM(result)) LIKE '%PASS%'").fetchone()[0]
+        failed_count = con.execute("SELECT count(*) FROM students WHERE UPPER(TRIM(result)) LIKE '%FAIL%'").fetchone()[0]
+    finally:
+        con.close()
+
+    preview = {
+        "detected_students": students_count,
+        "detected_subjects": courses_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
+        "sheets": [s.sheet_name for s in report.sheets] if hasattr(report, "sheets") else ["Result"],
+        "divisions": ["A", "B"],
+        "format_notes": ["Loaded official anonymized semester marksheet dataset."],
+    }
+
+    meta = {
+        "session_id": session_id,
+        "filename": "Result_anonymized.xlsx",
+        "file_hash": "sample_anonymized",
+        "file_size": sample_path.stat().st_size,
+        "state": "preview_ready",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "expires_at": (datetime.now(timezone.utc) + timedelta(seconds=settings.import_session_ttl_seconds)).isoformat(),
+        "students_count": students_count,
+        "courses_count": courses_count,
+        "passed_count": passed_count,
+        "failed_count": failed_count,
+        "can_confirm": True,
+        "blocking_errors": [],
+        "preview": preview,
+        "database_path": str(session_db_path),
+    }
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    return session_id, meta

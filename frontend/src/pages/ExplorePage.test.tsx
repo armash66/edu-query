@@ -232,6 +232,22 @@ describe('ExplorePage - Interactive Investigation Engine', () => {
       expect(screen.queryByText(/Division is A/i)).not.toBeInTheDocument()
     })
   })
+
+  it('renders Ask AI interpretation banner when source=ai is passed in URL', async () => {
+    vi.spyOn(client, 'runInvestigationQuery').mockResolvedValue(mockQueryResponse)
+    vi.spyOn(client, 'getInvestigationCapabilities').mockResolvedValue(mockCapabilities)
+    vi.spyOn(client, 'getSubjects').mockResolvedValue(mockCourses)
+
+    render(
+      <MemoryRouter initialEntries={['/explore?source=ai&division=A']}>
+        <ExplorePage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Interpreted from Ask AI query/i)).toBeInTheDocument()
+      expect(screen.getByText(/Natural language translated into predicate filter conditions/i)).toBeInTheDocument()
+    })
+  })
+
 })
-
-
