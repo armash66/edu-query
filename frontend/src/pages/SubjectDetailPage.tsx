@@ -6,11 +6,17 @@ import {
   CheckCircle,
   Download,
   ChevronDown,
-  Users,
   Printer,
+  FileText,
+  FileSpreadsheet,
 } from 'lucide-react'
-import { getSubjectStudents, downloadSubjectStudentsExcel, saveBlobAsFile } from '../api/client'
-import { exportSubjectRoster } from '../utils/excelExport'
+import {
+  getSubjectStudents,
+  downloadSubjectStudentsExcel,
+  downloadSubjectStudentsPdf,
+  downloadSubjectStudentsCsv,
+  saveBlobAsFile,
+} from '../api/client'
 import {
   ApiError,
   type SubjectStudentsResponse,
@@ -47,6 +53,10 @@ export const SubjectDetailPage: React.FC = () => {
   const [exportMenuOpen, setExportMenuOpen] = useState<boolean>(false)
   const [searchInput, setSearchInput] = useState<string>(searchParam)
   const [printing, setPrinting] = useState<boolean>(false)
+  const [exportingPdf, setExportingPdf] = useState<boolean>(false)
+  const [exportingExcel, setExportingExcel] = useState<boolean>(false)
+  const [exportingCsv, setExportingCsv] = useState<boolean>(false)
+  const [printAllStudents, setPrintAllStudents] = useState<SubjectStudentItem[] | null>(null)
 
   const pageSize = 25
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -131,71 +141,87 @@ export const SubjectDetailPage: React.FC = () => {
     })
   }, [data?.students, statusParam])
 
-  const handlePrintRoster = () => {
-    setPrinting(true)
-    setTimeout(() => {
-      window.print()
-      setPrinting(false)
-    }, 150)
-  }
-
-  const handleExportExcel = async (type: 'all' | 'passed' | 'failed' | 'absent') => {
+  const handlePrintRoster = async () => {
     if (!courseCode) return
     try {
-      // 1. Try server-side real .xlsx endpoint
-      try {
-        const blob = await downloadSubjectStudentsExcel(
-          courseCode,
-          type,
-          divisionParam.trim() || null
-        )
-        saveBlobAsFile(blob, `EduQuery_${courseCode}_${type}.xlsx`)
-        return
-      } catch (serverErr) {
-        console.warn('Server-side subject xlsx export failed, falling back to client CSV export', serverErr)
-      }
-
-      // 2. Client-side fallback to RFC 4180 CSV
-      let recordsToExport: SubjectStudentItem[] = []
-      const currentList = data?.students || []
-      const targetTotal =
-        type === 'passed'
-          ? data?.passed_count ?? 0
-          : type === 'failed'
-          ? data?.failed_count ?? 0
-          : type === 'absent'
-          ? data?.absent_count ?? 0
-          : data?.total_enrolled ?? 0
-
-      if (targetTotal <= 200) {
+      setPrinting(true)
+      if ((data?.total_enrolled ?? 0) > visibleStudents.length) {
         const fullRes = await getSubjectStudents(courseCode, {
           division: divisionParam.trim() || undefined,
-          result: type === 'all' ? undefined : type,
-          status: type === 'all' ? undefined : type,
-          limit: Math.min(Math.max(targetTotal, 1), 200),
+          status: statusParam !== 'all' ? statusParam : undefined,
+          result: statusParam !== 'all' ? statusParam : undefined,
+          search: searchParam.trim() || undefined,
+          limit: Math.min(Math.max(data?.total_enrolled ?? 200, 50), 500),
           offset: 0,
         })
-        recordsToExport = fullRes?.students || []
+        if (fullRes?.students && fullRes.students.length > 0) {
+          setPrintAllStudents(fullRes.students)
+          setTimeout(() => {
+            window.print()
+            setPrinting(false)
+            setPrintAllStudents(null)
+          }, 200)
+          return
+        }
       }
+      setTimeout(() => {
+        window.print()
+        setPrinting(false)
+      }, 150)
+    } catch {
+      window.print()
+      setPrinting(false)
+    }
+  }
 
-      if (recordsToExport.length === 0) {
-        recordsToExport = currentList.filter((s) => {
-          if (type === 'passed') return s.status === 'passed'
-          if (type === 'failed') return s.status === 'failed'
-          if (type === 'absent') return s.is_absent || s.status === 'absent'
-          return true
-        })
-      }
-
-      exportSubjectRoster(
+  const handleExportPdf = async (type: 'all' | 'passed' | 'failed' | 'absent' = 'all') => {
+    if (!courseCode) return
+    try {
+      setExportingPdf(true)
+      const blob = await downloadSubjectStudentsPdf(
         courseCode,
-        data?.course_name || courseCode,
         type,
-        recordsToExport,
         divisionParam.trim() || null
       )
+      saveBlobAsFile(blob, `EduQuery_${courseCode}_${type}_Roster.pdf`)
+    } catch {
+      alert(`Failed to download ${type} subject roster PDF. Please try again.`)
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
+  const handleExportCsv = async (type: 'all' | 'passed' | 'failed' | 'absent' = 'all') => {
+    if (!courseCode) return
+    try {
+      setExportingCsv(true)
+      const blob = await downloadSubjectStudentsCsv(
+        courseCode,
+        type,
+        divisionParam.trim() || null
+      )
+      saveBlobAsFile(blob, `EduQuery_${courseCode}_${type}_Roster.csv`)
+    } catch {
+      alert(`Failed to download ${type} subject roster CSV. Please try again.`)
+    } finally {
+      setExportingCsv(false)
+    }
+  }
+
+  const handleExportExcel = async (type: 'all' | 'passed' | 'failed' | 'absent' = 'all') => {
+    if (!courseCode) return
+    try {
+      setExportingExcel(true)
+      const blob = await downloadSubjectStudentsExcel(
+        courseCode,
+        type,
+        divisionParam.trim() || null
+      )
+      saveBlobAsFile(blob, `EduQuery_${courseCode}_${type}.xlsx`)
     } catch {
       alert(`Failed to download ${type} students Excel workbook. Please try again.`)
+    } finally {
+      setExportingExcel(false)
     }
   }
 
@@ -352,7 +378,7 @@ export const SubjectDetailPage: React.FC = () => {
       }}
     >
       {/* Back Link */}
-      <div>
+      <div className="no-print">
         <Link
           to="/subjects"
           style={{
@@ -374,7 +400,7 @@ export const SubjectDetailPage: React.FC = () => {
       </div>
 
       {/* Course Details Header Card */}
-      <GlassCard variant="glass-2" padding="lg">
+      <GlassCard variant="glass-2" padding="lg" className="subject-header-card">
         <div
           style={{
             display: 'flex',
@@ -410,7 +436,7 @@ export const SubjectDetailPage: React.FC = () => {
           </div>
 
           {/* Action Buttons: Print Roster & Export Menu */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', position: 'relative' }}>
+          <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', position: 'relative' }}>
             <Button
               size="sm"
               variant="secondary"
@@ -468,10 +494,9 @@ export const SubjectDetailPage: React.FC = () => {
 
                     <button
                       type="button"
-                      title="Download complete subject enrollment as Excel (.xlsx)"
                       onClick={() => {
                         setExportMenuOpen(false)
-                        handleExportExcel('all')
+                        handlePrintRoster()
                       }}
                       style={{
                         width: '100%',
@@ -488,18 +513,109 @@ export const SubjectDetailPage: React.FC = () => {
                         textAlign: 'left',
                       }}
                     >
-                      <Users size={14} />
-                      <span>Download All (.xlsx)</span>
+                      <Printer size={14} />
+                      <span>Print Marksheet</span>
                     </button>
 
                     <button
                       type="button"
-                      title="Download passed students as Excel (.xlsx)"
+                      disabled={exportingPdf}
+                      onClick={() => {
+                        setExportMenuOpen(false)
+                        handleExportPdf('all')
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-2)',
+                        padding: 'var(--space-2) var(--space-3)',
+                        fontSize: 'var(--text-xs)',
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--text)',
+                        cursor: exportingPdf ? 'wait' : 'pointer',
+                        borderRadius: 'var(--radius-xs)',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <FileText size={14} />
+                      <span>Download Result Slip (.pdf)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={exportingExcel}
+                      onClick={() => {
+                        setExportMenuOpen(false)
+                        handleExportExcel('all')
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-2)',
+                        padding: 'var(--space-2) var(--space-3)',
+                        fontSize: 'var(--text-xs)',
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--text)',
+                        cursor: exportingExcel ? 'wait' : 'pointer',
+                        borderRadius: 'var(--radius-xs)',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <FileSpreadsheet size={14} />
+                      <span>Export Excel (.xlsx)</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={exportingCsv}
+                      onClick={() => {
+                        setExportMenuOpen(false)
+                        handleExportCsv('all')
+                      }}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-2)',
+                        padding: 'var(--space-2) var(--space-3)',
+                        fontSize: 'var(--text-xs)',
+                        border: 'none',
+                        background: 'transparent',
+                        color: 'var(--text)',
+                        cursor: exportingCsv ? 'wait' : 'pointer',
+                        borderRadius: 'var(--radius-xs)',
+                        textAlign: 'left',
+                      }}
+                    >
+                      <Download size={14} />
+                      <span>Export CSV (.csv)</span>
+                    </button>
+
+                    <div
+                      style={{
+                        padding: 'var(--space-2) var(--space-3) var(--space-1)',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        borderTop: '1px solid var(--border)',
+                        marginTop: '4px',
+                      }}
+                    >
+                      Filtered Downloads
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={data.passed_count === 0}
                       onClick={() => {
                         setExportMenuOpen(false)
                         handleExportExcel('passed')
                       }}
-                      disabled={data.passed_count === 0}
                       style={{
                         width: '100%',
                         display: 'flex',
@@ -521,12 +637,11 @@ export const SubjectDetailPage: React.FC = () => {
 
                     <button
                       type="button"
-                      title="Download confirmed failed students as Excel (.xlsx)"
+                      disabled={data.failed_count === 0}
                       onClick={() => {
                         setExportMenuOpen(false)
                         handleExportExcel('failed')
                       }}
-                      disabled={data.failed_count === 0}
                       style={{
                         width: '100%',
                         display: 'flex',
@@ -602,7 +717,7 @@ export const SubjectDetailPage: React.FC = () => {
       </GlassCard>
 
       {/* Filter and Search Bar */}
-      <GlassCard variant="glass-1" padding="sm">
+      <GlassCard variant="glass-1" padding="sm" className="no-print">
         <div
           style={{
             display: 'flex',
@@ -673,10 +788,11 @@ export const SubjectDetailPage: React.FC = () => {
       ) : (
         <DataTable
           columns={columns}
-          data={visibleStudents}
+          data={printAllStudents || visibleStudents}
           keyExtractor={(row) => row.student_id}
-          pageSize={pageSize}
+          pageSize={printAllStudents ? 500 : pageSize}
           showDensityToggle
+          showPagination={!printAllStudents}
           defaultDensity="comfortable"
         />
       )}

@@ -21,7 +21,9 @@ from app.api.schemas.subject import (
 from app.services.export_service import (
     export_absent_students_excel,
     export_subject_failures_csv,
+    export_subject_students_csv,
     export_subject_students_excel,
+    export_subject_students_pdf,
 )
 from app.services.subject_service import (
     get_course_failures_service,
@@ -163,19 +165,91 @@ def get_course_students_route(
     return payload  # type: ignore[return-value]
 
 
-@router.get("/{course_code}/export/xlsx", response_model=None)
+@router.get("/{course_code}/export/pdf", response_model=None, include_in_schema=False)
+@router.get("/{course_code}/export-pdf", response_model=None)
+def export_course_students_pdf_route(
+    course_code: str,
+    division: Annotated[str | None, Query(description="Filter roster by division")] = None,
+    report_type: Annotated[str | None, Query(description="Report type: 'all', 'passed', 'failed', or 'absent'")] = None,
+    category: Annotated[str | None, Query(description="Category alias: 'all', 'passed', 'failed', or 'absent'")] = None,
+    status: Annotated[str | None, Query(description="Status alias: 'all', 'passed', 'failed', or 'absent'")] = None,
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> Response | JSONResponse:
+    """Export subject student roster as official printable PDF marksheet."""
+    effective_type = (category or status or report_type or "all").strip().lower()
+    status_code, filename, content = export_subject_students_pdf(
+        con=con,
+        course_code=course_code,
+        division=division,
+        report_type=effective_type,
+    )
+    if status_code != 200:
+        return JSONResponse(status_code=status_code, content=content)
+    return Response(
+        content=content,  # type: ignore[arg-type]
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{course_code}/export/csv", response_model=None, include_in_schema=False)
+@router.get("/{course_code}/export-csv", response_model=None)
+def export_course_students_csv_route(
+    course_code: str,
+    division: Annotated[str | None, Query(description="Filter roster by division")] = None,
+    report_type: Annotated[str | None, Query(description="Report type: 'all', 'passed', 'failed', or 'absent'")] = None,
+    category: Annotated[str | None, Query(description="Category alias: 'all', 'passed', 'failed', or 'absent'")] = None,
+    status: Annotated[str | None, Query(description="Status alias: 'all', 'passed', 'failed', or 'absent'")] = None,
+    con: duckdb.DuckDBPyConnection = Depends(get_db),
+) -> Response | JSONResponse:
+    """Export subject student roster as formula-safe UTF-8 CSV."""
+    effective_type = (category or status or report_type or "all").strip().lower()
+    status_code, filename, content = export_subject_students_csv(
+        con=con,
+        course_code=course_code,
+        division=division,
+        report_type=effective_type,
+    )
+    if status_code != 200:
+        return JSONResponse(status_code=status_code, content=content)
+    return Response(
+        content=content,  # type: ignore[arg-type]
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{course_code}/export/xlsx", response_model=None, include_in_schema=False)
+@router.get("/{course_code}/export", response_model=None, include_in_schema=False)
 @router.get("/{course_code}/export-excel", response_model=None)
-@router.get("/{course_code}/export", response_model=None)
 def export_course_students_excel_route(
     course_code: str,
     division: Annotated[str | None, Query(description="Filter roster by division")] = None,
     report_type: Annotated[str | None, Query(description="Report type: 'all', 'passed', 'failed', or 'absent'")] = None,
     category: Annotated[str | None, Query(description="Category alias: 'all', 'passed', 'failed', or 'absent'")] = None,
     status: Annotated[str | None, Query(description="Status alias: 'all', 'passed', 'failed', or 'absent'")] = None,
-    format: Annotated[str | None, Query(description="Export format")] = None,
+    format: Annotated[str | None, Query(description="Export format: 'xlsx', 'pdf', 'csv'")] = None,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> Response | JSONResponse:
-    """Export subject student roster as real Excel workbook (.xlsx)."""
+    """Export subject student roster as real Excel workbook (.xlsx), PDF (.pdf), or CSV (.csv)."""
+    if format and format.strip().lower() == "pdf":
+        return export_course_students_pdf_route(
+            course_code=course_code,
+            division=division,
+            report_type=report_type,
+            category=category,
+            status=status,
+            con=con,
+        )
+    if format and format.strip().lower() == "csv":
+        return export_course_students_csv_route(
+            course_code=course_code,
+            division=division,
+            report_type=report_type,
+            category=category,
+            status=status,
+            con=con,
+        )
     effective_type = (category or status or report_type or "all").strip().lower()
     status_code, filename, content = export_subject_students_excel(
         con=con,

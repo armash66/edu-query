@@ -374,7 +374,7 @@ export function exportSubjectRoster(
     data: students,
     metadataRows: [
       [`EduQuery — Subject Analysis Roster: ${courseCode} - ${courseName}`],
-      [`Cohort: ${sheetName} | ${divLabel} | Total Records: ${students.length}`],
+      [`Category: ${sheetName} | ${divLabel} | Total Records: ${students.length}`],
       [],
     ],
   })

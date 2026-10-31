@@ -725,7 +725,12 @@ button:disabled {
   .bottom-nav,
   .no-print,
   button,
-  .search-container {
+  input,
+  .search-container,
+  .search-field,
+  .table-actions,
+  a[href="/subjects"],
+  a[href="/students"] {
     display: none !important;
   }
 
@@ -740,11 +745,20 @@ button:disabled {
   }
 
   .glass-1, .glass-2, .glass-3, .data-surface {
-    background: #ffffff !important;
+    background: transparent !important;
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
     box-shadow: none !important;
-    border: 1px solid #cccccc !important;
+    border: none !important;
+  }
+
+  .subject-header-card,
+  .student-header-card {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    padding: 0 0 6px 0 !important;
+    margin: 0 0 6px 0 !important;
   }
 
   table {

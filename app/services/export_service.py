@@ -290,7 +290,7 @@ def export_subject_failures_csv(
     # 2. Failing students roster
     writer.writerow([
         "Student ID",
-        "Name",
+        "Student Name",
         "Roll No",
         "Seat No",
         "Division",
@@ -400,7 +400,7 @@ def export_students_roster_csv(
     writer.writerow(["# EduQuery V3 - Student Roster Export"])
     writer.writerow([
         "Student ID",
-        "Name",
+        "Student Name",
         "Roll No",
         "Seat No",
         "Division",
@@ -506,7 +506,7 @@ def export_students_roster_excel(
 
     headers = [
         "Student ID",
-        "Name",
+        "Student Name",
         "Roll No",
         "Seat No",
         "Division",
@@ -579,19 +579,19 @@ def export_subject_students_excel(
             rep.to_dict(),
         )
 
-    clean_type = report_type.strip().lower()
+    clean_type = (report_type or "all").strip().lower()
     safe_code = sanitize_filename(rep.course_code or course_code)
 
     if clean_type == "passed":
-        students_to_export = [s for s in rep.all_students if s.status == "passed"]
+        students_to_export = [s for s in rep.all_students if (s.status or "").lower() == "passed"]
         filename = f"EduQuery_{safe_code}_Passed_Students.xlsx"
         sheet_title = "Passed Students"
     elif clean_type == "failed":
-        students_to_export = [s for s in rep.all_students if s.status == "failed"]
+        students_to_export = [s for s in rep.all_students if (s.status or "").lower() == "failed"]
         filename = f"EduQuery_{safe_code}_Failed_Students.xlsx"
         sheet_title = "Failed Students"
     elif clean_type == "absent":
-        students_to_export = [s for s in rep.all_students if s.status == "absent" or s.is_absent]
+        students_to_export = [s for s in rep.all_students if (s.status or "").lower() == "absent" or s.is_absent]
         filename = f"EduQuery_{safe_code}_Absent_Students.xlsx"
         sheet_title = "Absent Students"
     else:
@@ -603,53 +603,88 @@ def export_subject_students_excel(
     ws = wb.active
     ws.title = sheet_title[:31]
 
-    # Subject Metadata Header Rows
-    ws.append([f"EduQuery - Subject Analysis Roster: {rep.course_code} - {rep.course_name}"])
-    ws.append([f"Component Type: {rep.kind or 'theory'} | Division: {rep.division_filter or 'All Divisions'} | Credits: {rep.credits or 'N/A'}"])
-    ws.append([f"Total Enrolled: {rep.total_enrolled} | Passed: {rep.passed_count} | Failed: {rep.confirmed_failures_count} | Absent: {rep.absent_count} | Pass Rate: {rep.pass_percentage:.1f}% ({rep.denominator_explanation})"])
-    ws.append([])
+    num_cols = 11
 
+    # Row 1: Merged Title Banner
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=num_cols)
+    cell_t = ws.cell(row=1, column=1)
+    cell_t.value = f"EduQuery — Subject Marksheet Roster: {rep.course_code} - {rep.course_name}"
+    cell_t.fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    cell_t.font = Font(name="Calibri", size=13, bold=True, color="FFFFFF")
+    cell_t.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 28
+
+    # Row 2: Merged Metadata
+    div_label = rep.division_filter or "All Divisions"
+    kind_label = (rep.kind or "Theory").title()
+    credits_label = str(rep.credits or "—")
+    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=num_cols)
+    cell_m = ws.cell(row=2, column=1)
+    cell_m.value = f"Course: {rep.course_code} - {rep.course_name}   |   Division: {div_label}   |   Modality: {kind_label}   |   Credits: {credits_label}"
+    cell_m.fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    cell_m.font = Font(name="Calibri", size=10, bold=True, color="334155")
+    cell_m.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[2].height = 22
+
+    # Row 3: Merged KPI summary
+    ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=num_cols)
+    cell_s = ws.cell(row=3, column=1)
+    cell_s.value = f"Total Enrolled: {rep.total_enrolled}   |   Passed: {rep.passed_count}   |   Failed: {rep.confirmed_failures_count}   |   Absent: {rep.absent_count}   |   Pass Rate: {rep.pass_percentage:.1f}%"
+    cell_s.fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    cell_s.font = Font(name="Calibri", size=9.5, bold=True, color="475569")
+    cell_s.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[3].height = 20
+
+    # Row 4: Spacer
+    ws.append([])
+    ws.row_dimensions[4].height = 8
+
+    # Row 5: Table Headers (Keeps row 5 header index for clean styling and test compatibility)
     table_header_row = 5
     headers = [
         "Roll No",
         "Seat No",
         "Student ID",
-        "Name",
+        "Student Name",
         "Division",
         "Component Marks",
         "Total Marks",
         "Letter Grade",
         "Status",
-        "Flags",
-        "Classification Reason",
-        "Source Sheet",
-        "Source Row",
+        "Absent",
+        "Remarks",
     ]
     ws.append(headers)
+    ws.row_dimensions[table_header_row].height = 25
 
     for st in students_to_export:
         comp_parts = []
-        for c_tag, c_detail in st.components.items():
-            score_disp = str(c_detail.marks) if c_detail.marks is not None else (c_detail.flag or "N/A")
-            comp_parts.append(f"{c_tag}: {score_disp}")
-        comp_summary = "; ".join(comp_parts)
+        for c_tag, c_detail in (st.components or {}).items():
+            if c_tag.upper() in ('STATUS', 'RESULT') and c_detail.marks is None:
+                continue
+            if c_detail.marks is not None:
+                m_str = f"{c_detail.marks:.0f}" if c_detail.marks.is_integer() else f"{c_detail.marks}"
+                comp_parts.append(f"{c_tag}: {m_str}")
+            elif c_detail.flag:
+                comp_parts.append(f"{c_tag}: {c_detail.flag}")
+        comp_summary = "; ".join(comp_parts) if comp_parts else "—"
         tot_m = _safe_float(st.total_marks)
-        src_row = _safe_int(st.source_row)
+        status_str = str(st.status or "").upper()
+        is_abs = "Yes" if (st.is_absent or status_str == "ABSENT") else "No"
+        remarks = format_classification_reason(st.classification_reason)
 
         row_vals = [
-            str(st.roll_no) if st.roll_no is not None else "",
-            str(st.seat_no) if st.seat_no is not None else "",
+            str(st.roll_no or ""),
+            str(st.seat_no or ""),
             str(st.student_id),
             sanitize_cell_text(st.name),
             sanitize_cell_text(st.division if st.division is not None else ""),
             sanitize_cell_text(comp_summary),
             tot_m if tot_m is not None else "",
             sanitize_cell_text(st.letter_grade if st.letter_grade is not None else ""),
-            sanitize_cell_text(str(st.status).upper()),
-            sanitize_cell_text(", ".join(st.flags)),
-            sanitize_cell_text(format_classification_reason(st.classification_reason)),
-            sanitize_cell_text(st.source_sheet),
-            src_row if src_row is not None else "",
+            status_str,
+            is_abs,
+            remarks,
         ]
         ws.append(row_vals)
         cur_row = ws.max_row
@@ -660,13 +695,333 @@ def export_subject_students_excel(
 
     _apply_workbook_styles(ws, header_row_idx=table_header_row)
 
-    ws.cell(row=1, column=1).font = Font(name="Calibri", size=13, bold=True, color="0F172A")
-    meta_font = Font(name="Calibri", size=10, bold=True, color="334155")
-    ws.cell(row=2, column=1).font = meta_font
-    ws.cell(row=3, column=1).font = meta_font
+    # Re-apply merged banner styles
+    ws.cell(row=1, column=1).font = Font(name="Calibri", size=13, bold=True, color="FFFFFF")
+    ws.cell(row=1, column=1).fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    ws.cell(row=2, column=1).font = Font(name="Calibri", size=10, bold=True, color="334155")
+    ws.cell(row=2, column=1).fill = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    ws.cell(row=3, column=1).font = Font(name="Calibri", size=9.5, bold=True, color="475569")
+    ws.cell(row=3, column=1).fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
 
     buf = io.BytesIO()
     wb.save(buf)
+    return 200, filename, buf.getvalue()
+
+
+def export_subject_students_csv(
+    con: duckdb.DuckDBPyConnection,
+    course_code: str,
+    division: str | None = None,
+    report_type: str = "all",
+) -> tuple[int, str, str | dict[str, Any]]:
+    """Generate CSV export for a course: all, passed, failed, or absent students."""
+    rep = get_subject_failures(con, course_identifier=course_code, division=division)
+    if rep.status != "success":
+        return (
+            404 if rep.status == "not_found" else 409,
+            "",
+            rep.to_dict(),
+        )
+
+    clean_type = (report_type or "all").strip().lower()
+    safe_code = sanitize_filename(rep.course_code or course_code)
+
+    if clean_type == "passed":
+        students_to_export = [s for s in rep.all_students if (s.status or "").lower() == "passed"]
+        filename = f"EduQuery_{safe_code}_Passed_Students.csv"
+    elif clean_type == "failed":
+        students_to_export = [s for s in rep.all_students if (s.status or "").lower() == "failed"]
+        filename = f"EduQuery_{safe_code}_Failed_Students.csv"
+    elif clean_type == "absent":
+        students_to_export = [s for s in rep.all_students if (s.status or "").lower() == "absent" or s.is_absent]
+        filename = f"EduQuery_{safe_code}_Absent_Students.csv"
+    else:
+        students_to_export = rep.all_students
+        filename = f"EduQuery_{safe_code}_All_Students.csv"
+
+    buf = io.StringIO()
+    writer = csv.writer(buf, quoting=csv.QUOTE_MINIMAL)
+
+    headers = [
+        "Roll No",
+        "Seat No",
+        "Student ID",
+        "Student Name",
+        "Division",
+        "Component Marks",
+        "Total Marks",
+        "Letter Grade",
+        "Status",
+        "Absent",
+        "Remarks",
+    ]
+    writer.writerow(headers)
+
+    for st in students_to_export:
+        comp_parts = []
+        for c_tag, c_detail in (st.components or {}).items():
+            if c_tag.upper() in ('STATUS', 'RESULT') and c_detail.marks is None:
+                continue
+            if c_detail.marks is not None:
+                m_str = f"{c_detail.marks:.0f}" if c_detail.marks.is_integer() else f"{c_detail.marks}"
+                comp_parts.append(f"{c_tag}: {m_str}")
+            elif c_detail.flag:
+                comp_parts.append(f"{c_tag}: {c_detail.flag}")
+        comp_summary = "; ".join(comp_parts) if comp_parts else "—"
+        tot_m = _safe_float(st.total_marks)
+        status_str = str(st.status or "").upper()
+        is_abs = "Yes" if (st.is_absent or status_str == "ABSENT") else "No"
+        remarks = format_classification_reason(st.classification_reason)
+
+        writer.writerow([
+            sanitize_csv_cell(st.roll_no or ""),
+            sanitize_csv_cell(st.seat_no or ""),
+            sanitize_csv_cell(st.student_id),
+            sanitize_cell_text(st.name),
+            sanitize_cell_text(st.division if st.division is not None else ""),
+            sanitize_cell_text(comp_summary),
+            tot_m if tot_m is not None else "",
+            sanitize_cell_text(st.letter_grade if st.letter_grade is not None else ""),
+            sanitize_csv_cell(status_str),
+            sanitize_csv_cell(is_abs),
+            sanitize_csv_cell(remarks),
+        ])
+
+    return 200, filename, "\ufeff" + buf.getvalue()
+
+
+def export_subject_students_pdf(
+    con: duckdb.DuckDBPyConnection,
+    course_code: str,
+    division: str | None = None,
+    report_type: str = "all",
+) -> tuple[int, str, bytes | dict[str, Any]]:
+    """Generate official printable subject evaluation marksheet roster PDF with ReportLab."""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib import colors
+    from reportlab.pdfgen import canvas
+
+    rep = get_subject_failures(con, course_identifier=course_code, division=division)
+    if rep.status != "success":
+        return (
+            404 if rep.status == "not_found" else 409,
+            "",
+            rep.to_dict(),
+        )
+
+    clean_type = (report_type or "all").strip().lower()
+    safe_code = sanitize_filename(rep.course_code or course_code)
+
+    if clean_type == "passed":
+        students_to_export = [s for s in rep.all_students if (s.status or "").lower() == "passed"]
+        filename = f"EduQuery_{safe_code}_Passed_Roster.pdf"
+    elif clean_type == "failed":
+        students_to_export = [s for s in rep.all_students if (s.status or "").lower() == "failed"]
+        filename = f"EduQuery_{safe_code}_Failed_Roster.pdf"
+    elif clean_type == "absent":
+        students_to_export = [s for s in rep.all_students if (s.status or "").lower() == "absent" or s.is_absent]
+        filename = f"EduQuery_{safe_code}_Absent_Roster.pdf"
+    else:
+        students_to_export = rep.all_students
+        filename = f"EduQuery_{safe_code}_All_Roster.pdf"
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=letter,
+        rightMargin=36,
+        leftMargin=36,
+        topMargin=40,
+        bottomMargin=42,
+    )
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'RosterTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=15,
+        leading=18,
+        alignment=1,
+        spaceAfter=2,
+        textColor=colors.HexColor("#0F172A")
+    )
+    sub_style = ParagraphStyle(
+        'RosterSub',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=8.5,
+        leading=11,
+        alignment=1,
+        textColor=colors.HexColor("#475569"),
+        spaceAfter=8,
+    )
+    th_style = ParagraphStyle('TH', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, leading=10, textColor=colors.HexColor("#FFFFFF"), alignment=1)
+    th_left = ParagraphStyle('THL', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, leading=10, textColor=colors.HexColor("#FFFFFF"), alignment=0)
+
+    td_style = ParagraphStyle('TD', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, leading=9.5, textColor=colors.HexColor("#0F172A"))
+    td_bold = ParagraphStyle('TDBold', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7.5, leading=9.5, textColor=colors.HexColor("#0F172A"))
+    td_center = ParagraphStyle('TDC', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, leading=9.5, alignment=1, textColor=colors.HexColor("#0F172A"))
+    td_pass = ParagraphStyle('TDPass', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7.5, leading=9.5, alignment=1, textColor=colors.HexColor("#166534"))
+    td_fail = ParagraphStyle('TDFail', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7.5, leading=9.5, alignment=1, textColor=colors.HexColor("#991B1B"))
+    td_abs = ParagraphStyle('TDAbs', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7.5, leading=9.5, alignment=1, textColor=colors.HexColor("#C2410C"))
+
+    story = [
+        Paragraph("SUBJECT EVALUATION &amp; MARKSHEET ROSTER", title_style),
+        Paragraph("Office of the Controller of Examinations &bull; Official Evaluation Record", sub_style),
+        HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0F172A"), spaceAfter=8),
+    ]
+
+    div_label = rep.division_filter or "All Divisions"
+    kind_label = (rep.kind or "Theory").title()
+    credits_label = str(rep.credits or "—")
+
+    # Meta card table
+    meta_rows = [
+        [
+            Paragraph(f"<b>Subject Code:</b> {rep.course_code}", td_style),
+            Paragraph(f"<b>Subject Name:</b> {rep.course_name}", td_style),
+            Paragraph(f"<b>Modality:</b> {kind_label} | <b>Credits:</b> {credits_label}", td_style),
+        ],
+        [
+            Paragraph(f"<b>Division:</b> {div_label}", td_style),
+            Paragraph(f"<b>Total Enrolled:</b> {rep.total_enrolled}  |  <b>Passed:</b> {rep.passed_count}  |  <b>Failed:</b> {rep.confirmed_failures_count}", td_style),
+            Paragraph(f"<b>Pass Rate:</b> <b>{rep.pass_percentage:.1f}%</b> ({rep.passed_count}/{rep.total_enrolled})", td_style),
+        ]
+    ]
+    t_meta = Table(meta_rows, colWidths=[150, 230, 160])
+    t_meta.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(t_meta)
+    story.append(Spacer(1, 8))
+
+    headers = [
+        Paragraph("Roll No", th_style),
+        Paragraph("Seat No", th_style),
+        Paragraph("Student Name", th_left),
+        Paragraph("Div", th_style),
+        Paragraph("Component Marks", th_left),
+        Paragraph("Total", th_style),
+        Paragraph("Grade", th_style),
+        Paragraph("Status", th_style),
+    ]
+    rows = [headers]
+
+    for st in students_to_export:
+        comp_parts = []
+        for tag, c_detail in (st.components or {}).items():
+            if tag.upper() in ('STATUS', 'RESULT') and c_detail.marks is None:
+                continue
+            if c_detail.marks is not None:
+                m_str = f"{c_detail.marks:.0f}" if c_detail.marks.is_integer() else f"{c_detail.marks}"
+                comp_parts.append(f"{tag}: {m_str}")
+            elif c_detail.flag:
+                comp_parts.append(f"{tag}: {c_detail.flag}")
+        comp_summary = ", ".join(comp_parts) or "—"
+
+        is_p = (st.status or '').lower() == 'passed'
+        is_f = (st.status or '').lower() == 'failed'
+        status_p = Paragraph("PASS", td_pass) if is_p else (Paragraph("FAIL", td_fail) if is_f else Paragraph("ABSENT", td_abs))
+
+        tot_disp = f"{st.total_marks:.0f}" if (isinstance(st.total_marks, (int, float)) and float(st.total_marks).is_integer()) else str(st.total_marks or '—')
+
+        rows.append([
+            Paragraph(str(st.roll_no or '—'), td_center),
+            Paragraph(str(st.seat_no or '—'), td_center),
+            Paragraph(str(st.name or '—'), td_bold),
+            Paragraph(str(st.division or '—'), td_center),
+            Paragraph(comp_summary, td_style),
+            Paragraph(tot_disp, td_center),
+            Paragraph(str(st.letter_grade or '—'), td_center),
+            status_p,
+        ])
+
+    t_roster = Table(rows, colWidths=[55, 55, 175, 30, 115, 35, 35, 40], repeatRows=1)
+
+    style_cmds = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1E293B")),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor("#94A3B8")),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+        ('TOPPADDING', (0, 0), (-1, -1), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]
+    for r_idx in range(1, len(rows)):
+        bg = colors.HexColor("#FFFFFF") if r_idx % 2 != 0 else colors.HexColor("#F8FAFC")
+        style_cmds.append(('BACKGROUND', (0, r_idx), (-1, r_idx), bg))
+
+    t_roster.setStyle(TableStyle(style_cmds))
+    story.append(t_roster)
+    story.append(Spacer(1, 14))
+
+    # Verification Signatures block
+    sig_data = [
+        ["____________________________", "____________________________", "____________________________"],
+        ["Class Coordinator", "Subject Teacher / Faculty", "Head of Department"],
+    ]
+    t_sig = Table(sig_data, colWidths=[180, 180, 180])
+    t_sig.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 1), (-1, 1), 8.5),
+        ('TEXTCOLOR', (0, 1), (-1, 1), colors.HexColor("#1E293B")),
+        ('PADDING', (0, 0), (-1, -1), 2),
+    ]))
+    story.append(KeepTogether([
+        Spacer(1, 8),
+        HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1"), spaceAfter=14),
+        t_sig
+    ]))
+
+    class SubjectNumberedCanvas(canvas.Canvas):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._saved_page_states = []
+
+        def showPage(self):
+            self._saved_page_states.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            num_pages = len(self._saved_page_states)
+            for state in self._saved_page_states:
+                self.__dict__.update(state)
+                self.draw_page_number(num_pages)
+                canvas.Canvas.showPage(self)
+            canvas.Canvas.save(self)
+
+        def draw_page_number(self, page_count):
+            self.saveState()
+            self.setFont("Helvetica", 8)
+            self.setFillColor(colors.HexColor("#64748B"))
+            if self._pageNumber > 1:
+                self.drawString(36, 762, f"EduQuery Examination Cell — Subject Roster: {rep.course_code}")
+                self.setStrokeColor(colors.HexColor("#CBD5E1"))
+                self.setLineWidth(0.5)
+                self.line(36, 756, 576, 756)
+
+            page_str = f"Page {self._pageNumber} of {page_count}"
+            self.drawString(36, 24, "EduQuery V3 · Academic Marksheet Analysis Engine · Confidential")
+            self.drawRightString(576, 24, page_str)
+            self.setStrokeColor(colors.HexColor("#CBD5E1"))
+            self.setLineWidth(0.5)
+            self.line(36, 34, 576, 34)
+            self.restoreState()
+
+    doc.build(story, canvasmaker=SubjectNumberedCanvas)
     return 200, filename, buf.getvalue()
 
 
@@ -786,7 +1141,7 @@ def export_investigation_excel(
     table_header_row = 5
     headers = [
         "Student ID",
-        "Name",
+        "Student Name",
         "Roll No",
         "Seat No",
         "Division",

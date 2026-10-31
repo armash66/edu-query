@@ -2438,6 +2438,32 @@ export async function downloadSubjectStudentsExcel(
 
 
   return requestBlob(`/api/v1/subjects/${clean}/export-excel?${q.toString()}`)
+}
+
+export async function downloadSubjectStudentsPdf(
+  courseCode: string,
+  reportType: 'all' | 'passed' | 'failed' | 'absent' = 'all',
+  division?: string | null
+): Promise<Blob> {
+  const clean = encodeURIComponent(courseCode.trim())
+  const q = new URLSearchParams()
+  if (division?.trim()) q.set('division', division.trim())
+  q.set('status', reportType)
+  q.set('report_type', reportType)
+  return requestBlob(`/api/v1/subjects/${clean}/export-pdf?${q.toString()}`)
+}
+
+export async function downloadSubjectStudentsCsv(
+  courseCode: string,
+  reportType: 'all' | 'passed' | 'failed' | 'absent' = 'all',
+  division?: string | null
+): Promise<Blob> {
+  const clean = encodeURIComponent(courseCode.trim())
+  const q = new URLSearchParams()
+  if (division?.trim()) q.set('division', division.trim())
+  q.set('status', reportType)
+  q.set('report_type', reportType)
+  return requestBlob(`/api/v1/subjects/${clean}/export-csv?${q.toString()}`)
 
 
 

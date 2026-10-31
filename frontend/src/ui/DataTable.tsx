@@ -154,6 +154,7 @@ export function DataTable<T>({
       {/* Controls Bar */}
       {showDensityToggle && (
         <div
+          className="no-print"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -370,6 +371,7 @@ export function DataTable<T>({
       {/* Pagination Footer */}
       {showPagination && (totalPages > 1 || isServerPaged) && (
         <div
+          className="no-print"
           style={{
             display: 'flex',
             alignItems: 'center',
