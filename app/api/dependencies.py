@@ -68,6 +68,9 @@ def get_db(
             session_dir = sessions_root / token
             session_db = session_dir / "session.duckdb"
             meta_file = session_dir / "meta.json"
+            datasets_root = (Path(cfg.data_dir).resolve() / "datasets").resolve()
+            dataset_db = datasets_root / f"{token}.duckdb"
+
             if session_dir.is_dir() and session_db.is_file():
                 # Check expiration
                 if meta_file.is_file():
@@ -88,6 +91,8 @@ def get_db(
                     except Exception:
                         pass
                 target_path = session_db
+            elif dataset_db.is_file():
+                target_path = dataset_db
             else:
                 raise DatabaseUnavailableError(
                     "Analysis session not found or has been deleted. Please upload an Excel workbook to begin."

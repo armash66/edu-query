@@ -866,7 +866,7 @@ Examination Cell & Department Faculty`
         />
       )}
 
-      {/* Grouped Absence Severity Breakdown (Dynamic Cohort Partition) */}
+      {/* Grouped Absence Severity Breakdown (Dynamic Division Partition) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-4)' }}>
         {/* Group 1: Absent in 1-2 subjects */}
         <GlassCard variant="glass-2" padding="md">
@@ -923,7 +923,7 @@ Examination Cell & Department Faculty`
         <GlassCard variant="glass-2" padding="md">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
-              Absent in 5+ Subjects (Critical)
+              Absent in 3+ Subjects (Multiple / Critical)
             </div>
             <StatusBadge
               tone={groupedAbsentees.extended.length > 0 ? 'fail' : 'info'}

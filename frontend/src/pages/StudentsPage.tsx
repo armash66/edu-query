@@ -9,7 +9,7 @@ import {
   List,
   Info,
 } from 'lucide-react'
-import { getStudents, saveBlobAsFile, downloadStudentsRosterExcel, type StudentListParams } from '../api/client'
+import { getStudents, saveBlobAsFile, downloadStudentsRosterExcel, downloadSingleStudentSlipPdf, type StudentListParams } from '../api/client'
 import { exportStudentsRoster } from '../utils/excelExport'
 import { ApiError, type StudentSummaryItem, type PaginatedResponse } from '../api/types'
 import { GlassCard } from '../ui/GlassCard'
@@ -340,46 +340,128 @@ export const StudentsPage: React.FC = () => {
     {
       key: 'overall_result',
       header: 'Result',
-      width: '90px',
+      width: '95px',
       sortable: true,
       align: 'center',
       render: (row) => {
         const res = (row.overall_result || '').toUpperCase()
-        if (res === 'PASS' || res === 'PASSED') {
-          return <StatusBadge tone="pass" size="sm" label="Passed" />
+        if (res.includes('PASS')) {
+          return <StatusBadge tone="pass" size="sm" label={res === 'PASSES' ? 'Passes' : 'Passed'} />
         }
-        if (res === 'FAIL' || res === 'FAILED') {
-          return <StatusBadge tone="fail" size="sm" label="Failed" />
+        if (res.includes('FAIL')) {
+          return <StatusBadge tone="fail" size="sm" label={res === 'FAILS' ? 'Fails' : 'Failed'} />
+        }
+        if (res.includes('ABS')) {
+          return <StatusBadge tone="info" size="sm" label="Absent" />
         }
         return <StatusBadge tone="warn" size="sm" label={res || 'Pending'} />
       },
     },
     {
+      key: 'subject_counts',
+      header: 'Pass / Fail',
+      width: '130px',
+      align: 'center',
+      render: (row) => {
+        const passed = row.passed_subject_count ?? 0
+        const failed = row.failed_subject_count ?? 0
+        return (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#22c55e',
+                background: 'rgba(34, 197, 94, 0.12)',
+                border: '1px solid rgba(34, 197, 94, 0.25)',
+                padding: '2px 6px',
+                borderRadius: 'var(--radius-xs)',
+              }}
+              title={`${passed} Passed Course(s)`}
+            >
+              ✓ {passed}
+            </span>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '3px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: failed > 0 ? '#ef4444' : 'var(--text-muted)',
+                background: failed > 0 ? 'rgba(239, 68, 68, 0.12)' : 'var(--surface-hover)',
+                border: failed > 0 ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid var(--border)',
+                padding: '2px 6px',
+                borderRadius: 'var(--radius-xs)',
+              }}
+              title={`${failed} Failed / Backlog Course(s)`}
+            >
+              {failed > 0 ? `✕ ${failed}` : '0 fail'}
+            </span>
+          </div>
+        )
+      },
+    },
+    {
       key: 'actions',
       header: '',
-      width: '105px',
+      width: '125px',
       align: 'right',
       render: (row) => (
-        <Link
-          to={`/students/${row.student_id}`}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '5px',
-            padding: '5px 10px',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--surface-hover)',
-            border: '1px solid var(--border)',
-            fontSize: 'var(--text-xs)',
-            fontWeight: 600,
-            color: 'var(--text)',
-            textDecoration: 'none',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span>Result Slip</span>
-          <ArrowUpRight size={12} />
-        </Link>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          <Link
+            to={`/students/${row.student_id}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              fontSize: '11px',
+              fontWeight: 600,
+              color: 'var(--text)',
+              textDecoration: 'none',
+              whiteSpace: 'nowrap',
+            }}
+            title="Open Student Profile & Performance Details"
+          >
+            <span>View</span>
+            <ArrowUpRight size={11} />
+          </Link>
+          <button
+            type="button"
+            onClick={async (e) => {
+              e.stopPropagation()
+              try {
+                await downloadSingleStudentSlipPdf(row.student_id)
+              } catch {
+                alert('Failed to download student slip PDF.')
+              }
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '26px',
+              height: '26px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            title={`Download Result Slip PDF for ${row.name || row.student_id}`}
+            aria-label="Download Slip PDF"
+          >
+            <Download size={12} />
+          </button>
+        </div>
       ),
     },
   ]
@@ -445,7 +527,7 @@ export const StudentsPage: React.FC = () => {
             }}
           >
             <Users size={14} />
-            <span>Cohort Roster Directory</span>
+            <span>Division Roster Directory</span>
           </div>
           <h1
             style={{
@@ -517,7 +599,7 @@ export const StudentsPage: React.FC = () => {
         >
           <Info size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
           <div>
-            <strong style={{ color: 'var(--text)' }}>Documented Tie-Break Rule:</strong> Cohort candidates are
+            <strong style={{ color: 'var(--text)' }}>Documented Tie-Break Rule:</strong> Candidates are
             ranked by cumulative CGPA in descending order. Ties are deterministically resolved by semester SGPI
             descending, then aggregate marks descending, then examination seat number.
           </div>

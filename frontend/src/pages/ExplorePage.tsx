@@ -1084,7 +1084,7 @@ export const ExplorePage: React.FC = () => {
                 placeholder="Search by student identifier, name, roll no, seat no..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                aria-label="Search cohort students"
+                aria-label="Search enrolled students"
               />
             </div>
             <Button type="submit" variant="secondary" size="sm">
@@ -1292,16 +1292,16 @@ export const ExplorePage: React.FC = () => {
           }}
         >
           <div>
-            Showing <strong>{total}</strong> of <strong>{cohortTotal}</strong> matching cohort students{' '}
+            Showing <strong>{total}</strong> of <strong>{cohortTotal}</strong> matching division students{' '}
             {cohortTotal > 0 && (
               <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                ({((total / cohortTotal) * 100).toFixed(1)}% of total cohort)
+                ({((total / cohortTotal) * 100).toFixed(1)}% of total enrolled students)
               </span>
             )}
           </div>
 
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-            {data?.active_explanation || 'All cohort students'}
+            {data?.active_explanation || 'All enrolled students'}
           </div>
         </div>
       </div>

@@ -166,6 +166,7 @@
   --radius-card: 16px;
   --radius-panel: 24px;
   --radius-full: 9999px;
+  --radius-pill: 9999px;
 
   /* Spacing Scale (4px Base Unit) */
   --space-1: 0.25rem;  /* 4px */
@@ -760,6 +761,45 @@ button:disabled {
   thead {
     display: table-header-group !important;
   }
+
+  /* Roster directory printable tabular formatting */
+  .responsive-data-table {
+    display: table !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+  .responsive-data-table thead {
+    display: table-header-group !important;
+  }
+  .responsive-data-table tbody {
+    display: table-row-group !important;
+  }
+  .responsive-data-table tr {
+    display: table-row !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border-bottom: 1px solid #cccccc !important;
+  }
+  .responsive-data-table th,
+  .responsive-data-table td {
+    display: table-cell !important;
+    padding: 3px 5px !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
+    border: 1px solid #dddddd !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+  }
+  .responsive-data-table td::before {
+    display: none !important;
+    content: none !important;
+  }
+  .no-print,
+  button,
+  .table-actions {
+    display: none !important;
+  }
   /* Result Slips Multi-Page Print Rules */
   body.printing-result-slips #root {
     display: none !important;
@@ -819,7 +859,7 @@ button:disabled {
 /* -------------------------------------------------------------------------
    DataTable Responsive: Card List (<768px) and Tablet Sticky Column (768-1024px)
    ------------------------------------------------------------------------- */
-@media (max-width: 767px) {
+@media screen and (max-width: 767px) {
   .responsive-data-table {
     display: block !important;
     width: 100% !important;

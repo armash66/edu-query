@@ -678,7 +678,7 @@ export const SubjectsCatalogPage: React.FC = () => {
             <Info size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <div>
               <strong style={{ color: 'var(--text)' }}>Elective Policy Audit:</strong> Discovered elective choices
-              partition cohort enrollment across offerings. Small elective cohorts (under 5 students) are presented plainly
+              partition division enrollment across offerings. Small elective groups (under 5 students) are presented plainly
               without statistical modeling or curves.
             </div>
           </div>
@@ -736,7 +736,7 @@ export const SubjectsCatalogPage: React.FC = () => {
                                 border: '1px solid var(--border)',
                               }}
                             >
-                              Small Cohort (&lt;5 students)
+                              Small Elective Group (&lt;5 students)
                             </span>
                           )}
                         </div>

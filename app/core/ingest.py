@@ -44,11 +44,29 @@ IDENTITY_PATTERNS = {
 }
 
 SUMMARY_PATTERNS = {
-    "total_marks": [r"^total(?:\s*marks)?$", r"^grand\s*total$", r"^overall\s*total$", r"^tot$"],
-    "sgpi": [r"^sgpi$", r"^sgpa$", r"^gpa$"],
-    "cgpa": [r"^cgpa$"],
-    "total_credits": [r"^tot\.?\s*cr\.?$", r"^total\s*credits$", r"^credits\s*total$"],
-    "result": [r"^result$", r"^status$", r"^final\s*result$"],
+    "total_marks": [
+        r"^grand\s*total(?:\s*marks)?$",
+        r"^overall\s*total(?:\s*marks)?$",
+        r"^total\s*marks$",
+        r"^aggregate\s*marks$",
+        r"^marks\s*total$",
+        r"^total$",
+        r"^tot$",
+    ],
+    "sgpi": [r"^sgpi$", r"^sgpa$", r"^gpa$", r"^spi$"],
+    "cgpa": [r"^cgpa$", r"^cpi$"],
+    "total_credits": [
+        r"^credits?\s*earned$",
+        r"^earned\s*credits?$",
+        r"^total\s*credits?\s*earned$",
+        r"^total\s*credits?$",
+        r"^credits?\s*total$",
+        r"^tot\.?\s*cr\.?$",
+        r"^cr\.?\s*earned$",
+        r"^credits?$",
+        r"^cr$",
+    ],
+    "result": [r"^final\s*result$", r"^final\s*status$", r"^result$", r"^status$"],
 }
 
 FLAG_RE = re.compile(r"^\s*(?P<number>[+-]?(?:\d+(?:\.\d*)?|\.\d+))?\s*(?P<flag>[A-Za-z]+)?\s*$")
@@ -144,7 +162,7 @@ def detect_layout(ws, merged_map: dict[tuple[int, int], Any] | None = None) -> d
         merged_map = build_merged_cell_map(ws)
 
     identity: dict[str, int] = {}
-    summary: dict[str, int] = {}
+    summary_candidates: dict[str, list[int]] = {}
     header_rows_seen = set()
     scan_limit_row = min(max_r, 15)
 
@@ -158,9 +176,14 @@ def detect_layout(ws, merged_map: dict[tuple[int, int], Any] | None = None) -> d
                     identity[ik] = c
                     header_rows_seen.add(r)
                 sk = match_pattern(txt, SUMMARY_PATTERNS)
-                if sk and sk not in summary:
-                    summary[sk] = c
+                if sk:
+                    if sk not in summary_candidates:
+                        summary_candidates[sk] = []
+                    summary_candidates[sk].append(c)
                     header_rows_seen.add(r)
+
+    # Pick the rightmost column for each summary field (trailing summary columns at end of sheet)
+    summary: dict[str, int] = {sk: max(cols) for sk, cols in summary_candidates.items()}
 
     if not ({"roll_no", "seat_no", "name"} & set(identity.keys())):
         raise AmbiguousLayoutError("No student identity column (roll_no, reg_no, seat_no, or candidate name) found.")
@@ -233,12 +256,42 @@ def detect_layout(ws, merged_map: dict[tuple[int, int], Any] | None = None) -> d
             raw_course_val = clean_text(get_header_value(ws, course_row, start_c, merged_map))
             code = raw_course_val
             name = raw_course_val
+            header_credits: float | None = None
+
+            # Extract embedded credits e.g. [3 cr], (4 credits), [2.0 CR]
+            cr_match = re.search(r"(?:\[|\()(\d+(?:\.\d+)?)\s*cr(?:edits?)?(?:\]|\))", raw_course_val, re.IGNORECASE)
+            if cr_match:
+                try:
+                    header_credits = float(cr_match.group(1))
+                except ValueError:
+                    pass
+
+            # Extract embedded course code e.g. (CE304), [CE304], or "CE304 - Building Materials"
+            code_match = re.search(r"\(([A-Za-z]{2,}\s*\d+[A-Za-z0-9]*)\)", raw_course_val)
+            if not code_match:
+                code_match = re.search(r"\[([A-Za-z]{2,}\s*\d+[A-Za-z0-9]*)\]", raw_course_val)
+            if not code_match:
+                code_match = re.search(r"^([A-Za-z]{2,}\s*\d+[A-Za-z0-9]*)\s*[:-]\s*", raw_course_val)
+
+            if code_match:
+                code = code_match.group(1).replace(" ", "")
+                clean_name = raw_course_val
+                if cr_match:
+                    clean_name = clean_name.replace(cr_match.group(0), "")
+                clean_name = clean_name.replace(code_match.group(0), "")
+                clean_name = re.sub(r"\s+", " ", clean_name).strip(" -:[]()")
+                if clean_name:
+                    name = clean_name
+            elif cr_match:
+                clean_name = raw_course_val.replace(cr_match.group(0), "")
+                clean_name = re.sub(r"\s+", " ", clean_name).strip(" -:[]()")
+                if clean_name:
+                    name = clean_name
 
             if course_row > 1:
                 above_val = clean_text(get_header_value(ws, course_row - 1, start_c, merged_map))
                 if above_val and len(above_val) <= 20 and re.search(r"\d", above_val):
                     code = above_val
-                    name = raw_course_val
             if course_row < best_comp_row:
                 below_val = clean_text(get_header_value(ws, course_row + 1, start_c, merged_map))
                 if below_val and not any(k in below_val.upper() for k in ["ESE", "ISA", "END SEM", "INTERNAL", "TOT1", "TOTAL"]):
@@ -253,6 +306,9 @@ def detect_layout(ws, merged_map: dict[tuple[int, int], Any] | None = None) -> d
                 c_lbl = clean_text(get_header_value(ws, best_comp_row, c, merged_map)).upper()
                 if "CREDIT" in c_lbl:
                     credits_col = c
+                elif any(re.search(pat, c_lbl.lower()) for pat in [r"total\s*marks", r"grand\s*total", r"credits?\s*earned", r"earned\s*credits?", r"aggregate\s*marks"]):
+                    # Never treat grand summary columns as course-level components
+                    continue
                 elif c_lbl in {"TOT1", "TOTAL", "TOT"}:
                     total_col = c
                 elif "GRADE" in c_lbl:
@@ -273,8 +329,7 @@ def detect_layout(ws, merged_map: dict[tuple[int, int], Any] | None = None) -> d
 
             if not total_col and comp_cols:
                 total_col = comp_cols[-1]["column"]
-            if not credits_col:
-                credits_col = total_col
+            # Note: NEVER set credits_col = total_col. Total marks (e.g. 78) is not course credits (e.g. 3)
             if not grade_col:
                 grade_col = total_col
 
@@ -289,6 +344,7 @@ def detect_layout(ws, merged_map: dict[tuple[int, int], Any] | None = None) -> d
                 credits_col=credits_col,
                 total_col=total_col,
                 grade_col=grade_col,
+                header_credits=header_credits,
             ))
 
     if not course_blocks:
@@ -395,7 +451,9 @@ def _read_sheet_rows(
 
             grade = (clean_text(ws.cell(second_row, block.grade_col).value) or None) if block.grade_col else None
             raw_cr = ws.cell(first_row, block.credits_col).value if block.credits_col else None
-            credits_val, _, _ = parse_cell(raw_cr)
+            credits_val, _, _ = parse_cell(raw_cr) if raw_cr is not None else (None, None, None)
+            if (credits_val is None or credits_val > 10.0) and getattr(block, "header_credits", None) is not None:
+                credits_val = block.header_credits
 
             # Check if student is explicitly selected via metadata
             is_explicitly_selected = False
@@ -482,9 +540,9 @@ def _read_sheet_rows(
         if curr is None or (curr.get("credits") is None and row.get("credits") is not None):
             unique_courses[row["code"]] = row
     for c in unique_courses.values():
-        if c.get("credits") is None:
-            c["credits"] = 4.0
-            c["credits_raw"] = "4"
+        if c.get("credits") is None or c.get("credits") > 10.0:
+            c["credits"] = 2.0 if c.get("kind") == "lab" else 4.0
+            c["credits_raw"] = str(int(c["credits"]))
 
     return students, list(unique_courses.values()), scores, grades, enrollment, reconciliation
 

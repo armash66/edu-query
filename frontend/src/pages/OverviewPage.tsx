@@ -6,8 +6,6 @@ import {
   ExternalLink,
   Printer,
   ShieldAlert,
-  Search,
-  Sparkles,
   Award,
   UserX,
   CheckCircle2,
@@ -43,10 +41,6 @@ export const OverviewPage: React.FC = () => {
   const [summary, setSummary] = useState<OverviewSummaryResponse | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<ApiError | null>(null)
-
-  // Interactive AI Ask Search Query
-  const [askQuery, setAskQuery] = useState<string>('')
-
   // Evidence modal state for flagged student
   const [selectedStudent, setSelectedStudent] = useState<OverviewFlaggedStudent | null>(null)
   const [isReviewedMap, setIsReviewedMap] = useState<Record<string, boolean>>({})
@@ -65,7 +59,7 @@ export const OverviewPage: React.FC = () => {
       if (err instanceof ApiError) {
         setError(err)
       } else {
-        setError(new ApiError(500, 'LOAD_FAILED', 'Failed to load cohort overview summary.'))
+        setError(new ApiError(500, 'LOAD_FAILED', 'Failed to load academic overview summary.'))
       }
     } finally {
       if (!signal?.aborted) {
@@ -132,25 +126,13 @@ export const OverviewPage: React.FC = () => {
     setCopiedBrief(true)
     setTimeout(() => setCopiedBrief(false), 2000)
   }
-
-  const handleAskSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault()
-    if (!askQuery.trim()) return
-    navigate(`/explore?ai_query=${encodeURIComponent(askQuery.trim())}&source=ai`)
-  }
-
-  const handleChipClick = (queryText: string) => {
-    setAskQuery(queryText)
-    navigate(`/explore?ai_query=${encodeURIComponent(queryText)}&source=ai`)
-  }
-
   // Handle empty state: redirect or prompt upload
   if (!hasActiveSession && !loading) {
     return (
       <div className="page-container" style={{ margin: '4rem auto', maxWidth: '800px' }}>
         <EmptyState
           title="No marksheet loaded"
-          description="Please upload an Excel workbook (.xlsx) to analyze cohort performance."
+          description="Please upload an Excel workbook (.xlsx) to analyze division performance."
           action={
             <Button variant="primary" onClick={() => navigate('/upload')}>
               Upload Marksheet
@@ -192,7 +174,7 @@ export const OverviewPage: React.FC = () => {
       <div className="page-container" style={{ margin: '4rem auto', maxWidth: '800px' }}>
         <ErrorState
           title="Overview Error"
-          message={error?.message || 'Unable to load cohort overview.'}
+          message={error?.message || 'Unable to load academic overview.'}
           onRetry={() => fetchOverview()}
         />
       </div>
@@ -203,7 +185,7 @@ export const OverviewPage: React.FC = () => {
   const flaggedCount = kpis.needs_attention_count
   const isReadyToDeclare = flaggedCount === 0
 
-  // Cohort Toppers from API
+  // Division Toppers from API
   const toppers = summary.toppers || []
 
   // Class Distribution from API
@@ -211,15 +193,6 @@ export const OverviewPage: React.FC = () => {
 
   // Level Breakdown from API
   const levelBreakdown = summary.level_breakdown || []
-
-  const hardestCode = summary.hardest_subjects?.[0]?.course_code || 'curriculum subjects'
-  const askExamples = [
-    `Who failed ${hardestCode}?`,
-    'Students absent in final examinations',
-    'Top ranking candidates by CGPA',
-    'Students eligible for distinction honors',
-  ]
-
   return (
     <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
       {/* 1. Header Row */}
@@ -278,86 +251,7 @@ export const OverviewPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. Ask About Your Results Interactive Natural Query Bar */}
-      <section aria-label="Ask about your results">
-        <GlassCard variant="glass-2" padding="md">
-          <form onSubmit={handleAskSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text)', fontSize: 'var(--text-xs)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              <Sparkles size={14} style={{ color: 'var(--action-primary-bg)' }} />
-              <span>Ask about your results</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  padding: '8px 14px',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'var(--surface-data)',
-                  border: '1px solid var(--border)',
-                }}
-              >
-                <Search size={16} style={{ color: 'var(--text-muted)' }} />
-                <input
-                  type="text"
-                  placeholder="Ask any question about student performance, courses, or divisions..."
-                  value={askQuery}
-                  onChange={(e) => setAskQuery(e.target.value)}
-                  style={{
-                    flex: 1,
-                    background: 'transparent',
-                    border: 'none',
-                    outline: 'none',
-                    color: 'var(--text)',
-                    fontSize: 'var(--text-sm)',
-                  }}
-                />
-              </div>
-              <Button type="submit" size="md" variant="primary">
-                Explore
-              </Button>
-            </div>
-
-            {/* 4 Example Query Chips */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '2px' }}>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Try asking:</span>
-              {askExamples.map((chip, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleChipClick(chip)}
-                  style={{
-                    background: 'var(--surface-hover)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-pill)',
-                    padding: '3px 10px',
-                    fontSize: '11px',
-                    fontWeight: 500,
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer',
-                    transition: 'all var(--transition-fast)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = 'var(--text)'
-                    e.currentTarget.style.borderColor = 'var(--text-muted)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = 'var(--text-secondary)'
-                    e.currentTarget.style.borderColor = 'var(--border)'
-                  }}
-                >
-                  {chip}
-                </button>
-              ))}
-            </div>
-          </form>
-        </GlassCard>
-      </section>
-
-      {/* 3. "Needs your action" Cards Row */}
+      {/* 2. "Needs your action" Cards Row */}
       <section
         style={{
           display: 'grid',
@@ -547,7 +441,7 @@ export const OverviewPage: React.FC = () => {
                           display: 'flex',
                         }}
                         role="progressbar"
-                        aria-label="Cohort pass and fail outcomes"
+                        aria-label="Academic pass and fail outcomes"
                         aria-valuenow={results.passed.percentage}
                         aria-valuemin={0}
                         aria-valuemax={100}
@@ -738,7 +632,7 @@ export const OverviewPage: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Award size={16} style={{ color: 'var(--text)' }} />
                   <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 700, margin: 0, color: 'var(--text)' }}>
-                    Cohort Toppers
+                    Division Toppers
                   </h3>
                 </div>
                 <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
@@ -759,7 +653,7 @@ export const OverviewPage: React.FC = () => {
                   gap: '4px',
                 }}
               >
-                <span>View full cohort merit list</span>
+                <span>View full division merit list</span>
                 <ArrowRight size={14} />
               </Link>
             }
@@ -1062,7 +956,7 @@ export const OverviewPage: React.FC = () => {
 
       {/* 7. Highlights Strip */}
       {highlights.length > 0 && (
-        <section aria-label="Cohort insights and highlights">
+        <section aria-label="Academic insights and highlights">
           <GlassCard variant="glass-1" padding="sm">
             <div
               style={{

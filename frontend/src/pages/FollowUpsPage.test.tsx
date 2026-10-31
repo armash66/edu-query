@@ -158,9 +158,9 @@ describe('FollowUpsPage', () => {
     fireEvent.click(screen.getByText('Absentee Make-up Notice'))
     expect(screen.getByText(/ABSENTEE MAKE-UP EXAMINATION NOTIFICATION/i)).toBeInTheDocument()
 
-    // Switch to Dean's Merit List Letter template
-    fireEvent.click(screen.getByText("Dean's Merit List Letter"))
-    expect(screen.getByText(/CONGRATULATORY LETTER — DEAN'S MERIT LIST/i)).toBeInTheDocument()
+    // Switch to College Merit List Letter template
+    fireEvent.click(screen.getByText("College Merit List Letter"))
+    expect(screen.getByText(/CONGRATULATORY LETTER — COLLEGE MERIT LIST/i)).toBeInTheDocument()
 
     // Export CSV (Mail Merge) button
     expect(screen.getByRole('button', { name: /Export CSV \(Mail Merge\)/i })).toBeInTheDocument()

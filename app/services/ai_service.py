@@ -449,14 +449,14 @@ def draft_notice_template(
             "EduQuery Result Management System"
         )
     else:  # merit
-        title = "COMMENDATION: Dean's Honor Roster & Academic Excellence"
+        title = "COMMENDATION: Principal's Honor Roster & Academic Excellence"
         body = (
             "Dear {name} (Roll No: {roll_no}, Division: {division}, Seat No: {seat_no}),\n\n"
             "The faculty and Department Examination Committee congratulate you on achieving outstanding academic performance "
             "during the recent examination cycle.\n\n"
             "With a Semester SGPI of {sgpi}, you have secured a prestigious standing on the Academic Merit List. "
             "We commend your diligence and commitment to academic excellence.\n\n"
-            "Dean of Academic Affairs\n"
+            "Principal of Academic Affairs\n"
             "EduQuery Result Management System"
         )
 

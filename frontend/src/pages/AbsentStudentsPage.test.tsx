@@ -287,7 +287,7 @@ describe('AbsentStudentsPage', () => {
     )
 
     expect(screen.getByText('Absent in 1–2 Subjects')).toBeInTheDocument()
-    expect(screen.getByText('Absent in 5+ Subjects (Critical)')).toBeInTheDocument()
+    expect(screen.getByText('Absent in 3+ Subjects (Multiple / Critical)')).toBeInTheDocument()
     expect(screen.getByText('Draft Notice')).toBeInTheDocument()
   })
 
