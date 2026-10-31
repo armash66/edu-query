@@ -48,7 +48,7 @@ def get_students(
     has_absences: Annotated[bool | None, Query(description="Filter students with at least 1 absent mark")] = None,
     level: Annotated[str | None, Query(description="Filter students by level ('UG' or 'DSY')")] = None,
     sort_by: Annotated[str | None, Query(description="Sort order ('merit' for toppers rank or None for default)")] = None,
-    limit: Annotated[int, Query(ge=1, le=100, description="Page limit (1-100)")] = 50,
+    limit: Annotated[int, Query(ge=1, le=1000, description="Page limit (1-1000)")] = 50,
     offset: Annotated[int, Query(ge=0, description="Page offset")] = 0,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> PaginatedResponse[StudentSummaryItem]:
@@ -135,7 +135,7 @@ def get_absent_students_route(
     course_code: Annotated[str | None, Query(description="Filter by subject / course code")] = None,
     component: Annotated[str | None, Query(description="Filter by absent component (e.g. ESE, MSE, ISA)")] = None,
     query: Annotated[str | None, Query(description="Search by student name, roll no, or seat no")] = None,
-    limit: Annotated[int, Query(ge=1, le=100, description="Page limit (1-100)")] = 50,
+    limit: Annotated[int, Query(ge=1, le=1000, description="Page limit (1-1000)")] = 50,
     offset: Annotated[int, Query(ge=0, description="Page offset")] = 0,
     con: duckdb.DuckDBPyConnection = Depends(get_db),
 ) -> PaginatedResponse[AbsentStudentItem]:

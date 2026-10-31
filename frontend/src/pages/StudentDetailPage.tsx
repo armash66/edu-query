@@ -155,7 +155,31 @@ export const StudentDetailPage: React.FC = () => {
 
 
 
-    if (isPass) {
+    const absentSubjects = (data?.subjects || [])
+      .filter((s) => (s.recorded_result || '').toUpperCase().includes('ABS') || (s.letter_grade || '').toUpperCase() === 'AB')
+      .map((s) => `${s.course_name} (${s.course_code})`)
+    const isAbsent = (student.overall_result || '').toUpperCase().includes('ABS') || absentSubjects.length > 0
+
+    if (isAbsent) {
+      subject = `Academic Notice: Missed Examination Documentation - ${toTitleCase(student.name)} (${student.seat_no || student.student_id})`
+      body = `Dear ${toTitleCase(student.name)},
+
+University examination records indicate your absence during recent semester evaluations.
+
+Academic Summary:
+- Student Name: ${toTitleCase(student.name)}
+- Seat Number: ${student.seat_no || 'N/A'}
+- Roll Number: ${student.roll_no || 'N/A'}
+- Division: ${student.division || 'N/A'}
+- Overall Result: ${student.overall_result || 'ABSENT'}
+- Missed Evaluations:
+  ${absentSubjects.length > 0 ? absentSubjects.map((s: string) => `• ${s}`).join('\n  ') : '• Recorded absence in examination components'}
+
+If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the examination cell within 5 business days to confirm your make-up evaluation eligibility.
+
+Sincerely,
+Examination Cell & Department Faculty`
+    } else if (isPass) {
 
       subject = `Semester Examination Result: ${toTitleCase(student.name)} (${student.seat_no || student.student_id})`
 

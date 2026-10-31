@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   BookOpen,
   Users,
+  List,
   ArrowUpRight,
 } from 'lucide-react'
 import {
@@ -35,6 +36,26 @@ import { EmptyState } from '../ui/EmptyState'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { toTitleCase } from '../utils/text'
 
+export interface GroupedCourseAbsence {
+  course_code: string
+  course_name: string
+  components: string[]
+  raw_texts: string[]
+}
+
+export interface GroupedAbsentStudent {
+  student_id: string
+  roll_no: string | null
+  seat_no: string | null
+  name: string
+  email: string
+  division: string | null
+  overall_result: string | null
+  total_absences: number
+  courses: GroupedCourseAbsence[]
+  records: AbsentStudentItem[]
+}
+
 export const AbsentStudentsPage: React.FC = () => {
   const [records, setRecords] = useState<AbsentStudentItem[]>([])
   const [total, setTotal] = useState<number>(0)
@@ -43,12 +64,17 @@ export const AbsentStudentsPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<ApiError | null>(null)
 
+  // View Mode: 'grouped' (aggregate by student) vs 'records' (individual evaluations)
+  const [viewMode, setViewMode] = useState<'grouped' | 'records'>('grouped')
+  const [severityFilter, setSeverityFilter] = useState<'all' | 'isolated' | 'extended'>('all')
+
   // Filters & Pagination State
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [divisionFilter, setDivisionFilter] = useState<string>('')
   const [courseFilter, setCourseFilter] = useState<string>('')
   const [componentFilter, setComponentFilter] = useState<string>('')
-  const [page, setPage] = useState<number>(1)
+  const [groupedPage, setGroupedPage] = useState<number>(1)
+  const [recordsPage, setRecordsPage] = useState<number>(1)
   const pageSize = 25
 
   // Filter Dropdown options
@@ -97,14 +123,14 @@ export const AbsentStudentsPage: React.FC = () => {
       division: divisionFilter.trim() || undefined,
       course_code: courseFilter.trim() || undefined,
       component: componentFilter.trim() || undefined,
-      limit: pageSize,
-      offset: (page - 1) * pageSize,
+      limit: 1000,
+      offset: 0,
     }
 
     try {
       const data: PaginatedResponse<AbsentStudentItem> = await getAbsentStudents(params, controller.signal)
       setRecords(data.items || [])
-      setTotal(data.total || 0)
+      setTotal(data.total || (data.items || []).length)
       setTotalStudents(data.total_students ?? new Set((data.items || []).map((r) => r.student_id)).size)
       setTotalCourses(data.total_courses ?? new Set((data.items || []).map((r) => r.course_code)).size)
     } catch (err: unknown) {
@@ -119,7 +145,7 @@ export const AbsentStudentsPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [searchQuery, divisionFilter, courseFilter, componentFilter, page])
+  }, [searchQuery, divisionFilter, courseFilter, componentFilter])
 
   useEffect(() => {
     fetchAbsentList()
@@ -132,22 +158,26 @@ export const AbsentStudentsPage: React.FC = () => {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value)
-    setPage(1)
+    setGroupedPage(1)
+    setRecordsPage(1)
   }
 
   const handleDivisionChange = (val: string) => {
     setDivisionFilter(val)
-    setPage(1)
+    setGroupedPage(1)
+    setRecordsPage(1)
   }
 
   const handleCourseChange = (val: string) => {
     setCourseFilter(val)
-    setPage(1)
+    setGroupedPage(1)
+    setRecordsPage(1)
   }
 
   const handleComponentChange = (val: string) => {
     setComponentFilter(val)
-    setPage(1)
+    setGroupedPage(1)
+    setRecordsPage(1)
   }
 
   const handleResetFilters = () => {
@@ -155,11 +185,13 @@ export const AbsentStudentsPage: React.FC = () => {
     setDivisionFilter('')
     setCourseFilter('')
     setComponentFilter('')
-    setPage(1)
+    setSeverityFilter('all')
+    setGroupedPage(1)
+    setRecordsPage(1)
   }
 
   const hasActiveFilters = Boolean(
-    searchQuery.trim() || divisionFilter || courseFilter || componentFilter
+    searchQuery.trim() || divisionFilter || courseFilter || componentFilter || severityFilter !== 'all'
   )
 
   const handleExportExcel = async () => {
@@ -217,45 +249,316 @@ export const AbsentStudentsPage: React.FC = () => {
   const distinctCourses = totalCourses || new Set(records.map((r) => r.course_code)).size
   const recordsToPrint = printRecords && printRecords.length > 0 ? printRecords : records
 
-  // Dynamically group distinct absent candidates from records
-  const groupedAbsentees = useMemo(() => {
-    const map = new Map<string, {
-      student_id: string
-      name: string
-      seat_no: string | null
-      roll_no: string | null
-      division: string | null
-      overall_result: string | null
-      courses: Set<string>
-      components: string[]
-    }>()
+  // Map of student_id -> total absences count across all loaded records
+  const studentAbsenceCountMap = useMemo(() => {
+    const counts: Record<string, number> = {}
+    records.forEach((r) => {
+      counts[r.student_id] = (counts[r.student_id] || 0) + 1
+    })
+    return counts
+  }, [records])
+
+  // Group records by student
+  const groupedStudentsAll = useMemo(() => {
+    const map = new Map<string, GroupedAbsentStudent>()
 
     records.forEach((r) => {
       if (!map.has(r.student_id)) {
         map.set(r.student_id, {
           student_id: r.student_id,
-          name: r.name,
-          seat_no: r.seat_no,
           roll_no: r.roll_no,
+          seat_no: r.seat_no,
+          name: r.name,
+          email: (r as any).email || `${r.roll_no || r.seat_no || r.student_id}@student.univ.edu`,
           division: r.division,
           overall_result: r.overall_result,
-          courses: new Set<string>(),
-          components: [],
+          total_absences: 0,
+          courses: [],
+          records: [],
         })
       }
-      const entry = map.get(r.student_id)!
-      if (r.course_code) entry.courses.add(r.course_code)
-      if (r.component) entry.components.push(r.component)
+      const student = map.get(r.student_id)!
+      student.total_absences += 1
+      student.records.push(r)
+
+      let course = student.courses.find((c) => c.course_code === r.course_code)
+      if (!course) {
+        course = {
+          course_code: r.course_code,
+          course_name: r.course_name,
+          components: [],
+          raw_texts: [],
+        }
+        student.courses.push(course)
+      }
+      if (r.component && !course.components.includes(r.component)) {
+        course.components.push(r.component)
+      }
+      if (r.raw_text && !course.raw_texts.includes(r.raw_text)) {
+        course.raw_texts.push(r.raw_text)
+      }
     })
 
-    const all = Array.from(map.values())
-    const isolated = all.filter((s) => s.courses.size <= 2)
-    const extended = all.filter((s) => s.courses.size > 2)
-
-    return { isolated, extended, totalStudents: all.length }
+    return Array.from(map.values()).sort((a, b) => {
+      if (b.total_absences !== a.total_absences) {
+        return b.total_absences - a.total_absences
+      }
+      return a.name.localeCompare(b.name)
+    })
   }, [records])
 
-  const columns: Column<AbsentStudentItem>[] = [
+  // Partition candidates into severity tiers
+  const isolatedCandidates = useMemo(
+    () => groupedStudentsAll.filter((s) => s.courses.length <= 2),
+    [groupedStudentsAll]
+  )
+
+  const extendedCandidates = useMemo(
+    () => groupedStudentsAll.filter((s) => s.courses.length > 2),
+    [groupedStudentsAll]
+  )
+
+  // Filtered grouped candidates based on severity filter
+  const groupedStudents = useMemo(() => {
+    if (severityFilter === 'isolated') return isolatedCandidates
+    if (severityFilter === 'extended') return extendedCandidates
+    return groupedStudentsAll
+  }, [groupedStudentsAll, isolatedCandidates, extendedCandidates, severityFilter])
+
+  // Paged slices for client-side pagination
+  const pagedGrouped = useMemo(() => {
+    const start = (groupedPage - 1) * pageSize
+    return groupedStudents.slice(start, start + pageSize)
+  }, [groupedStudents, groupedPage, pageSize])
+
+  const pagedRecords = useMemo(() => {
+    const start = (recordsPage - 1) * pageSize
+    return records.slice(start, start + pageSize)
+  }, [records, recordsPage, pageSize])
+
+  // Columns for Grouped By Student view
+  const groupedColumns: Column<GroupedAbsentStudent>[] = [
+    {
+      key: 'roll_no',
+      header: 'Seat / Roll',
+      width: '130px',
+      sticky: true,
+      render: (row) => (
+        <div>
+          <span className="font-mono" style={{ fontWeight: 700, color: 'var(--text)' }}>
+            {row.roll_no || row.seat_no || row.student_id}
+          </span>
+          {row.roll_no && row.seat_no && (
+            <div className="font-mono" style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+              Seat: {row.seat_no}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'name',
+      header: 'Student Name',
+      minWidth: '160px',
+      maxWidth: '240px',
+      wrap: true,
+      render: (row) => (
+        <Link
+          to={`/students/${encodeURIComponent(row.student_id)}`}
+          style={{
+            fontWeight: 600,
+            color: 'var(--text)',
+            textDecoration: 'none',
+            display: 'inline-block',
+            lineHeight: 1.3,
+          }}
+          className="hover-underline"
+          title={row.name}
+        >
+          {toTitleCase(row.name)}
+        </Link>
+      ),
+    },
+    {
+      key: 'division',
+      header: 'Div',
+      width: '50px',
+      align: 'center',
+      render: (row) => (
+        <span
+          className="font-mono"
+          style={{
+            fontSize: 'var(--text-xs)',
+            fontWeight: 600,
+            padding: '2px 6px',
+            borderRadius: 'var(--radius-xs)',
+            background: 'var(--surface-hover)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          {row.division || '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'total_absences',
+      header: 'Total Absences',
+      width: '140px',
+      align: 'center',
+      render: (row) => (
+        <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+          <StatusBadge
+            tone={row.total_absences >= 3 ? 'fail' : 'warn'}
+            size="sm"
+            label={`${row.total_absences} Missed`}
+          />
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+            in {row.courses.length} subject{row.courses.length === 1 ? '' : 's'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'courses',
+      header: 'Missed Subjects & Components',
+      minWidth: '280px',
+      wrap: true,
+      render: (row) => (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', padding: '4px 0' }}>
+          {row.courses.map((c) => (
+            <span
+              key={c.course_code}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '3px 8px',
+                borderRadius: 'var(--radius-xs)',
+                background: 'var(--surface-hover)',
+                border: '1px solid var(--border)',
+                fontSize: '11px',
+                lineHeight: 1.3,
+              }}
+              title={c.course_name}
+            >
+              <Link
+                to={`/subjects/${encodeURIComponent(c.course_code)}`}
+                style={{
+                  fontWeight: 700,
+                  color: 'var(--text)',
+                  textDecoration: 'none',
+                  fontFamily: 'var(--font-mono)',
+                }}
+                className="hover-underline"
+              >
+                {c.course_code}
+              </Link>
+              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                ({c.components.join(', ')})
+              </span>
+            </span>
+          ))}
+        </div>
+      ),
+    },
+    {
+      key: 'overall_result',
+      header: 'Result',
+      width: '100px',
+      align: 'center',
+      render: (row) => {
+        const outcome = (row.overall_result || '').toUpperCase()
+        const tone: 'pass' | 'fail' | 'warn' = outcome.includes('PASS')
+          ? 'pass'
+          : outcome.includes('FAIL')
+          ? 'fail'
+          : 'warn'
+        return <StatusBadge tone={tone} size="sm" label={outcome || 'UNRESOLVED'} />
+      },
+    },
+    {
+      key: 'actions',
+      header: '',
+      width: '180px',
+      align: 'right',
+      render: (row) => (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            type="button"
+            title={`Email official absence notice for all ${row.total_absences} missed evaluations`}
+            onClick={(e) => {
+              e.preventDefault()
+              const email = row.email || `${row.roll_no || row.student_id}@student.univ.edu`
+              const subject = `Academic Notice: Missed Examination Documentation - ${toTitleCase(row.name)} (${row.seat_no || row.roll_no || row.student_id})`
+              const missedBreakdown = row.courses
+                .map((c) => `• ${c.course_name} (${c.course_code}) - Component(s): ${c.components.join(', ')}`)
+                .join('\n')
+              const body = `Dear ${toTitleCase(row.name)},
+
+University examination records indicate your absence across ${row.total_absences} examination evaluation(s):
+
+${missedBreakdown}
+
+If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the examination cell within 5 business days to confirm your make-up evaluation eligibility.
+
+Student Details:
+- Student Name: ${toTitleCase(row.name)}
+- Seat Number: ${row.seat_no || 'N/A'}
+- Roll Number: ${row.roll_no || 'N/A'}
+- Division: ${row.division || '—'}
+- Total Missed Evaluations: ${row.total_absences}
+
+Sincerely,
+Examination Cell & Department Faculty`
+              window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
+              cursor: 'pointer',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <Mail size={12} />
+            <span>Email</span>
+          </button>
+
+          <Link
+            to={`/students/${encodeURIComponent(row.student_id)}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: 'var(--text-xs)',
+              fontWeight: 600,
+              color: 'var(--text)',
+              textDecoration: 'none',
+              padding: '4px 8px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface-hover)',
+              border: '1px solid var(--border)',
+              transition: 'all var(--transition-fast)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <span>View</span>
+            <ArrowUpRight size={12} />
+          </Link>
+        </div>
+      ),
+    },
+  ]
+
+  // Columns for All Records (individual component) view
+  const recordColumns: Column<AbsentStudentItem>[] = [
     {
       key: 'roll_no',
       header: 'Seat / Roll',
@@ -277,25 +580,58 @@ export const AbsentStudentsPage: React.FC = () => {
     {
       key: 'name',
       header: 'Student Name',
-      minWidth: '140px',
-      maxWidth: '220px',
+      minWidth: '150px',
+      maxWidth: '240px',
       wrap: true,
-      render: (row) => (
-        <Link
-          to={`/students/${encodeURIComponent(row.student_id)}`}
-          style={{
-            fontWeight: 600,
-            color: 'var(--text)',
-            textDecoration: 'none',
-            display: 'inline-block',
-            lineHeight: 1.3,
-          }}
-          className="hover-underline"
-          title={row.name}
-        >
-          {toTitleCase(row.name)}
-        </Link>
-      ),
+      render: (row) => {
+        const studentTotal = studentAbsenceCountMap[row.student_id] || 1
+        return (
+          <div>
+            <Link
+              to={`/students/${encodeURIComponent(row.student_id)}`}
+              style={{
+                fontWeight: 600,
+                color: 'var(--text)',
+                textDecoration: 'none',
+                display: 'inline-block',
+                lineHeight: 1.3,
+              }}
+              className="hover-underline"
+              title={row.name}
+            >
+              {toTitleCase(row.name)}
+            </Link>
+            {studentTotal > 1 && (
+              <div style={{ marginTop: '2px' }}>
+                <span
+                  title={`Student has ${studentTotal} total absences across courses. Click to group by student.`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSearchQuery(row.roll_no || row.seat_no || row.name)
+                    setViewMode('grouped')
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    fontSize: '10px',
+                    padding: '1px 6px',
+                    borderRadius: '3px',
+                    background: 'var(--status-warning-bg)',
+                    color: 'var(--status-warning-text)',
+                    border: '1px solid var(--status-warning-border)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span>{studentTotal} Total Absences</span>
+                  <span style={{ fontSize: '9px', opacity: 0.8 }}>&bull; group &rarr;</span>
+                </span>
+              </div>
+            )}
+          </div>
+        )
+      },
     },
     {
       key: 'division',
@@ -424,9 +760,9 @@ export const AbsentStudentsPage: React.FC = () => {
             title={`Open notice for ${row.name} in Outlook`}
             onClick={(e) => {
               e.preventDefault()
-              const email = (row as any).email || `${row.roll_no || row.student_id}@university.edu`
-              const subject = `Examination Absence Notice: ${row.course_code} (${row.component}) - ${row.name}`
-              const body = `Dear ${row.name},
+              const email = (row as any).email || `${row.roll_no || row.student_id}@student.univ.edu`
+              const subject = `Examination Absence Notice: ${row.course_code} (${row.component}) - ${toTitleCase(row.name)}`
+              const body = `Dear ${toTitleCase(row.name)},
 
 University examination records indicate your absence during recent examinations:
 - Course: ${row.course_name} (${row.course_code})
@@ -869,27 +1205,39 @@ Examination Cell & Department Faculty`
       {/* Grouped Absence Severity Breakdown (Dynamic Division Partition) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 'var(--space-4)' }}>
         {/* Group 1: Absent in 1-2 subjects */}
-        <GlassCard variant="glass-2" padding="md">
+        <GlassCard
+          variant="glass-2"
+          padding="md"
+          style={{
+            cursor: 'pointer',
+            border: severityFilter === 'isolated' ? '1px solid var(--action-primary-bg)' : undefined,
+            transition: 'all var(--transition-fast)',
+          }}
+          onClick={() => {
+            setSeverityFilter((prev) => (prev === 'isolated' ? 'all' : 'isolated'))
+            setViewMode('grouped')
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
-              Absent in 1–2 Subjects
+              Absent in 1–2 Subjects {severityFilter === 'isolated' && '(Selected)'}
             </div>
             <StatusBadge
-              tone={groupedAbsentees.isolated.length > 0 ? 'warn' : 'info'}
+              tone={isolatedCandidates.length > 0 ? 'warn' : 'info'}
               size="sm"
-              label={`${groupedAbsentees.isolated.length} Candidate${groupedAbsentees.isolated.length === 1 ? '' : 's'}`}
+              label={`${isolatedCandidates.length} Candidate${isolatedCandidates.length === 1 ? '' : 's'}`}
             />
           </div>
           <p style={{ margin: '0 0 12px 0', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-            Isolated component absence. Candidates may be eligible for immediate make-up re-evaluation.
+            Isolated component absence. Candidates may be eligible for immediate make-up re-evaluation. Click card to filter table.
           </p>
-          {groupedAbsentees.isolated.length === 0 ? (
+          {isolatedCandidates.length === 0 ? (
             <div style={{ padding: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
               No candidates with isolated absences in the active filter.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-              {groupedAbsentees.isolated.map((s) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+              {isolatedCandidates.map((s) => (
                 <div
                   key={s.student_id}
                   style={{
@@ -902,16 +1250,16 @@ Examination Cell & Department Faculty`
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <strong style={{ color: 'var(--text)' }}>
-                      {s.name} {s.seat_no ? `(${s.seat_no})` : ''} {s.division ? `· Div ${s.division}` : ''}
+                      {toTitleCase(s.name)} {s.seat_no ? `(${s.seat_no})` : ''} {s.division ? `· Div ${s.division}` : ''}
                     </strong>
                     <StatusBadge
                       tone={(s.overall_result || '').toUpperCase().includes('PASS') ? 'pass' : 'fail'}
                       size="sm"
-                      label={s.overall_result || 'Pending'}
+                      label={`${s.total_absences} Missed`}
                     />
                   </div>
                   <div style={{ color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    Missed in: <strong>{Array.from(s.courses).join(', ')}</strong>
+                    Missed in: <strong>{s.courses.map((c) => c.course_code).join(', ')}</strong>
                   </div>
                 </div>
               ))}
@@ -919,28 +1267,40 @@ Examination Cell & Department Faculty`
           )}
         </GlassCard>
 
-        {/* Group 2: Absent in 5+ subjects (Critical) */}
-        <GlassCard variant="glass-2" padding="md">
+        {/* Group 2: Absent in 3+ subjects (Multiple / Critical) */}
+        <GlassCard
+          variant="glass-2"
+          padding="md"
+          style={{
+            cursor: 'pointer',
+            border: severityFilter === 'extended' ? '1px solid var(--action-primary-bg)' : undefined,
+            transition: 'all var(--transition-fast)',
+          }}
+          onClick={() => {
+            setSeverityFilter((prev) => (prev === 'extended' ? 'all' : 'extended'))
+            setViewMode('grouped')
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--text)' }}>
-              Absent in 3+ Subjects (Multiple / Critical)
+              Absent in 3+ Subjects (Multiple / Critical) {severityFilter === 'extended' && '(Selected)'}
             </div>
             <StatusBadge
-              tone={groupedAbsentees.extended.length > 0 ? 'fail' : 'info'}
+              tone={extendedCandidates.length > 0 ? 'fail' : 'info'}
               size="sm"
-              label={`${groupedAbsentees.extended.length} Candidate${groupedAbsentees.extended.length === 1 ? '' : 's'}`}
+              label={`${extendedCandidates.length} Candidate${extendedCandidates.length === 1 ? '' : 's'}`}
             />
           </div>
           <p style={{ margin: '0 0 12px 0', fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
-            Chronic or extended absence across multiple course units. Requires administrative consultation.
+            Chronic or extended absence across multiple course units. Requires administrative consultation. Click card to filter table.
           </p>
-          {groupedAbsentees.extended.length === 0 ? (
+          {extendedCandidates.length === 0 ? (
             <div style={{ padding: '12px', fontSize: '11px', color: 'var(--text-muted)' }}>
               No candidates with chronic/extended absences in the active filter.
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-              {groupedAbsentees.extended.map((s) => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+              {extendedCandidates.map((s) => (
                 <div
                   key={s.student_id}
                   style={{
@@ -953,16 +1313,16 @@ Examination Cell & Department Faculty`
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <strong style={{ color: 'var(--text)' }}>
-                      {s.name} {s.seat_no ? `(${s.seat_no})` : ''} {s.division ? `· Div ${s.division}` : ''}
+                      {toTitleCase(s.name)} {s.seat_no ? `(${s.seat_no})` : ''} {s.division ? `· Div ${s.division}` : ''}
                     </strong>
                     <StatusBadge
                       tone={(s.overall_result || '').toUpperCase().includes('PASS') ? 'pass' : 'fail'}
                       size="sm"
-                      label={s.overall_result || 'Pending'}
+                      label={`${s.total_absences} Missed`}
                     />
                   </div>
                   <div style={{ color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    Missed {s.courses.size} subjects: <strong>{Array.from(s.courses).join(', ')}</strong>
+                    Missed {s.courses.length} subjects ({s.total_absences} total evaluations): <strong>{s.courses.map((c) => c.course_code).join(', ')}</strong>
                   </div>
                 </div>
               ))}
@@ -978,10 +1338,110 @@ Examination Cell & Department Faculty`
                 textDecoration: 'underline',
               }}
             >
-              Draft Notice &rarr;
+              Draft Official Notice in Follow-ups &rarr;
             </Link>
           </div>
         </GlassCard>
+      </div>
+
+      {/* View Mode Segmented Control Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 'var(--space-3)',
+          marginTop: '-4px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              padding: '3px',
+              background: 'var(--surface-hover)',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setViewMode('grouped')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-xs)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: viewMode === 'grouped' ? 600 : 500,
+                background: viewMode === 'grouped' ? 'var(--action-primary-bg)' : 'transparent',
+                color: viewMode === 'grouped' ? 'var(--action-primary-text)' : 'var(--text-muted)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+              title="Group multiple absence records by individual student"
+            >
+              <Users size={13} />
+              <span>Group by Student ({groupedStudents.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('records')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 14px',
+                borderRadius: 'var(--radius-xs)',
+                fontSize: 'var(--text-xs)',
+                fontWeight: viewMode === 'records' ? 600 : 500,
+                background: viewMode === 'records' ? 'var(--action-primary-bg)' : 'transparent',
+                color: viewMode === 'records' ? 'var(--action-primary-text)' : 'var(--text-muted)',
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+              title="View all individual evaluation absence records"
+            >
+              <List size={13} />
+              <span>All Records ({records.length})</span>
+            </button>
+          </div>
+
+          {severityFilter !== 'all' && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <StatusBadge
+                tone={severityFilter === 'extended' ? 'fail' : 'warn'}
+                size="sm"
+                label={severityFilter === 'extended' ? 'Filtered: 3+ Subjects' : 'Filtered: 1–2 Subjects'}
+              />
+              <button
+                type="button"
+                onClick={() => setSeverityFilter('all')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '11px',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                Clear filter
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          {viewMode === 'grouped'
+            ? `Showing ${groupedStudents.length} distinct absent student${groupedStudents.length === 1 ? '' : 's'} (${records.length} unattempted evaluations)`
+            : `Showing ${records.length} component absence records`}
+        </div>
       </div>
 
       {/* Main Table / Empty / Loading */}
@@ -1003,18 +1463,32 @@ Examination Cell & Department Faculty`
             ) : undefined
           }
         />
+      ) : viewMode === 'grouped' ? (
+        <DataTable<GroupedAbsentStudent>
+          columns={groupedColumns}
+          data={pagedGrouped}
+          keyExtractor={(item) => item.student_id}
+          isLoading={loading}
+          showDensityToggle={true}
+          defaultDensity="comfortable"
+          showPagination={groupedStudents.length > pageSize}
+          serverTotal={groupedStudents.length}
+          currentPage={groupedPage}
+          onPageChange={setGroupedPage}
+          pageSize={pageSize}
+        />
       ) : (
         <DataTable<AbsentStudentItem>
-          columns={columns}
-          data={records}
+          columns={recordColumns}
+          data={pagedRecords}
           keyExtractor={(item, idx) => `${item.student_id}-${item.course_code}-${item.component}-${idx}`}
           isLoading={loading}
           showDensityToggle={true}
           defaultDensity="comfortable"
-          showPagination={true}
-          serverTotal={total}
-          currentPage={page}
-          onPageChange={setPage}
+          showPagination={records.length > pageSize}
+          serverTotal={records.length}
+          currentPage={recordsPage}
+          onPageChange={setRecordsPage}
           pageSize={pageSize}
         />
       )}
@@ -1025,7 +1499,7 @@ Examination Cell & Department Faculty`
         <div style={{ marginBottom: '14px', borderBottom: '2px solid #0f172a', paddingBottom: '8px' }}>
           <h1 style={{ margin: 0, fontSize: '16pt', fontWeight: 800 }}>EduQuery &mdash; Absent Students Audit Roster</h1>
           <div style={{ fontSize: '9pt', color: '#475569', marginTop: '4px' }}>
-            Generated on {new Date().toLocaleDateString()} | Total Incidents: {recordsToPrint.length}
+            Generated on {new Date().toLocaleDateString()} | Total Incidents: {recordsToPrint.length} | Total Distinct Students: {distinctStudents}
           </div>
         </div>
         <table>
@@ -1046,7 +1520,7 @@ Examination Cell & Department Faculty`
               <tr key={`print-${item.student_id}-${item.course_code}-${item.component}-${idx}`}>
                 <td style={{ fontWeight: 600 }}>{item.roll_no || '—'}</td>
                 <td>{item.seat_no || '—'}</td>
-                <td style={{ fontWeight: 600 }}>{item.name}</td>
+                <td style={{ fontWeight: 600 }}>{toTitleCase(item.name)}</td>
                 <td style={{ textAlign: 'center' }}>{item.division || '—'}</td>
                 <td style={{ fontWeight: 600 }}>{item.course_code}</td>
                 <td>{item.course_name}</td>

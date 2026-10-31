@@ -160,7 +160,7 @@ export const FollowUpsPage: React.FC = () => {
 
 
 
-    getAbsentStudents({ limit: 50 })
+    getAbsentStudents({ limit: 1000 })
 
 
 
@@ -998,7 +998,7 @@ Examination Cell & Academic Review Committee`
 
 
 
-    if (selectedTemplate === 'absent') {
+    if (template === 'absent') {
 
 
 
@@ -1070,7 +1070,7 @@ Office of the Principal (Academic Affairs)`
 
 
 
-    if (selectedTemplate === 'toppers') {
+    if (template === 'toppers') {
 
 
 
@@ -3722,10 +3722,12 @@ Head of Department & Academic Awards Committee`
                               onClick={() => {
                                 const mailtoUrl = `mailto:${encodeURIComponent(rec.email)}?subject=${encodeURIComponent(
                                   selectedTemplate === 'failed'
-                                    ? 'Academic Remedial Mentoring Notice'
+                                    ? `Academic Remedial Mentoring Notice - ${rec.name} (${rec.seatNo})`
                                     : selectedTemplate === 'absent'
-                                    ? 'Academic Examination Absence Notice'
-                                    : 'Academic Honors & Mentorship Invitation'
+                                    ? `Academic Examination Absence Notice - ${rec.name} (${rec.seatNo})`
+                                    : selectedTemplate === 'toppers'
+                                    ? `College Merit List Commendation - ${rec.name} (${rec.seatNo})`
+                                    : `Subject Topper Commendation - ${rec.name} (${rec.seatNo})`
                                 )}&body=${encodeURIComponent(singleBody)}`
                                 window.location.href = mailtoUrl
                               }}
