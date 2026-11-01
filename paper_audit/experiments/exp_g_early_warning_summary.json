@@ -1,0 +1,52 @@
+{
+  "cohort_sample_size": 145,
+  "positive_failures": 13,
+  "negative_passes": 132,
+  "class_imbalance_ratio": 0.0897,
+  "lr_5fold_mean_auc": 0.985,
+  "lr_5fold_std_auc": 0.018,
+  "lr_brier_score": 0.045,
+  "lr_recall_at_precision_70": 0.846,
+  "models": [
+    {
+      "model": "EduQuery Rule-Based Heuristic",
+      "type": "Deterministic Expert Rule",
+      "cv_auc": "N/A (Discrete Rule)",
+      "precision": 0.09,
+      "recall": 1.0,
+      "f1": 0.165,
+      "tp": 13,
+      "fp": 132,
+      "fn": 0,
+      "tn": 0
+    },
+    {
+      "model": "Simple Baseline (MSE < 10.0)",
+      "type": "Univariate Threshold",
+      "cv_auc": "N/A (Discrete Rule)",
+      "precision": 0.667,
+      "recall": 0.615,
+      "f1": 0.64,
+      "tp": 8,
+      "fp": 4,
+      "fn": 5,
+      "tn": 128
+    },
+    {
+      "model": "Stratified 5-Fold Logistic Regression",
+      "type": "Supervised ML (Balanced)",
+      "cv_auc": "0.985 \u00b1 0.018",
+      "precision": 0.688,
+      "recall": 0.846,
+      "f1": 0.759,
+      "tp": 11,
+      "fp": 5,
+      "fn": 2,
+      "tn": 127
+    }
+  ],
+  "limitations": [
+    "Small positive failure sample size (N=13) limits complex statistical generalizability.",
+    "Mid-semester marks (MSE) are strongly predictive, but sudden end-semester absences cannot be predicted purely from internal coursework."
+  ]
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "students": 100,
+    "workbook_file_size_mb": 0.04,
+    "ingestion_runtime_sec": 1.006,
+    "throughput_students_per_sec": 99.4,
+    "peak_memory_mb": 6.67,
+    "total_scores_inserted": 3200,
+    "students_inserted": 100
+  },
+  {
+    "students": 500,
+    "workbook_file_size_mb": 0.17,
+    "ingestion_runtime_sec": 2.388,
+    "throughput_students_per_sec": 209.4,
+    "peak_memory_mb": 33.09,
+    "total_scores_inserted": 16000,
+    "students_inserted": 500
+  },
+  {
+    "students": 1000,
+    "workbook_file_size_mb": 0.34,
+    "ingestion_runtime_sec": 5.982,
+    "throughput_students_per_sec": 167.2,
+    "peak_memory_mb": 66.73,
+    "total_scores_inserted": 32000,
+    "students_inserted": 1000
+  },
+  {
+    "students": 2000,
+    "workbook_file_size_mb": 0.68,
+    "ingestion_runtime_sec": 13.737,
+    "throughput_students_per_sec": 145.6,
+    "peak_memory_mb": 134.13,
+    "total_scores_inserted": 64000,
+    "students_inserted": 2000
+  }
+]

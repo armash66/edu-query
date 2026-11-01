@@ -1,0 +1,18 @@
+{
+  "pre_delete": {
+    "session_id": "AsBqxU29M6cO_qjbit4dW2J3Mpm3a9Nm",
+    "session_dir": "C:\\Users\\Armash Ansari\\OneDrive\\Desktop\\Projects\\AI & ML\\eduquery-v3\\data\\sessions\\AsBqxU29M6cO_qjbit4dW2J3Mpm3a9Nm",
+    "quarantine_exists": false,
+    "session_db_exists": true,
+    "meta_exists": true
+  },
+  "post_delete": {
+    "deletion_returned_true": true,
+    "session_dir_still_exists": false,
+    "quarantine_still_exists": false,
+    "session_db_still_exists": false,
+    "meta_still_exists": false,
+    "deletion_proven": true
+  },
+  "status": "PASS - Complete Unrecoverable Filesystem Purge"
+}

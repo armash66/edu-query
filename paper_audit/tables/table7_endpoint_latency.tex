@@ -1,0 +1,19 @@
+\begin{table}[h]
+\centering
+\small
+\caption{Analytical API Endpoint Response Time Profile ($N=10$ Warm Requests)}
+\label{tab:latency}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Endpoint Name} & \textbf{Cold Hit (ms)} & \textbf{Warm Mean (ms)} & \textbf{Warm P95 (ms)} & \textbf{Status} \\
+\midrule
+Overview Summary & 44.64 & 44.70 & 66.43 & HTTP 200 \\
+Student Roster (Paginated) & 396.00 & 56.01 & 79.52 & HTTP 200 \\
+Course Catalog & 67.81 & 64.07 & 76.72 & HTTP 200 \\
+Absent Students Roster & 68.54 & 54.00 & 70.06 & HTTP 200 \\
+Anomaly Findings & 178.17 & 168.11 & 212.46 & HTTP 200 \\
+HOD Executive Brief & 59.11 & 56.22 & 72.51 & HTTP 200 \\
+Ask AI AST Query & 62.43 & 38.66 & 64.22 & HTTP 200 \\
+\bottomrule
+\end{tabular}
+\end{table}

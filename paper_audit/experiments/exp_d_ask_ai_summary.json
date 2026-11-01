@@ -1,0 +1,8 @@
+{
+  "total_benchmark_queries": 55,
+  "refusal_accuracy_pct": 98.18,
+  "filter_exact_match_pct": 98.18,
+  "execution_accuracy_pct": 98.18,
+  "mean_latency_ms": 19.61,
+  "p95_latency_ms": 51.4
+}

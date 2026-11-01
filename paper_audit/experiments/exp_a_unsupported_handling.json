@@ -1,0 +1,7 @@
+[
+  {
+    "case": "Empty Sheet",
+    "caught": true,
+    "error": "AmbiguousLayoutError: Sheet is too small to contain a valid marksheet."
+  }
+]

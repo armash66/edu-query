@@ -1,0 +1,90 @@
+[
+  {
+    "endpoint": "/health",
+    "method": "GET",
+    "name": "Health Check",
+    "status_code": 200,
+    "cold_latency_ms": 113.88,
+    "warm_mean_ms": 53.28,
+    "warm_median_ms": 60.21,
+    "warm_p95_ms": 73.66,
+    "warm_std_ms": 14.24
+  },
+  {
+    "endpoint": "/api/v1/overview/summary",
+    "method": "GET",
+    "name": "Overview Summary",
+    "status_code": 200,
+    "cold_latency_ms": 44.64,
+    "warm_mean_ms": 44.7,
+    "warm_median_ms": 50.81,
+    "warm_p95_ms": 66.43,
+    "warm_std_ms": 14.32
+  },
+  {
+    "endpoint": "/api/v1/students?limit=25",
+    "method": "GET",
+    "name": "Student Roster (Paginated)",
+    "status_code": 200,
+    "cold_latency_ms": 396.0,
+    "warm_mean_ms": 56.01,
+    "warm_median_ms": 57.65,
+    "warm_p95_ms": 79.52,
+    "warm_std_ms": 13.13
+  },
+  {
+    "endpoint": "/api/v1/subjects",
+    "method": "GET",
+    "name": "Course Catalog",
+    "status_code": 200,
+    "cold_latency_ms": 67.81,
+    "warm_mean_ms": 64.07,
+    "warm_median_ms": 64.46,
+    "warm_p95_ms": 76.72,
+    "warm_std_ms": 5.85
+  },
+  {
+    "endpoint": "/api/v1/absent-students",
+    "method": "GET",
+    "name": "Absent Students Roster",
+    "status_code": 200,
+    "cold_latency_ms": 68.54,
+    "warm_mean_ms": 54.0,
+    "warm_median_ms": 57.6,
+    "warm_p95_ms": 70.06,
+    "warm_std_ms": 9.94
+  },
+  {
+    "endpoint": "/api/v1/anomalies/findings?limit=25",
+    "method": "GET",
+    "name": "Anomaly Findings",
+    "status_code": 200,
+    "cold_latency_ms": 178.17,
+    "warm_mean_ms": 168.11,
+    "warm_median_ms": 177.4,
+    "warm_p95_ms": 212.46,
+    "warm_std_ms": 27.71
+  },
+  {
+    "endpoint": "/api/v1/ai/hod-brief",
+    "method": "GET",
+    "name": "HOD Executive Brief",
+    "status_code": 200,
+    "cold_latency_ms": 59.11,
+    "warm_mean_ms": 56.22,
+    "warm_median_ms": 62.31,
+    "warm_p95_ms": 72.51,
+    "warm_std_ms": 11.58
+  },
+  {
+    "endpoint": "/api/v1/ai/ask",
+    "method": "POST",
+    "name": "Ask AI Query",
+    "status_code": 200,
+    "cold_latency_ms": 62.43,
+    "warm_mean_ms": 38.66,
+    "warm_median_ms": 32.85,
+    "warm_p95_ms": 64.22,
+    "warm_std_ms": 12.11
+  }
+]

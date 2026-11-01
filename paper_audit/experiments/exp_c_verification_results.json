@@ -1,0 +1,79 @@
+[
+  {
+    "workbook": "test1_commerce_same_layout.xlsx",
+    "expected_mismatches": 97,
+    "found_mismatches": 97,
+    "mismatches_missed": 0,
+    "mismatch_recall_pct": 100.0,
+    "found_boundary_violations": 0,
+    "tier_a_findings_count": 97,
+    "isolation_forest_findings_count": 0,
+    "verification_status": "PASS"
+  },
+  {
+    "workbook": "test1_same_layout_10courses_3divs.xlsx",
+    "expected_mismatches": 104,
+    "found_mismatches": 104,
+    "mismatches_missed": 0,
+    "mismatch_recall_pct": 100.0,
+    "found_boundary_violations": 0,
+    "tier_a_findings_count": 104,
+    "isolation_forest_findings_count": 0,
+    "verification_status": "PASS"
+  },
+  {
+    "workbook": "test2_lifesci_vague_single_row.xlsx",
+    "expected_mismatches": 41,
+    "found_mismatches": 41,
+    "mismatches_missed": 0,
+    "mismatch_recall_pct": 100.0,
+    "found_boundary_violations": 0,
+    "tier_a_findings_count": 41,
+    "isolation_forest_findings_count": 2,
+    "verification_status": "PASS"
+  },
+  {
+    "workbook": "test2_vague_single_row_batches.xlsx",
+    "expected_mismatches": 42,
+    "found_mismatches": 42,
+    "mismatches_missed": 0,
+    "mismatch_recall_pct": 100.0,
+    "found_boundary_violations": 0,
+    "tier_a_findings_count": 42,
+    "isolation_forest_findings_count": 3,
+    "verification_status": "PASS"
+  },
+  {
+    "workbook": "test3_arts_messy_sheet_per_division.xlsx",
+    "expected_mismatches": 82,
+    "found_mismatches": 82,
+    "mismatches_missed": 0,
+    "mismatch_recall_pct": 100.0,
+    "found_boundary_violations": 0,
+    "tier_a_findings_count": 82,
+    "isolation_forest_findings_count": 0,
+    "verification_status": "PASS"
+  },
+  {
+    "workbook": "test3_messy_sheet_per_division.xlsx",
+    "expected_mismatches": 87,
+    "found_mismatches": 87,
+    "mismatches_missed": 0,
+    "mismatch_recall_pct": 100.0,
+    "found_boundary_violations": 0,
+    "tier_a_findings_count": 87,
+    "isolation_forest_findings_count": 0,
+    "verification_status": "PASS"
+  },
+  {
+    "workbook": "Result_anonymized.xlsx",
+    "expected_mismatches": 0,
+    "found_mismatches": 0,
+    "mismatches_missed": 0,
+    "mismatch_recall_pct": 100.0,
+    "found_boundary_violations": 0,
+    "tier_a_findings_count": 0,
+    "isolation_forest_findings_count": 8,
+    "verification_status": "PASS"
+  }
+]

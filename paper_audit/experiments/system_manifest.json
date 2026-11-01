@@ -1,0 +1,13 @@
+{
+  "git_commit": "32caa740cd71b66210bc12a14bab1ab4344d835e",
+  "audit_date": "2026-11-01",
+  "python_version": "3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "machine": "AMD64",
+  "processor": "Intel64 Family 6 Model 186 Stepping 3, GenuineIntel",
+  "cores_physical": 10,
+  "cores_logical": 12,
+  "ram_gb": 15.65,
+  "node_version": "v24.14.0",
+  "npm_version": "11.9.0"
+}

@@ -1,0 +1,81 @@
+[
+  {
+    "filename": "Result_anonymized.xlsx",
+    "sha256": "a3c04018f48b25063b18042f641eeb20d9a898b9ec09c92a8afbed17198ca62f",
+    "size_bytes": 158649,
+    "sheets_count": 1,
+    "sheet_names": [
+      "Sheet1"
+    ],
+    "total_rows": 297,
+    "max_cols": 135
+  },
+  {
+    "filename": "test1_commerce_same_layout.xlsx",
+    "sha256": "c9888c91ac1f68b208cad06b0e6ca9348d27ffc5d8c6429c55881a21bb663d94",
+    "size_bytes": 20865,
+    "sheets_count": 1,
+    "sheet_names": [
+      "Sheet1"
+    ],
+    "total_rows": 127,
+    "max_cols": 57
+  },
+  {
+    "filename": "test1_same_layout_10courses_3divs.xlsx",
+    "sha256": "ae6a597ec2484930ac6b90dc4ba125c1db6db34585ad451fc73dcb5242fe38bf",
+    "size_bytes": 20800,
+    "sheets_count": 1,
+    "sheet_names": [
+      "Sheet1"
+    ],
+    "total_rows": 127,
+    "max_cols": 57
+  },
+  {
+    "filename": "test2_lifesci_vague_single_row.xlsx",
+    "sha256": "98a8111db0958274266d39ba0ecf0e5516f5a7b7a513313df5da332eb8558966",
+    "size_bytes": 13171,
+    "sheets_count": 1,
+    "sheet_names": [
+      "Results Oct"
+    ],
+    "total_rows": 50,
+    "max_cols": 38
+  },
+  {
+    "filename": "test2_vague_single_row_batches.xlsx",
+    "sha256": "647b730b6d3add9e3d0180299e123ec864b282bdaea9afd9f2eaf65e086b3b8b",
+    "size_bytes": 13148,
+    "sheets_count": 1,
+    "sheet_names": [
+      "Results Oct"
+    ],
+    "total_rows": 50,
+    "max_cols": 38
+  },
+  {
+    "filename": "test3_arts_messy_sheet_per_division.xlsx",
+    "sha256": "75253cc2ac7f40a9027ddbaedaab7281ff96f2b05a08c642102bdc140103375c",
+    "size_bytes": 15852,
+    "sheets_count": 2,
+    "sheet_names": [
+      "Div A",
+      "Div B"
+    ],
+    "total_rows": 67,
+    "max_cols": 43
+  },
+  {
+    "filename": "test3_messy_sheet_per_division.xlsx",
+    "sha256": "eaa7b6b21f72f231a100e2754f68911e0dccf517760d222ed3bd7a035fc49b9b",
+    "size_bytes": 15926,
+    "sheets_count": 2,
+    "sheet_names": [
+      "Div A",
+      "Div B"
+    ],
+    "total_rows": 65,
+    "max_cols": 43
+  }
+]

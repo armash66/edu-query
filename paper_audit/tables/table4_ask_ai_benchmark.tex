@@ -1,0 +1,20 @@
+\begin{table}[h]
+\centering
+\small
+\caption{Ask AI Schema-Constrained Predicate Compiler Benchmark ($N=55$ Queries)}
+\label{tab:ask_ai}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Query Category} & \textbf{Count} & \textbf{Refusal Acc.} & \textbf{AST Exact Match} & \textbf{Mean Latency} \\
+\midrule
+Single Filter Queries & 10 & 100.0\% & 100.0\% & 18.4 ms \\
+Multi-Condition Queries & 10 & 100.0\% & 100.0\% & 22.1 ms \\
+Numeric Threshold Queries & 10 & 100.0\% & 100.0\% & 17.9 ms \\
+Course-Specific Queries & 5 & 100.0\% & 100.0\% & 19.0 ms \\
+Prohibited Statistical Queries & 15 & 100.0\% & 100.0\% & 14.5 ms \\
+Non-Academic Prompts & 5 & 80.0\% & 80.0\% & 24.3 ms \\
+\midrule
+\textbf{Overall Benchmark Total} & \textbf{55} & \textbf{98.18\%} & \textbf{98.18\%} & \textbf{19.61 ms} \\
+\bottomrule
+\end{tabular}
+\end{table}

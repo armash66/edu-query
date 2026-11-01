@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" width="100%" height="100%" style="background:#ffffff; font-family:system-ui, -apple-system, sans-serif;">
+  <rect width="720" height="400" fill="#ffffff"/>
+  <text x="360" y="30" font-size="16" font-weight="700" fill="#171717" text-anchor="middle">Figure 3. Isolation Forest Contamination Sensitivity &amp; Tier Ablation</text>
+  <text x="360" y="50" font-size="11" fill="#737373" text-anchor="middle">Precision and Recall across contamination rates (c = 0.01 to 0.15), averaged over 10 random seeds.</text>
+
+  <!-- Plot Axes -->
+  <g transform="translate(80, 80)">
+    <!-- Grid lines -->
+    <line x1="0" y1="240" x2="560" y2="240" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="180" x2="560" y2="180" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="120" x2="560" y2="120" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="60" x2="560" y2="60" stroke="#e5e5e5" stroke-width="1"/>
+    <line x1="0" y1="0" x2="560" y2="0" stroke="#e5e5e5" stroke-width="1"/>
+
+    <!-- Axis border -->
+    <line x1="0" y1="240" x2="560" y2="240" stroke="#404040" stroke-width="1.5"/>
+    <line x1="0" y1="0" x2="0" y2="240" stroke="#404040" stroke-width="1.5"/>
+
+    <!-- Y labels -->
+    <text x="-10" y="244" font-size="10" fill="#737373" text-anchor="end">0.0</text>
+    <text x="-10" y="184" font-size="10" fill="#737373" text-anchor="end">0.25</text>
+    <text x="-10" y="124" font-size="10" fill="#737373" text-anchor="end">0.50</text>
+    <text x="-10" y="64" font-size="10" fill="#737373" text-anchor="end">0.75</text>
+    <text x="-10" y="4" font-size="10" fill="#737373" text-anchor="end">1.00</text>
+
+    <!-- X labels -->
+    <text x="35" y="260" font-size="11" fill="#404040" text-anchor="middle">c=0.01</text>
+    <text x="135" y="260" font-size="11" fill="#404040" text-anchor="middle">c=0.03</text>
+    <text x="235" y="260" font-size="11" fill="#404040" font-weight="700" text-anchor="middle">c=0.05*</text>
+    <text x="335" y="260" font-size="11" fill="#404040" text-anchor="middle">c=0.08</text>
+    <text x="435" y="260" font-size="11" fill="#404040" text-anchor="middle">c=0.10</text>
+    <text x="525" y="260" font-size="11" fill="#404040" text-anchor="middle">c=0.15</text>
+
+    <!-- Curves -->
+    <!-- Precision Curve (Solid black line) -->
+    <polyline points="35,12 135,28 235,54 335,87 435,108 525,134" fill="none" stroke="#171717" stroke-width="2.5"/>
+    <circle cx="35" cy="12" r="4" fill="#171717"/>
+    <circle cx="135" cy="28" r="4" fill="#171717"/>
+    <circle cx="235" cy="54" r="5" fill="#171717"/>
+    <circle cx="335" cy="87" r="4" fill="#171717"/>
+    <circle cx="435" cy="108" r="4" fill="#171717"/>
+    <circle cx="525" cy="134" r="4" fill="#171717"/>
+
+    <!-- Recall Curve (Dashed line) -->
+    <polyline points="35,217 135,190 235,169 335,148 435,139 525,119" fill="none" stroke="#555555" stroke-width="2.5" stroke-dasharray="6,4"/>
+    <rect x="31" y="213" width="8" height="8" fill="#555555"/>
+    <rect x="131" y="186" width="8" height="8" fill="#555555"/>
+    <rect x="231" y="165" width="8" height="8" fill="#555555"/>
+    <rect x="331" y="144" width="8" height="8" fill="#555555"/>
+    <rect x="431" y="135" width="8" height="8" fill="#555555"/>
+    <rect x="521" y="115" width="8" height="8" fill="#555555"/>
+
+    <!-- F1 Score Curve (Dotted line) -->
+    <polyline points="35,199 135,159 235,137 335,126 435,126 525,127" fill="none" stroke="#888888" stroke-width="2" stroke-dasharray="2,3"/>
+
+    <!-- System Operating Point Annotation at c=0.05 -->
+    <line x1="235" y1="0" x2="235" y2="240" stroke="#000000" stroke-width="1" stroke-dasharray="2,2"/>
+    <text x="240" y="20" font-size="10" font-weight="700" fill="#000000">EduQuery Operating Point (c=0.05)</text>
+    <text x="240" y="32" font-size="9" fill="#555555">Prec: 0.775, Rec: 0.295 (Tier C alone)</text>
+    <text x="240" y="44" font-size="9" fill="#555555">Combined Tier A+C: Prec 0.897, Rec 0.733, F1 0.806</text>
+  </g>
+
+  <!-- Legend -->
+  <g transform="translate(180, 365)">
+    <line x1="0" y1="0" x2="30" y2="0" stroke="#171717" stroke-width="2.5"/>
+    <circle cx="15" cy="0" r="4" fill="#171717"/>
+    <text x="38" y="4" font-size="11" fill="#171717">Precision (Mean)</text>
+
+    <line x1="160" y1="0" x2="190" y2="0" stroke="#555555" stroke-width="2.5" stroke-dasharray="6,4"/>
+    <rect x="171" y="-4" width="8" height="8" fill="#555555"/>
+    <text x="198" y="4" font-size="11" fill="#171717">Recall (Mean)</text>
+
+    <line x1="310" y1="0" x2="340" y2="0" stroke="#888888" stroke-width="2" stroke-dasharray="2,3"/>
+    <text x="348" y="4" font-size="11" fill="#171717">F1 Score (Mean)</text>
+  </g>
+</svg>

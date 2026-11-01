@@ -1,0 +1,19 @@
+\begin{table*}[t]
+\centering
+\small
+\caption{Anomaly Detection Performance and Ablation Benchmark (Mean $\pm$ Std across 10 Seeds)}
+\label{tab:anomaly}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Tier Configuration} & \textbf{Precision} & \textbf{Recall} & \textbf{$F_1$ Score} & \textbf{FPR} & \textbf{Latency (ms)} \\
+\midrule
+Tier A (Deterministic Invariants) & $\mathbf{1.000 \pm 0.000}$ & $0.571 \pm 0.000$ & $0.727 \pm 0.000$ & $\mathbf{0.000 \pm 0.000}$ & $0.08 \pm 0.02$ \\
+Tier B (Robust MAD Z-Scores) & $0.979 \pm 0.033$ & $0.619 \pm 0.000$ & $0.758 \pm 0.010$ & $0.002 \pm 0.004$ & $1.12 \pm 0.08$ \\
+Tier C (Multivariate Isolation Forest) & $0.775 \pm 0.094$ & $0.295 \pm 0.035$ & $0.427 \pm 0.051$ & $0.014 \pm 0.006$ & $13.45 \pm 0.92$ \\
+Tier A + Tier B & $0.987 \pm 0.021$ & $\mathbf{1.000 \pm 0.000}$ & $\mathbf{0.993 \pm 0.011}$ & $0.002 \pm 0.004$ & $1.20 \pm 0.08$ \\
+Tier A + Tier C (\textbf{System Default}) & $0.897 \pm 0.040$ & $0.733 \pm 0.024$ & $0.806 \pm 0.025$ & $0.014 \pm 0.006$ & $13.53 \pm 0.92$ \\
+Tier B + Tier C & $0.887 \pm 0.051$ & $0.700 \pm 0.037$ & $0.782 \pm 0.038$ & $0.015 \pm 0.007$ & $14.57 \pm 0.95$ \\
+Combined (All Tiers A + B + C) & $0.919 \pm 0.037$ & $\mathbf{1.000 \pm 0.000}$ & $0.957 \pm 0.020$ & $0.015 \pm 0.007$ & $14.65 \pm 0.95$ \\
+\bottomrule
+\end{tabular}
+\end{table*}

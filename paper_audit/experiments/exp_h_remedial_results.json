@@ -1,0 +1,23 @@
+[
+  {
+    "method": "EduQuery Division-Aware Matching",
+    "division_coherence_pct": 95.24,
+    "mean_quality_score_diff": 70.08,
+    "mean_orphan_tutees": 0.0,
+    "mean_runtime_ms": 0.062
+  },
+  {
+    "method": "Greedy Highest-Score Matching",
+    "division_coherence_pct": 30.95,
+    "mean_quality_score_diff": 70.89,
+    "mean_orphan_tutees": 0.0,
+    "mean_runtime_ms": 0.039
+  },
+  {
+    "method": "Random Baseline (10 Seeds)",
+    "division_coherence_pct": 47.38,
+    "mean_quality_score_diff": 65.19,
+    "mean_orphan_tutees": 0.0,
+    "mean_runtime_ms": 0.088
+  }
+]

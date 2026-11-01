@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 540" width="100%" height="100%" style="background:#ffffff; font-family:system-ui, -apple-system, sans-serif;">
+  <rect width="840" height="540" fill="#ffffff"/>
+  <defs>
+    <filter id="shadow4" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000000" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <text x="420" y="32" font-size="18" font-weight="700" fill="#171717" text-anchor="middle">Figure 4. Confusion Matrices across Anomaly Detection Tiers</text>
+  <text x="420" y="52" font-size="12" fill="#737373" text-anchor="middle">Planted Anomaly Evaluation (N=150 students, 21 positive anomalies, 129 clean controls; averaged over 10 seeds).</text>
+
+  <!-- Matrix 1: Tier A -->
+  <g transform="translate(60, 80)">
+    <rect width="320" height="190" rx="6" fill="#fcfcfc" stroke="#d4d4d4" stroke-width="1.2" filter="url(#shadow4)"/>
+    <text x="160" y="24" font-size="12" font-weight="700" fill="#171717" text-anchor="middle">(a) Tier A: Deterministic Invariants</text>
+    
+    <!-- Table Header -->
+    <text x="90" y="48" font-size="9" font-weight="600" fill="#737373" text-anchor="middle">Pred: Anomaly</text>
+    <text x="180" y="48" font-size="9" font-weight="600" fill="#737373" text-anchor="middle">Pred: Normal</text>
+    
+    <!-- Row 1: Actual Anomaly -->
+    <text x="15" y="85" font-size="9" font-weight="600" fill="#737373" text-anchor="start">Actual Anom.</text>
+    <rect x="50" y="60" width="80" height="45" fill="#404040"/>
+    <text x="90" y="82" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">TP: 12.0</text>
+    <text x="90" y="95" font-size="8" fill="#d4d4d4" text-anchor="middle">(57.1% Recall)</text>
+
+    <rect x="140" y="60" width="80" height="45" fill="#f5f5f5" stroke="#e5e5e5"/>
+    <text x="180" y="82" font-size="12" font-weight="700" fill="#171717" text-anchor="middle">FN: 9.0</text>
+    <text x="180" y="95" font-size="8" fill="#737373" text-anchor="middle">(Non-arithmetic)</text>
+
+    <!-- Row 2: Actual Normal -->
+    <text x="15" y="135" font-size="9" font-weight="600" fill="#737373" text-anchor="start">Actual Norm.</text>
+    <rect x="50" y="115" width="80" height="45" fill="#ffffff" stroke="#e5e5e5"/>
+    <text x="90" y="137" font-size="12" font-weight="700" fill="#171717" text-anchor="middle">FP: 0.0</text>
+    <text x="90" y="150" font-size="8" fill="#16a34a" text-anchor="middle">(0.000 FPR)</text>
+
+    <rect x="140" y="115" width="80" height="45" fill="#171717"/>
+    <text x="180" y="137" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">TN: 129.0</text>
+    <text x="180" y="150" font-size="8" fill="#d4d4d4" text-anchor="middle">(100% Specificity)</text>
+
+    <!-- Metrics footer -->
+    <text x="275" y="80" font-size="10" font-weight="600" fill="#171717">Prec: 1.000</text>
+    <text x="275" y="100" font-size="10" fill="#525252">Rec:  0.571</text>
+    <text x="275" y="120" font-size="10" fill="#525252">F1:   0.727</text>
+    <text x="275" y="140" font-size="10" fill="#16a34a">FPR:  0.000</text>
+  </g>
+
+  <!-- Matrix 2: Tier C -->
+  <g transform="translate(460, 80)">
+    <rect width="320" height="190" rx="6" fill="#fcfcfc" stroke="#d4d4d4" stroke-width="1.2" filter="url(#shadow4)"/>
+    <text x="160" y="24" font-size="12" font-weight="700" fill="#171717" text-anchor="middle">(b) Tier C: Multivariate Isolation Forest (c=0.05)</text>
+    
+    <!-- Table Header -->
+    <text x="90" y="48" font-size="9" font-weight="600" fill="#737373" text-anchor="middle">Pred: Anomaly</text>
+    <text x="180" y="48" font-size="9" font-weight="600" fill="#737373" text-anchor="middle">Pred: Normal</text>
+    
+    <!-- Row 1: Actual Anomaly -->
+    <text x="15" y="85" font-size="9" font-weight="600" fill="#737373" text-anchor="start">Actual Anom.</text>
+    <rect x="50" y="60" width="80" height="45" fill="#737373"/>
+    <text x="90" y="82" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">TP: 6.2</text>
+    <text x="90" y="95" font-size="8" fill="#f5f5f5" text-anchor="middle">(29.5% Recall)</text>
+
+    <rect x="140" y="60" width="80" height="45" fill="#f5f5f5" stroke="#e5e5e5"/>
+    <text x="180" y="82" font-size="12" font-weight="700" fill="#171717" text-anchor="middle">FN: 14.8</text>
+    <text x="180" y="95" font-size="8" fill="#737373" text-anchor="middle">(Missed subtle)</text>
+
+    <!-- Row 2: Actual Normal -->
+    <text x="15" y="135" font-size="9" font-weight="600" fill="#737373" text-anchor="start">Actual Norm.</text>
+    <rect x="50" y="115" width="80" height="45" fill="#ffffff" stroke="#e5e5e5"/>
+    <text x="90" y="137" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">FP: 1.8</text>
+    <text x="90" y="150" font-size="8" fill="#dc2626" text-anchor="middle">(High performers)</text>
+
+    <rect x="140" y="115" width="80" height="45" fill="#171717"/>
+    <text x="180" y="137" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">TN: 127.2</text>
+    <text x="180" y="150" font-size="8" fill="#d4d4d4" text-anchor="middle">(98.6% Specificity)</text>
+
+    <!-- Metrics footer -->
+    <text x="275" y="80" font-size="10" font-weight="600" fill="#171717">Prec: 0.775</text>
+    <text x="275" y="100" font-size="10" fill="#525252">Rec:  0.295</text>
+    <text x="275" y="120" font-size="10" fill="#525252">F1:   0.427</text>
+    <text x="275" y="140" font-size="10" fill="#dc2626">FPR:  0.014</text>
+  </g>
+
+  <!-- Matrix 3: System Default (Tier A + C) -->
+  <g transform="translate(60, 310)">
+    <rect width="320" height="190" rx="6" fill="#fcfcfc" stroke="#171717" stroke-width="1.8" filter="url(#shadow4)"/>
+    <rect x="0" y="0" width="320" height="30" rx="6" fill="#171717"/>
+    <text x="160" y="20" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">(c) System Default: Tier A + Tier C (A+C)</text>
+    
+    <!-- Table Header -->
+    <text x="90" y="52" font-size="9" font-weight="600" fill="#737373" text-anchor="middle">Pred: Anomaly</text>
+    <text x="180" y="52" font-size="9" font-weight="600" fill="#737373" text-anchor="middle">Pred: Normal</text>
+    
+    <!-- Row 1: Actual Anomaly -->
+    <text x="15" y="89" font-size="9" font-weight="600" fill="#737373" text-anchor="start">Actual Anom.</text>
+    <rect x="50" y="64" width="80" height="45" fill="#262626"/>
+    <text x="90" y="86" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">TP: 15.4</text>
+    <text x="90" y="99" font-size="8" fill="#e5e5e5" text-anchor="middle">(73.3% Recall)</text>
+
+    <rect x="140" y="64" width="80" height="45" fill="#f5f5f5" stroke="#e5e5e5"/>
+    <text x="180" y="86" font-size="12" font-weight="700" fill="#171717" text-anchor="middle">FN: 5.6</text>
+    <text x="180" y="99" font-size="8" fill="#737373" text-anchor="middle">(Isolated drops)</text>
+
+    <!-- Row 2: Actual Normal -->
+    <text x="15" y="139" font-size="9" font-weight="600" fill="#737373" text-anchor="start">Actual Norm.</text>
+    <rect x="50" y="119" width="80" height="45" fill="#ffffff" stroke="#e5e5e5"/>
+    <text x="90" y="141" font-size="12" font-weight="700" fill="#171717" text-anchor="middle">FP: 1.8</text>
+    <text x="90" y="154" font-size="8" fill="#525252" text-anchor="middle">(Top student tail)</text>
+
+    <rect x="140" y="119" width="80" height="45" fill="#171717"/>
+    <text x="180" y="141" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">TN: 127.2</text>
+    <text x="180" y="154" font-size="8" fill="#d4d4d4" text-anchor="middle">(98.6% Specificity)</text>
+
+    <!-- Metrics footer -->
+    <text x="275" y="84" font-size="10" font-weight="700" fill="#171717">Prec: 0.897</text>
+    <text x="275" y="104" font-size="10" font-weight="700" fill="#171717">Rec:  0.733</text>
+    <text x="275" y="124" font-size="10" font-weight="700" fill="#171717">F1:   0.806</text>
+    <text x="275" y="144" font-size="10" fill="#525252">FPR:  0.014</text>
+  </g>
+
+  <!-- Matrix 4: Tier A + B -->
+  <g transform="translate(460, 310)">
+    <rect width="320" height="190" rx="6" fill="#fcfcfc" stroke="#d4d4d4" stroke-width="1.2" filter="url(#shadow4)"/>
+    <text x="160" y="24" font-size="12" font-weight="700" fill="#171717" text-anchor="middle">(d) Tier A + Tier B: High-Recall Ensemble</text>
+    
+    <!-- Table Header -->
+    <text x="90" y="48" font-size="9" font-weight="600" fill="#737373" text-anchor="middle">Pred: Anomaly</text>
+    <text x="180" y="48" font-size="9" font-weight="600" fill="#737373" text-anchor="middle">Pred: Normal</text>
+    
+    <!-- Row 1: Actual Anomaly -->
+    <text x="15" y="85" font-size="9" font-weight="600" fill="#737373" text-anchor="start">Actual Anom.</text>
+    <rect x="50" y="60" width="80" height="45" fill="#171717"/>
+    <text x="90" y="82" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">TP: 21.0</text>
+    <text x="90" y="95" font-size="8" fill="#16a34a" text-anchor="middle">(100.0% Recall)</text>
+
+    <rect x="140" y="60" width="80" height="45" fill="#ffffff" stroke="#e5e5e5"/>
+    <text x="180" y="82" font-size="12" font-weight="700" fill="#16a34a" text-anchor="middle">FN: 0.0</text>
+    <text x="180" y="95" font-size="8" fill="#16a34a" text-anchor="middle">(Zero Misses)</text>
+
+    <!-- Row 2: Actual Normal -->
+    <text x="15" y="135" font-size="9" font-weight="600" fill="#737373" text-anchor="start">Actual Norm.</text>
+    <rect x="50" y="115" width="80" height="45" fill="#ffffff" stroke="#e5e5e5"/>
+    <text x="90" y="137" font-size="12" font-weight="700" fill="#171717" text-anchor="middle">FP: 0.3</text>
+    <text x="90" y="150" font-size="8" fill="#525252" text-anchor="middle">(0.002 FPR)</text>
+
+    <rect x="140" y="115" width="80" height="45" fill="#171717"/>
+    <text x="180" y="137" font-size="12" font-weight="700" fill="#ffffff" text-anchor="middle">TN: 128.7</text>
+    <text x="180" y="150" font-size="8" fill="#d4d4d4" text-anchor="middle">(99.8% Specificity)</text>
+
+    <!-- Metrics footer -->
+    <text x="275" y="80" font-size="10" font-weight="700" fill="#16a34a">Prec: 0.987</text>
+    <text x="275" y="100" font-size="10" font-weight="700" fill="#16a34a">Rec:  1.000</text>
+    <text x="275" y="120" font-size="10" font-weight="700" fill="#16a34a">F1:   0.993</text>
+    <text x="275" y="140" font-size="10" fill="#16a34a">FPR:  0.002</text>
+  </g>
+</svg>

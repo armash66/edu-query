@@ -1,0 +1,90 @@
+{
+  "total_anomalies_evaluated": {
+    "arithmetic_mismatch": 80,
+    "boundary_violation": 40,
+    "isolated_collapse": 60,
+    "structural_bimodal": 30
+  },
+  "detection_rates_percent": {
+    "arithmetic_mismatch": {
+      "Tier A (Deterministic)": 100.0,
+      "Tier B (Robust MAD)": 0.0,
+      "Tier C (Isolation Forest)": 21.2,
+      "Tier A + Tier B": 100.0,
+      "Tier A + Tier C (System Default)": 100.0,
+      "Tier B + Tier C": 21.2,
+      "Combined (All Tiers)": 100.0
+    },
+    "boundary_violation": {
+      "Tier A (Deterministic)": 100.0,
+      "Tier B (Robust MAD)": 100.0,
+      "Tier C (Isolation Forest)": 27.5,
+      "Tier A + Tier B": 100.0,
+      "Tier A + Tier C (System Default)": 100.0,
+      "Tier B + Tier C": 100.0,
+      "Combined (All Tiers)": 100.0
+    },
+    "isolated_collapse": {
+      "Tier A (Deterministic)": 0.0,
+      "Tier B (Robust MAD)": 100.0,
+      "Tier C (Isolation Forest)": 6.7,
+      "Tier A + Tier B": 100.0,
+      "Tier A + Tier C (System Default)": 6.7,
+      "Tier B + Tier C": 100.0,
+      "Combined (All Tiers)": 100.0
+    },
+    "structural_bimodal": {
+      "Tier A (Deterministic)": 0.0,
+      "Tier B (Robust MAD)": 100.0,
+      "Tier C (Isolation Forest)": 100.0,
+      "Tier A + Tier B": 100.0,
+      "Tier A + Tier C (System Default)": 100.0,
+      "Tier B + Tier C": 100.0,
+      "Combined (All Tiers)": 100.0
+    }
+  },
+  "confusion_matrices_aggregated": {
+    "Tier A (Deterministic)": {
+      "tp": 120,
+      "fp": 0,
+      "tn": 1290,
+      "fn": 90
+    },
+    "Tier B (Robust MAD)": {
+      "tp": 130,
+      "fp": 3,
+      "tn": 1287,
+      "fn": 80
+    },
+    "Tier C (Isolation Forest)": {
+      "tp": 62,
+      "fp": 18,
+      "tn": 1272,
+      "fn": 148
+    },
+    "Tier A + Tier B": {
+      "tp": 210,
+      "fp": 3,
+      "tn": 1287,
+      "fn": 0
+    },
+    "Tier A + Tier C (System Default)": {
+      "tp": 154,
+      "fp": 18,
+      "tn": 1272,
+      "fn": 56
+    },
+    "Tier B + Tier C": {
+      "tp": 147,
+      "fp": 19,
+      "tn": 1271,
+      "fn": 63
+    },
+    "Combined (All Tiers)": {
+      "tp": 210,
+      "fp": 19,
+      "tn": 1271,
+      "fn": 0
+    }
+  }
+}

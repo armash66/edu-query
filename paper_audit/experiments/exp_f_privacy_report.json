@@ -1,0 +1,9 @@
+{
+  "total_pii_tokens_monitored": 577,
+  "external_socket_connections_attempted": 0,
+  "notice_template_word_leaks": 0,
+  "hod_brief_full_name_leaks": 0,
+  "remote_api_calls_count": 0,
+  "pii_egress_rate_pct": 0.0,
+  "privacy_compliance_status": "PASS - Zero Outbound PII Transmission"
+}

@@ -1,0 +1,1199 @@
+{
+  "total": 72,
+  "endpoints": [
+    {
+      "path": "/api/v1/absent-students",
+      "method": "GET",
+      "summary": "Get Absent Students Route",
+      "operation_id": "get_absent_students_route_api_v1_absent_students_get",
+      "tags": [
+        "students"
+      ],
+      "parameters": [
+        "division",
+        "course_code",
+        "component",
+        "query",
+        "limit",
+        "offset"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/absent-students/export",
+      "method": "GET",
+      "summary": "Export Absent Students Excel Route",
+      "operation_id": "export_absent_students_excel_route_api_v1_absent_students_export_get",
+      "tags": [
+        "students"
+      ],
+      "parameters": [
+        "division",
+        "course_code",
+        "component",
+        "query",
+        "format"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/absent-students/export-excel",
+      "method": "GET",
+      "summary": "Export Absent Students Excel Route",
+      "operation_id": "export_absent_students_excel_route_api_v1_absent_students_export_excel_get",
+      "tags": [
+        "students"
+      ],
+      "parameters": [
+        "division",
+        "course_code",
+        "component",
+        "query",
+        "format"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/ai/ask",
+      "method": "POST",
+      "summary": "Translate natural query into schema predicate AST and execute deterministically",
+      "operation_id": "ask_ai_endpoint_api_v1_ai_ask_post",
+      "tags": [
+        "AI Assistant"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/ai/hod-brief",
+      "method": "GET",
+      "summary": "Generate 1-page executive performance brief verified against ground-truth facts",
+      "operation_id": "get_hod_brief_endpoint_api_v1_ai_hod_brief_get",
+      "tags": [
+        "AI Assistant"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/ai/notice-draft",
+      "method": "POST",
+      "summary": "Generate institutional notice template with placeholders",
+      "operation_id": "get_notice_draft_endpoint_api_v1_ai_notice_draft_post",
+      "tags": [
+        "AI Assistant"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/analytics/distributions",
+      "method": "GET",
+      "summary": "Get Distributions Endpoint",
+      "operation_id": "get_distributions_endpoint_api_v1_analytics_distributions_get",
+      "tags": [
+        "Analytics"
+      ],
+      "parameters": [
+        "course_code",
+        "division"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/analytics/division-comparison",
+      "method": "GET",
+      "summary": "Get Division Comparison Endpoint",
+      "operation_id": "get_division_comparison_endpoint_api_v1_analytics_division_comparison_get",
+      "tags": [
+        "Analytics"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/analytics/failure-patterns",
+      "method": "GET",
+      "summary": "Get Failure Patterns Endpoint",
+      "operation_id": "get_failure_patterns_endpoint_api_v1_analytics_failure_patterns_get",
+      "tags": [
+        "Analytics"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/analytics/overview",
+      "method": "GET",
+      "summary": "Get Overview Endpoint",
+      "operation_id": "get_overview_endpoint_api_v1_analytics_overview_get",
+      "tags": [
+        "Analytics"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/analytics/registry",
+      "method": "GET",
+      "summary": "Get Registry Endpoint",
+      "operation_id": "get_registry_endpoint_api_v1_analytics_registry_get",
+      "tags": [
+        "Analytics"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/anomalies/evaluation",
+      "method": "GET",
+      "summary": "Get empirical research evaluation report comparing deterministic, statistical, and ML baselines",
+      "operation_id": "get_evaluation_report_api_v1_anomalies_evaluation_get",
+      "tags": [
+        "Anomaly Detection"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/anomalies/findings",
+      "method": "GET",
+      "summary": "List paginated explainable academic anomaly findings with optional filters",
+      "operation_id": "get_findings_api_v1_anomalies_findings_get",
+      "tags": [
+        "Anomaly Detection"
+      ],
+      "parameters": [
+        "category",
+        "method",
+        "severity",
+        "reviewed",
+        "student_id",
+        "limit",
+        "offset",
+        "include_statistical"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/anomalies/findings/{finding_id}/review",
+      "method": "POST",
+      "summary": "Update faculty review status and moderation notes for an anomaly finding",
+      "operation_id": "update_review_api_v1_anomalies_findings__finding_id__review_post",
+      "tags": [
+        "Anomaly Detection"
+      ],
+      "parameters": [
+        "finding_id"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/anomalies/students/{student_id}/review",
+      "method": "POST",
+      "summary": "Update faculty review status for all anomaly findings concerning a specific student",
+      "operation_id": "update_student_review_api_v1_anomalies_students__student_id__review_post",
+      "tags": [
+        "Anomaly Detection"
+      ],
+      "parameters": [
+        "student_id"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/anomalies/summary",
+      "method": "GET",
+      "summary": "Get aggregated anomaly detection metrics across deterministic, statistical, and ML methods",
+      "operation_id": "get_summary_api_v1_anomalies_summary_get",
+      "tags": [
+        "Anomaly Detection"
+      ],
+      "parameters": [
+        "include_statistical"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/data-quality",
+      "method": "GET",
+      "summary": "Get Data Quality Route",
+      "operation_id": "get_data_quality_route_api_v1_data_quality_get",
+      "tags": [
+        "Data Quality"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/data-quality/review",
+      "method": "POST",
+      "summary": "Record Quality Review Route",
+      "operation_id": "record_quality_review_route_api_v1_data_quality_review_post",
+      "tags": [
+        "Data Quality"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/imports/confirm",
+      "method": "POST",
+      "summary": "Confirm Workbook Import",
+      "operation_id": "confirm_workbook_import_api_v1_imports_confirm_post",
+      "tags": [
+        "Imports"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "404",
+        "409",
+        "422",
+        "500"
+      ]
+    },
+    {
+      "path": "/api/v1/imports/preview",
+      "method": "POST",
+      "summary": "Preview Workbook Upload",
+      "operation_id": "preview_workbook_upload_api_v1_imports_preview_post",
+      "tags": [
+        "Imports"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "413",
+        "415",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/imports/rollback",
+      "method": "POST",
+      "summary": "Rollback Dataset",
+      "operation_id": "rollback_dataset_api_v1_imports_rollback_post",
+      "tags": [
+        "Imports"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "404",
+        "422",
+        "500"
+      ]
+    },
+    {
+      "path": "/api/v1/imports/versions",
+      "method": "GET",
+      "summary": "Get Dataset Versions List",
+      "operation_id": "get_dataset_versions_list_api_v1_imports_versions_get",
+      "tags": [
+        "Imports"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/imports/{import_id}",
+      "method": "GET",
+      "summary": "Get Import Status",
+      "operation_id": "get_import_status_api_v1_imports__import_id__get",
+      "tags": [
+        "Imports"
+      ],
+      "parameters": [
+        "import_id"
+      ],
+      "responses": [
+        "200",
+        "404",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/investigation/capabilities",
+      "method": "GET",
+      "summary": "Get supported investigation fields, operators, and dataset options",
+      "operation_id": "get_capabilities_api_v1_investigation_capabilities_get",
+      "tags": [
+        "Investigation Engine"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/investigation/export-csv",
+      "method": "POST",
+      "summary": "Download unpaginated formula-safe CSV export of matching investigation records",
+      "operation_id": "download_investigation_csv_api_v1_investigation_export_csv_post",
+      "tags": [
+        "Investigation Engine"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/investigation/export-excel",
+      "method": "POST",
+      "summary": "Download unpaginated Excel .xlsx export of matching investigation records",
+      "operation_id": "download_investigation_excel_api_v1_investigation_export_excel_post",
+      "tags": [
+        "Investigation Engine"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/investigation/export/xlsx",
+      "method": "POST",
+      "summary": "Download unpaginated Excel .xlsx export of matching investigation records (alias)",
+      "operation_id": "download_investigation_excel_api_v1_investigation_export_xlsx_post",
+      "tags": [
+        "Investigation Engine"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/investigation/query",
+      "method": "POST",
+      "summary": "Execute multi-condition investigation query with live count and pagination",
+      "operation_id": "run_investigation_query_api_v1_investigation_query_post",
+      "tags": [
+        "Investigation Engine"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/overview/summary",
+      "method": "GET",
+      "summary": "Get Overview Summary Endpoint",
+      "operation_id": "get_overview_summary_endpoint_api_v1_overview_summary_get",
+      "tags": [
+        "Overview"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/analysis-dossier/export",
+      "method": "GET",
+      "summary": "Export Analysis Report Route",
+      "operation_id": "export_analysis_report_route_api_v1_reports_analysis_dossier_export_get",
+      "tags": [
+        "Reports"
+      ],
+      "parameters": [
+        "anonymize"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/analysis-report/export",
+      "method": "GET",
+      "summary": "Export Analysis Report Route",
+      "operation_id": "export_analysis_report_route_api_v1_reports_analysis_report_export_get",
+      "tags": [
+        "Reports"
+      ],
+      "parameters": [
+        "anonymize"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/backlogs/export",
+      "method": "GET",
+      "summary": "Export Backlogs Route",
+      "operation_id": "export_backlogs_route_api_v1_reports_backlogs_export_get",
+      "tags": [
+        "Reports"
+      ],
+      "parameters": [
+        "anonymize"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/hod-brief/export-pdf",
+      "method": "GET",
+      "summary": "Export Hod Brief Pdf Route",
+      "operation_id": "export_hod_brief_pdf_route_api_v1_reports_hod_brief_export_pdf_get",
+      "tags": [
+        "Reports"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/mail-merge/export",
+      "method": "GET",
+      "summary": "Export Mail Merge Route",
+      "operation_id": "export_mail_merge_route_api_v1_reports_mail_merge_export_get",
+      "tags": [
+        "Reports"
+      ],
+      "parameters": [
+        "anonymize"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/merit-list/export",
+      "method": "GET",
+      "summary": "Export Merit List Route",
+      "operation_id": "export_merit_list_route_api_v1_reports_merit_list_export_get",
+      "tags": [
+        "Reports"
+      ],
+      "parameters": [
+        "anonymize"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/slips",
+      "method": "GET",
+      "summary": "Get Student Slips Route",
+      "operation_id": "get_student_slips_route_api_v1_reports_slips_get",
+      "tags": [
+        "Reports"
+      ],
+      "parameters": [
+        "division",
+        "student_id",
+        "anonymize"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/reports/slips/export-pdf",
+      "method": "GET",
+      "summary": "Export Student Slips Pdf Route",
+      "operation_id": "export_student_slips_pdf_route_api_v1_reports_slips_export_pdf_get",
+      "tags": [
+        "Reports"
+      ],
+      "parameters": [
+        "division",
+        "student_id",
+        "anonymize"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/session",
+      "method": "DELETE",
+      "summary": "Permanently delete current temporary session and all server-side records",
+      "operation_id": "delete_session_api_v1_session_delete",
+      "tags": [
+        "Analysis Session"
+      ],
+      "parameters": [
+        "X-EduQuery-Session-Token",
+        "eduquery_session"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/session/confirm",
+      "method": "POST",
+      "summary": "Confirm preview and activate the temporary session for analysis",
+      "operation_id": "confirm_session_api_v1_session_confirm_post",
+      "tags": [
+        "Analysis Session"
+      ],
+      "parameters": [
+        "X-EduQuery-Session-Token",
+        "eduquery_session"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/session/delete",
+      "method": "POST",
+      "summary": "Permanently delete current temporary session (POST fallback)",
+      "operation_id": "delete_session_api_v1_session_delete_post",
+      "tags": [
+        "Analysis Session"
+      ],
+      "parameters": [
+        "X-EduQuery-Session-Token",
+        "eduquery_session"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/session/download-ticket",
+      "method": "POST",
+      "summary": "Generate a single-use short-lived ticket for direct file downloads",
+      "operation_id": "create_download_ticket_api_v1_session_download_ticket_post",
+      "tags": [
+        "Analysis Session"
+      ],
+      "parameters": [
+        "X-EduQuery-Session-Token",
+        "eduquery_session"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/session/sample",
+      "method": "POST",
+      "summary": "Load anonymized sample dataset for instant analysis exploration",
+      "operation_id": "load_sample_session_route_api_v1_session_sample_post",
+      "tags": [
+        "Analysis Session"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/session/save",
+      "method": "POST",
+      "summary": "Explicit opt-in to save current temporary dataset to institutional storage",
+      "operation_id": "save_session_api_v1_session_save_post",
+      "tags": [
+        "Analysis Session"
+      ],
+      "parameters": [
+        "X-EduQuery-Session-Token",
+        "eduquery_session"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/session/status",
+      "method": "GET",
+      "summary": "Check current active session or permanent dataset status",
+      "operation_id": "check_session_status_api_v1_session_status_get",
+      "tags": [
+        "Analysis Session"
+      ],
+      "parameters": [
+        "X-EduQuery-Session-Token",
+        "eduquery_session"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/session/upload",
+      "method": "POST",
+      "summary": "Upload marksheet into an isolated temporary analysis session",
+      "operation_id": "upload_temporary_marksheet_api_v1_session_upload_post",
+      "tags": [
+        "Analysis Session"
+      ],
+      "parameters": [],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students",
+      "method": "GET",
+      "summary": "Get Students",
+      "operation_id": "get_students_api_v1_students_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "query",
+        "division",
+        "result",
+        "course_code",
+        "multi_fails",
+        "has_absences",
+        "level",
+        "sort_by",
+        "limit",
+        "offset"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students/absent",
+      "method": "GET",
+      "summary": "Get Absent Students Route",
+      "operation_id": "get_absent_students_route_api_v1_students_absent_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "division",
+        "course_code",
+        "component",
+        "query",
+        "limit",
+        "offset"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students/absent/components",
+      "method": "GET",
+      "summary": "Get Absent Components Route",
+      "operation_id": "get_absent_components_route_api_v1_students_absent_components_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/students/absent/export",
+      "method": "GET",
+      "summary": "Export Absent Students Excel Route",
+      "operation_id": "export_absent_students_excel_route_api_v1_students_absent_export_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "division",
+        "course_code",
+        "component",
+        "query",
+        "format"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students/absent/export-excel",
+      "method": "GET",
+      "summary": "Export Absent Students Excel Route",
+      "operation_id": "export_absent_students_excel_route_api_v1_students_absent_export_excel_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "division",
+        "course_code",
+        "component",
+        "query",
+        "format"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students/absent/export/xlsx",
+      "method": "GET",
+      "summary": "Export Absent Students Excel Route",
+      "operation_id": "export_absent_students_excel_route_api_v1_students_absent_export_xlsx_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "division",
+        "course_code",
+        "component",
+        "query",
+        "format"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students/early-warning",
+      "method": "GET",
+      "summary": "Get pre-ESE at-risk early warning roster",
+      "operation_id": "get_early_warning_route_api_v1_students_early_warning_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/students/export",
+      "method": "GET",
+      "summary": "Export Students Route",
+      "operation_id": "export_students_route_api_v1_students_export_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "query",
+        "division",
+        "result",
+        "course_code",
+        "multi_fails",
+        "format"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students/export-excel",
+      "method": "GET",
+      "summary": "Export Students Excel Route",
+      "operation_id": "export_students_excel_route_api_v1_students_export_excel_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "query",
+        "division",
+        "result",
+        "course_code",
+        "multi_fails"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students/export/xlsx",
+      "method": "GET",
+      "summary": "Export Students Excel Route",
+      "operation_id": "export_students_excel_route_api_v1_students_export_xlsx_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "query",
+        "division",
+        "result",
+        "course_code",
+        "multi_fails"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students/subject-toppers",
+      "method": "GET",
+      "summary": "Get division-wise highest scorers for each subject",
+      "operation_id": "get_subject_toppers_route_api_v1_students_subject_toppers_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/api/v1/students/{identifier}/breakdown",
+      "method": "GET",
+      "summary": "Get Student Breakdown Route",
+      "operation_id": "get_student_breakdown_route_api_v1_students__identifier__breakdown_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "identifier"
+      ],
+      "responses": [
+        "200",
+        "404",
+        "409",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students/{identifier}/export",
+      "method": "GET",
+      "summary": "Export Student Breakdown Route",
+      "operation_id": "export_student_breakdown_route_api_v1_students__identifier__export_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "identifier",
+        "format"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/students/{identifier}/export-excel",
+      "method": "GET",
+      "summary": "Export Student Breakdown Excel Route",
+      "operation_id": "export_student_breakdown_excel_route_api_v1_students__identifier__export_excel_get",
+      "tags": [
+        "Students"
+      ],
+      "parameters": [
+        "identifier"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/subjects",
+      "method": "GET",
+      "summary": "Get Subjects",
+      "operation_id": "get_subjects_api_v1_subjects_get",
+      "tags": [
+        "Subjects"
+      ],
+      "parameters": [
+        "kind",
+        "division",
+        "limit",
+        "offset"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/subjects/absent/export",
+      "method": "GET",
+      "summary": "Export Absent Subjects Excel Route",
+      "operation_id": "export_absent_subjects_excel_route_api_v1_subjects_absent_export_get",
+      "tags": [
+        "Subjects"
+      ],
+      "parameters": [
+        "division",
+        "course_code",
+        "component",
+        "query"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/subjects/absent/export/xlsx",
+      "method": "GET",
+      "summary": "Export Absent Subjects Excel Route",
+      "operation_id": "export_absent_subjects_excel_route_api_v1_subjects_absent_export_xlsx_get",
+      "tags": [
+        "Subjects"
+      ],
+      "parameters": [
+        "division",
+        "course_code",
+        "component",
+        "query"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/subjects/failure-summary",
+      "method": "GET",
+      "summary": "Get Failure Summary",
+      "operation_id": "get_failure_summary_api_v1_subjects_failure_summary_get",
+      "tags": [
+        "Subjects"
+      ],
+      "parameters": [
+        "division"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/subjects/{course_code}/export-csv",
+      "method": "GET",
+      "summary": "Export Course Students Csv Route",
+      "operation_id": "export_course_students_csv_route_api_v1_subjects__course_code__export_csv_get",
+      "tags": [
+        "Subjects"
+      ],
+      "parameters": [
+        "course_code",
+        "division",
+        "report_type",
+        "category",
+        "status"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/subjects/{course_code}/export-excel",
+      "method": "GET",
+      "summary": "Export Course Students Excel Route",
+      "operation_id": "export_course_students_excel_route_api_v1_subjects__course_code__export_excel_get",
+      "tags": [
+        "Subjects"
+      ],
+      "parameters": [
+        "course_code",
+        "division",
+        "report_type",
+        "category",
+        "status",
+        "format"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/subjects/{course_code}/export-pdf",
+      "method": "GET",
+      "summary": "Export Course Students Pdf Route",
+      "operation_id": "export_course_students_pdf_route_api_v1_subjects__course_code__export_pdf_get",
+      "tags": [
+        "Subjects"
+      ],
+      "parameters": [
+        "course_code",
+        "division",
+        "report_type",
+        "category",
+        "status"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/subjects/{course_code}/failures",
+      "method": "GET",
+      "summary": "Get Course Failures",
+      "operation_id": "get_course_failures_api_v1_subjects__course_code__failures_get",
+      "tags": [
+        "Subjects"
+      ],
+      "parameters": [
+        "course_code",
+        "division",
+        "limit",
+        "offset"
+      ],
+      "responses": [
+        "200",
+        "404",
+        "409",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/subjects/{course_code}/failures/export",
+      "method": "GET",
+      "summary": "Export Course Failures Route",
+      "operation_id": "export_course_failures_route_api_v1_subjects__course_code__failures_export_get",
+      "tags": [
+        "Subjects"
+      ],
+      "parameters": [
+        "course_code",
+        "division",
+        "format"
+      ],
+      "responses": [
+        "200",
+        "422"
+      ]
+    },
+    {
+      "path": "/api/v1/subjects/{course_code}/students",
+      "method": "GET",
+      "summary": "Get Course Students Route",
+      "operation_id": "get_course_students_route_api_v1_subjects__course_code__students_get",
+      "tags": [
+        "Subjects"
+      ],
+      "parameters": [
+        "course_code",
+        "division",
+        "result",
+        "status",
+        "search",
+        "limit",
+        "offset"
+      ],
+      "responses": [
+        "200",
+        "404",
+        "409",
+        "422"
+      ]
+    },
+    {
+      "path": "/health",
+      "method": "GET",
+      "summary": "Health Check",
+      "operation_id": "health_check_health_get",
+      "tags": [
+        "Health"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/livez",
+      "method": "GET",
+      "summary": "Liveness probe for container orchestration",
+      "operation_id": "liveness_livez_get",
+      "tags": [
+        "Health"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    },
+    {
+      "path": "/readyz",
+      "method": "GET",
+      "summary": "Readiness probe for container orchestration",
+      "operation_id": "readiness_readyz_get",
+      "tags": [
+        "Health"
+      ],
+      "parameters": [],
+      "responses": [
+        "200"
+      ]
+    }
+  ]
+}

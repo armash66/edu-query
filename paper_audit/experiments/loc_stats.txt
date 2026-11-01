@@ -1,0 +1,16 @@
+Total Repo Size (excl git/node_modules/dist/paper_audit): 47.31 MB
+Total Files Audited: 761
+---------------------------------------------------------------------------
+Language                   Files    Blank  Comment     Code    Total
+---------------------------------------------------------------------------
+Other                        390     6767     3254   190802   200823
+JSON                          41        8        4   130057   130069
+Python                       135     7367     1486    30555    39408
+TypeScript (React)            74     7565      205    22268    30038
+HTML                           7     1937     1170    14391    17498
+Markdown                      96     3511     2254    12155    17920
+TypeScript                    10     4655       93     2794     7542
+CSS                            1      121       47      813      981
+JavaScript (Module)            5      121       75      643      839
+JavaScript                     1       10        5       83       98
+YAML                           1        0        0       38       38

@@ -22,4 +22,7 @@ data/*
 !data/.gitkeep
 tests
 docs
-
+audit
+audit_after
+paper_audit
+*.zip

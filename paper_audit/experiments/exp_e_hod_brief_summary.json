@@ -1,0 +1,10 @@
+{
+  "total_generations": 35,
+  "verified_generations": 30,
+  "fallback_to_template_count": 5,
+  "fallback_rate_pct": 14.29,
+  "total_numbers_audited": 550,
+  "matched_numbers_count": 545,
+  "overall_faithfulness_pct": 99.09,
+  "mean_latency_ms": 38.5
+}

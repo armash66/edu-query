@@ -1,0 +1,90 @@
+{
+  "total_size_mb": 47.31,
+  "total_files": 761,
+  "by_language": {
+    "TypeScript (React)": {
+      "files": 74,
+      "lines": 30038,
+      "code": 22268,
+      "comment": 205,
+      "blank": 7565
+    },
+    "HTML": {
+      "files": 7,
+      "lines": 17498,
+      "code": 14391,
+      "comment": 1170,
+      "blank": 1937
+    },
+    "YAML": {
+      "files": 1,
+      "lines": 38,
+      "code": 38,
+      "comment": 0,
+      "blank": 0
+    },
+    "CSS": {
+      "files": 1,
+      "lines": 981,
+      "code": 813,
+      "comment": 47,
+      "blank": 121
+    },
+    "Python": {
+      "files": 135,
+      "lines": 39408,
+      "code": 30555,
+      "comment": 1486,
+      "blank": 7367
+    },
+    "TypeScript": {
+      "files": 10,
+      "lines": 7542,
+      "code": 2794,
+      "comment": 93,
+      "blank": 4655
+    },
+    "SQL": {
+      "files": 0,
+      "lines": 0,
+      "code": 0,
+      "comment": 0,
+      "blank": 0
+    },
+    "Markdown": {
+      "files": 96,
+      "lines": 17920,
+      "code": 12155,
+      "comment": 2254,
+      "blank": 3511
+    },
+    "JSON": {
+      "files": 41,
+      "lines": 130069,
+      "code": 130057,
+      "comment": 4,
+      "blank": 8
+    },
+    "JavaScript": {
+      "files": 1,
+      "lines": 98,
+      "code": 83,
+      "comment": 5,
+      "blank": 10
+    },
+    "JavaScript (Module)": {
+      "files": 5,
+      "lines": 839,
+      "code": 643,
+      "comment": 75,
+      "blank": 121
+    },
+    "Other": {
+      "files": 390,
+      "lines": 200823,
+      "code": 190802,
+      "comment": 3254,
+      "blank": 6767
+    }
+  }
+}

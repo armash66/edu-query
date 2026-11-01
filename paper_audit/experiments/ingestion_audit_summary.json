@@ -1,0 +1,130 @@
+[
+  {
+    "workbook": "Result_anonymized.xlsx",
+    "status": "SUCCESS",
+    "students": 145,
+    "courses": 27,
+    "scores": 5945,
+    "grades": 1740,
+    "reconciliations": 1740,
+    "arithmetic_mismatches": 0,
+    "absent_students": 7,
+    "passed": 132,
+    "failed": 13,
+    "stride": 2,
+    "sheet_count": 1,
+    "sheets_accepted": [
+      "Sheet1"
+    ]
+  },
+  {
+    "workbook": "test1_commerce_same_layout.xlsx",
+    "status": "SUCCESS",
+    "students": 60,
+    "courses": 10,
+    "scores": 2014,
+    "grades": 529,
+    "reconciliations": 529,
+    "arithmetic_mismatches": 97,
+    "absent_students": 19,
+    "passed": 0,
+    "failed": 0,
+    "stride": 2,
+    "sheet_count": 1,
+    "sheets_accepted": [
+      "Sheet1"
+    ]
+  },
+  {
+    "workbook": "test1_same_layout_10courses_3divs.xlsx",
+    "status": "SUCCESS",
+    "students": 60,
+    "courses": 10,
+    "scores": 2001,
+    "grades": 527,
+    "reconciliations": 527,
+    "arithmetic_mismatches": 104,
+    "absent_students": 18,
+    "passed": 0,
+    "failed": 0,
+    "stride": 2,
+    "sheet_count": 1,
+    "sheets_accepted": [
+      "Sheet1"
+    ]
+  },
+  {
+    "workbook": "test2_lifesci_vague_single_row.xlsx",
+    "status": "SUCCESS",
+    "students": 45,
+    "courses": 7,
+    "scores": 1215,
+    "grades": 315,
+    "reconciliations": 315,
+    "arithmetic_mismatches": 41,
+    "absent_students": 14,
+    "passed": 0,
+    "failed": 0,
+    "stride": 1,
+    "sheet_count": 1,
+    "sheets_accepted": [
+      "Results Oct"
+    ]
+  },
+  {
+    "workbook": "test2_vague_single_row_batches.xlsx",
+    "status": "SUCCESS",
+    "students": 45,
+    "courses": 7,
+    "scores": 1215,
+    "grades": 315,
+    "reconciliations": 315,
+    "arithmetic_mismatches": 42,
+    "absent_students": 15,
+    "passed": 0,
+    "failed": 0,
+    "stride": 1,
+    "sheet_count": 1,
+    "sheets_accepted": [
+      "Results Oct"
+    ]
+  },
+  {
+    "workbook": "test3_arts_messy_sheet_per_division.xlsx",
+    "status": "SUCCESS",
+    "students": 50,
+    "courses": 8,
+    "scores": 1291,
+    "grades": 345,
+    "reconciliations": 345,
+    "arithmetic_mismatches": 82,
+    "absent_students": 14,
+    "passed": 0,
+    "failed": 0,
+    "stride": 1,
+    "sheet_count": 2,
+    "sheets_accepted": [
+      "Div A",
+      "Div B"
+    ]
+  },
+  {
+    "workbook": "test3_messy_sheet_per_division.xlsx",
+    "status": "SUCCESS",
+    "students": 50,
+    "courses": 8,
+    "scores": 1311,
+    "grades": 350,
+    "reconciliations": 350,
+    "arithmetic_mismatches": 87,
+    "absent_students": 14,
+    "passed": 0,
+    "failed": 0,
+    "stride": 1,
+    "sheet_count": 2,
+    "sheets_accepted": [
+      "Div A",
+      "Div B"
+    ]
+  }
+]

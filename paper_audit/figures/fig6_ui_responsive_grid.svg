@@ -1,0 +1,175 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 520" width="100%" height="100%" style="background:#ffffff; font-family:system-ui, -apple-system, sans-serif;">
+  <rect width="960" height="520" fill="#ffffff"/>
+  <defs>
+    <filter id="shadow6" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.10"/>
+    </filter>
+  </defs>
+
+  <text x="480" y="32" font-size="18" font-weight="700" fill="#171717" text-anchor="middle">Figure 6. Responsive UI Multi-Device Architecture (Monochrome Glass)</text>
+  <text x="480" y="52" font-size="12" fill="#737373" text-anchor="middle">Adaptive layout transformations across Desktop (1440px), Tablet (768px), and Mobile (390px) viewports.</text>
+
+  <!-- Desktop Viewport (1440px) -->
+  <g transform="translate(40, 80)">
+    <rect width="420" height="270" rx="8" fill="#121212" stroke="#404040" stroke-width="1.5" filter="url(#shadow6)"/>
+    <!-- Browser Header -->
+    <rect width="420" height="24" rx="8" fill="#1f1f1f"/>
+    <circle cx="16" cy="12" r="3.5" fill="#ef4444"/>
+    <circle cx="28" cy="12" r="3.5" fill="#eab308"/>
+    <circle cx="40" cy="12" r="3.5" fill="#22c55e"/>
+    <text x="210" y="16" font-size="9" fill="#a3a3a3" text-anchor="middle">Desktop (1440 x 900) - Full Analytical Command Center</text>
+
+    <!-- Sidebar -->
+    <rect x="0" y="24" width="80" height="246" fill="#18181b"/>
+    <rect x="10" y="36" width="60" height="14" rx="3" fill="#27272a"/>
+    <text x="40" y="46" font-size="7" font-weight="700" fill="#ffffff" text-anchor="middle">EduQuery</text>
+    <text x="40" y="68" font-size="6.5" fill="#a1a1aa" text-anchor="middle">Overview</text>
+    <rect x="8" y="76" width="64" height="16" rx="3" fill="#3f3f46"/>
+    <text x="40" y="87" font-size="6.5" font-weight="600" fill="#ffffff" text-anchor="middle">Students</text>
+    <text x="40" y="106" font-size="6.5" fill="#a1a1aa" text-anchor="middle">Subjects</text>
+    <text x="40" y="122" font-size="6.5" fill="#a1a1aa" text-anchor="middle">Data Quality</text>
+    <text x="40" y="138" font-size="6.5" fill="#a1a1aa" text-anchor="middle">Follow-ups</text>
+    <text x="40" y="154" font-size="6.5" fill="#a1a1aa" text-anchor="middle">Reports</text>
+
+    <!-- Main Content Area -->
+    <rect x="90" y="34" width="320" height="40" rx="4" fill="#18181b" stroke="#27272a"/>
+    <text x="100" y="48" font-size="9" font-weight="700" fill="#ffffff">Student Marksheet Roster</text>
+    <text x="100" y="62" font-size="7" fill="#71717a">Enrolled: 145 | Passed: 139 | Failed: 6 | Pass Rate: 95.9%</text>
+    <rect x="330" y="42" width="70" height="20" rx="3" fill="#27272a"/>
+    <text x="365" y="55" font-size="7" fill="#ffffff" text-anchor="middle">Export XLSX/PDF</text>
+
+    <!-- Table -->
+    <rect x="90" y="82" width="320" height="175" rx="4" fill="#18181b" stroke="#27272a"/>
+    <rect x="90" y="82" width="320" height="18" fill="#27272a"/>
+    <text x="100" y="94" font-size="6.5" font-weight="600" fill="#a1a1aa">SEAT NO</text>
+    <text x="145" y="94" font-size="6.5" font-weight="600" fill="#a1a1aa">NAME</text>
+    <text x="245" y="94" font-size="6.5" font-weight="600" fill="#a1a1aa">DIV</text>
+    <text x="275" y="94" font-size="6.5" font-weight="600" fill="#a1a1aa">SGPI</text>
+    <text x="315" y="94" font-size="6.5" font-weight="600" fill="#a1a1aa">STATUS</text>
+    <text x="370" y="94" font-size="6.5" font-weight="600" fill="#a1a1aa">ACTION</text>
+
+    <!-- Row items -->
+    <line x1="90" y1="116" x2="410" y2="116" stroke="#27272a"/>
+    <text x="100" y="110" font-size="6" fill="#ffffff">224906</text>
+    <text x="145" y="110" font-size="6" fill="#ffffff">Iyer Kavya Mahesh</text>
+    <text x="245" y="110" font-size="6" fill="#a1a1aa">A</text>
+    <text x="275" y="110" font-size="6" font-weight="700" fill="#ffffff">9.00</text>
+    <rect x="315" y="103" width="35" height="10" rx="2" fill="#064e3b"/>
+    <text x="332" y="110" font-size="5.5" fill="#34d399" text-anchor="middle">PASSED</text>
+    <rect x="365" y="103" width="35" height="10" rx="2" fill="#27272a"/>
+    <text x="382" y="110" font-size="5.5" fill="#ffffff" text-anchor="middle">Inspect</text>
+  </g>
+
+  <!-- Tablet Viewport (768px) -->
+  <g transform="translate(480, 80)">
+    <rect width="250" height="270" rx="8" fill="#121212" stroke="#404040" stroke-width="1.5" filter="url(#shadow6)"/>
+    <rect width="250" height="24" rx="8" fill="#1f1f1f"/>
+    <circle cx="16" cy="12" r="3.5" fill="#ef4444"/>
+    <circle cx="28" cy="12" r="3.5" fill="#eab308"/>
+    <circle cx="40" cy="12" r="3.5" fill="#22c55e"/>
+    <text x="125" y="16" font-size="9" fill="#a3a3a3" text-anchor="middle">Tablet (768 x 1024) - Compact Navigation</text>
+
+    <!-- Collapsed Top Nav -->
+    <rect x="0" y="24" width="250" height="24" fill="#18181b" stroke="#27272a"/>
+    <rect x="10" y="30" width="12" height="12" rx="2" fill="#27272a"/>
+    <text x="16" y="39" font-size="7" fill="#ffffff" text-anchor="middle">EQ</text>
+    <text x="40" y="39" font-size="7" font-weight="700" fill="#ffffff">EduQuery</text>
+    <rect x="180" y="28" width="60" height="16" rx="3" fill="#27272a"/>
+    <text x="210" y="39" font-size="6" fill="#a1a1aa" text-anchor="middle">Density: Compact</text>
+
+    <!-- 2-Column KPI Cards -->
+    <rect x="10" y="56" width="110" height="40" rx="4" fill="#18181b" stroke="#27272a"/>
+    <text x="18" y="70" font-size="6.5" fill="#a1a1aa">Overall Pass Rate</text>
+    <text x="18" y="86" font-size="12" font-weight="700" fill="#22c55e">95.9%</text>
+
+    <rect x="130" y="56" width="110" height="40" rx="4" fill="#18181b" stroke="#27272a"/>
+    <text x="138" y="70" font-size="6.5" fill="#a1a1aa">Anomalies Detected</text>
+    <text x="138" y="86" font-size="12" font-weight="700" fill="#eab308">21 Alerts</text>
+
+    <!-- Responsive Table -->
+    <rect x="10" y="104" width="230" height="155" rx="4" fill="#18181b" stroke="#27272a"/>
+    <rect x="10" y="104" width="230" height="18" fill="#27272a"/>
+    <text x="20" y="116" font-size="6" font-weight="600" fill="#a1a1aa">STUDENT</text>
+    <text x="120" y="116" font-size="6" font-weight="600" fill="#a1a1aa">SGPI</text>
+    <text x="165" y="116" font-size="6" font-weight="600" fill="#a1a1aa">STATUS</text>
+
+    <line x1="10" y1="138" x2="240" y2="138" stroke="#27272a"/>
+    <text x="20" y="132" font-size="6" fill="#ffffff">Iyer Kavya (A)</text>
+    <text x="120" y="132" font-size="6" font-weight="700" fill="#ffffff">9.00</text>
+    <rect x="165" y="125" width="30" height="9" rx="2" fill="#064e3b"/>
+    <text x="180" y="132" font-size="5" fill="#34d399" text-anchor="middle">PASS</text>
+  </g>
+
+  <!-- Mobile Viewport (390px) -->
+  <g transform="translate(750, 80)">
+    <rect width="170" height="270" rx="8" fill="#121212" stroke="#404040" stroke-width="1.5" filter="url(#shadow6)"/>
+    <rect width="170" height="24" rx="8" fill="#1f1f1f"/>
+    <circle cx="16" cy="12" r="3.5" fill="#ef4444"/>
+    <circle cx="28" cy="12" r="3.5" fill="#eab308"/>
+    <circle cx="40" cy="12" r="3.5" fill="#22c55e"/>
+    <text x="85" y="16" font-size="8" fill="#a3a3a3" text-anchor="middle">Mobile (390 x 844)</text>
+
+    <!-- Mobile Top Bar -->
+    <rect x="0" y="24" width="170" height="24" fill="#18181b" stroke="#27272a"/>
+    <line x1="12" y1="32" x2="24" y2="32" stroke="#ffffff" stroke-width="1.2"/>
+    <line x1="12" y1="36" x2="24" y2="36" stroke="#ffffff" stroke-width="1.2"/>
+    <line x1="12" y1="40" x2="24" y2="40" stroke="#ffffff" stroke-width="1.2"/>
+    <text x="40" y="39" font-size="7" font-weight="700" fill="#ffffff">EduQuery</text>
+
+    <!-- Stacked Cards View -->
+    <rect x="10" y="56" width="150" height="32" rx="4" fill="#18181b" stroke="#27272a"/>
+    <text x="18" y="70" font-size="6" fill="#a1a1aa">Pass Rate</text>
+    <text x="18" y="82" font-size="9" font-weight="700" fill="#22c55e">95.9% (139/145)</text>
+
+    <!-- Student Touch Card -->
+    <rect x="10" y="96" width="150" height="52" rx="4" fill="#18181b" stroke="#27272a"/>
+    <text x="18" y="110" font-size="6.5" font-weight="700" fill="#ffffff">Iyer Kavya Mahesh</text>
+    <text x="18" y="122" font-size="5.5" fill="#71717a">Seat: 224906 | Div A</text>
+    <text x="18" y="136" font-size="6" font-weight="700" fill="#ffffff">SGPI: 9.00</text>
+    <rect x="105" y="125" width="45" height="15" rx="3" fill="#27272a"/>
+    <text x="127" y="135" font-size="5.5" fill="#ffffff" text-anchor="middle">View Slip</text>
+
+    <rect x="10" y="156" width="150" height="52" rx="4" fill="#18181b" stroke="#27272a"/>
+    <text x="18" y="170" font-size="6.5" font-weight="700" fill="#ffffff">Mishra Pooja Mohan</text>
+    <text x="18" y="182" font-size="5.5" fill="#71717a">Seat: 435003 | Div A</text>
+    <text x="18" y="196" font-size="6" font-weight="700" fill="#ffffff">SGPI: 8.75</text>
+  </g>
+
+  <!-- Bottom Token & Accessibility Grid -->
+  <g transform="translate(40, 370)">
+    <rect width="880" height="125" rx="6" fill="#fafafa" stroke="#e5e5e5"/>
+    <text x="20" y="24" font-size="12" font-weight="700" fill="#171717">Design Token Architecture &amp; Empirical UX Performance</text>
+    
+    <g transform="translate(20, 40)">
+      <rect width="195" height="65" rx="4" fill="#ffffff" stroke="#e5e5e5"/>
+      <text x="10" y="18" font-size="10" font-weight="600" fill="#171717">Neutral Monochrome Palette</text>
+      <text x="10" y="34" font-size="8.5" fill="#525252">Semantic high-contrast tokens</text>
+      <text x="10" y="47" font-size="8.5" fill="#16a34a">WCAG 2.1 AA (40/40 checks passed)</text>
+      <text x="10" y="58" font-size="8.5" fill="#525252">Zero saturated color distractions</text>
+    </g>
+
+    <g transform="translate(235, 40)">
+      <rect width="195" height="65" rx="4" fill="#ffffff" stroke="#e5e5e5"/>
+      <text x="10" y="18" font-size="10" font-weight="600" fill="#171717">Density Toggle Engine</text>
+      <text x="10" y="34" font-size="8.5" fill="#525252">Comfortable (48px table rows)</text>
+      <text x="10" y="47" font-size="8.5" fill="#525252">Compact (32px table rows)</text>
+      <text x="10" y="58" font-size="8.5" fill="#16a34a">+50% screen utilization for faculty</text>
+    </g>
+
+    <g transform="translate(450, 40)">
+      <rect width="195" height="65" rx="4" fill="#ffffff" stroke="#e5e5e5"/>
+      <text x="10" y="18" font-size="10" font-weight="600" fill="#171717">Client Efficiency &amp; Bundle</text>
+      <text x="10" y="34" font-size="8.5" fill="#525252">Total JS: 99.88 KiB gzip</text>
+      <text x="10" y="47" font-size="8.5" fill="#525252">App Code: 13.39 KiB gzip</text>
+      <text x="10" y="58" font-size="8.5" fill="#16a34a">68.7% bundle reduction vs V1</text>
+    </g>
+
+    <g transform="translate(665, 40)">
+      <rect width="195" height="65" rx="4" fill="#ffffff" stroke="#e5e5e5"/>
+      <text x="10" y="18" font-size="10" font-weight="600" fill="#171717">Interaction Ergonomics</text>
+      <text x="10" y="34" font-size="8.5" fill="#525252">Inspect Marks: 1 click (vs 3)</text>
+      <text x="10" y="47" font-size="8.5" fill="#525252">Export Dossier: 2 clicks (vs 5)</text>
+      <text x="10" y="58" font-size="8.5" fill="#16a34a">38% fewer clicks across 5 core tasks</text>
+    </g>
+  </g>
+</svg>
