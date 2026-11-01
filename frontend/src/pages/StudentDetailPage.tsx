@@ -132,142 +132,113 @@ export const StudentDetailPage: React.FC = () => {
 
 
   const handleEmailStudent = () => {
-
     const student = data?.student
-
     if (!student) return
-
     const recipientEmail = student.email || `${student.roll_no || student.student_id}@university.edu`
-
     const isPass = (student.overall_result || '').toUpperCase().includes('PASS')
-
-    const failedSubjects = (data?.subjects || [])
-
-      .filter((s) => (s.recorded_result || '').toUpperCase().includes('FAIL') || (s.letter_grade || '').toUpperCase() === 'F')
-
-      .map((s) => `${s.course_name} (${s.course_code})`)
-
-
-
-    let subject = ''
-
-    let body = ''
-
-
+    const formattedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 
     const absentSubjects = (data?.subjects || [])
       .filter((s) => (s.recorded_result || '').toUpperCase().includes('ABS') || (s.letter_grade || '').toUpperCase() === 'AB')
       .map((s) => `${s.course_name} (${s.course_code})`)
     const isAbsent = (student.overall_result || '').toUpperCase().includes('ABS') || absentSubjects.length > 0
 
+    const failedSubjects = (data?.subjects || [])
+      .filter((s) => (s.recorded_result || '').toUpperCase().includes('FAIL') || (s.letter_grade || '').toUpperCase() === 'F')
+      .map((s) => `${s.course_name} (${s.course_code})`)
+
+    let subject = ''
+    let body = ''
+
     if (isAbsent) {
       subject = `Academic Notice: Missed Examination Documentation - ${toTitleCase(student.name)} (${student.seat_no || student.student_id})`
-      body = `Dear ${toTitleCase(student.name)},
+      const absentList = absentSubjects.length > 0
+        ? absentSubjects.map((s: string) => `• ${s}`).join('\n')
+        : '• Recorded absence in examination components'
+      body = `ACADEMIC EXAMINATION ABSENCE NOTICE
+Date: ${formattedDate}
+To: ${toTitleCase(student.name)} (${student.seat_no || student.student_id})
+Division: ${student.division || '—'}
+Subject: Documentation Submission for Missed Evaluations
+
+Dear ${toTitleCase(student.name)},
 
 University examination records indicate your absence during recent semester evaluations.
 
 Academic Summary:
-- Student Name: ${toTitleCase(student.name)}
-- Seat Number: ${student.seat_no || 'N/A'}
-- Roll Number: ${student.roll_no || 'N/A'}
-- Division: ${student.division || 'N/A'}
-- Overall Result: ${student.overall_result || 'ABSENT'}
-- Missed Evaluations:
-  ${absentSubjects.length > 0 ? absentSubjects.map((s: string) => `• ${s}`).join('\n  ') : '• Recorded absence in examination components'}
+• Student Name: ${toTitleCase(student.name)}
+• Seat Number: ${student.seat_no || 'N/A'}
+• Roll Number: ${student.roll_no || 'N/A'}
+• Division: ${student.division || '—'}
+• Overall Result: ${student.overall_result || 'ABSENT'}
 
-If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the examination cell within 5 business days to confirm your make-up evaluation eligibility.
+Missed Evaluations:
+${absentList}
+
+If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the Examination Cell within five (5) business days to confirm your make-up evaluation eligibility.
 
 Sincerely,
 Examination Cell & Department Faculty`
     } else if (isPass) {
-
       subject = `Semester Examination Result: ${toTitleCase(student.name)} (${student.seat_no || student.student_id})`
+      body = `SEMESTER EXAMINATION RESULT NOTIFICATION
+Date: ${formattedDate}
+To: ${toTitleCase(student.name)} (${student.seat_no || student.student_id})
+Division: ${student.division || '—'}
+Subject: Official Semester Examination Results
 
-      body = `Dear ${toTitleCase(student.name)},
-
-
+Dear ${toTitleCase(student.name)},
 
 This is an official communication regarding your semester examination results.
 
-
-
 Academic Summary:
-
-- Student Name: ${toTitleCase(student.name)}
-
-- Seat Number: ${student.seat_no || 'N/A'}
-
-- Roll Number: ${student.roll_no || 'N/A'}
-
-- Division: ${student.division || 'N/A'}
-
-- Total Marks: ${student.total_marks ?? 'N/A'}
-
-- SGPI: ${student.sgpi !== null && student.sgpi !== undefined ? Number(student.sgpi).toFixed(2) : 'N/A'}
-
-- CGPA: ${student.cgpa !== null && student.cgpa !== undefined ? Number(student.cgpa).toFixed(2) : 'N/A'}
-
-- Overall Result: ${student.overall_result || 'PASSED'}
-
-
+• Student Name: ${toTitleCase(student.name)}
+• Seat Number: ${student.seat_no || 'N/A'}
+• Roll Number: ${student.roll_no || 'N/A'}
+• Division: ${student.division || '—'}
+• Total Marks: ${student.total_marks ?? 'N/A'}
+• SGPI: ${student.sgpi !== null && student.sgpi !== undefined ? Number(student.sgpi).toFixed(2) : 'N/A'}
+• CGPA: ${student.cgpa !== null && student.cgpa !== undefined ? Number(student.cgpa).toFixed(2) : 'N/A'}
+• Overall Result: ${student.overall_result || 'PASSED'}
 
 Congratulations on your successful completion of the semester examinations.
 
-
-
 Sincerely,
-
 Examination Cell & Department Faculty`
-
     } else {
-
       subject = `Academic Notice: Examination Result & Backlog Review - ${toTitleCase(student.name)} (${student.seat_no || student.student_id})`
+      const backlogList = failedSubjects.length > 0
+        ? failedSubjects.map((s: string) => `• ${s}`).join('\n')
+        : '• Pending remedial evaluation'
+      body = `ACADEMIC BACKLOG REVIEW & REMEDIAL NOTICE
+Date: ${formattedDate}
+To: ${toTitleCase(student.name)} (${student.seat_no || student.student_id})
+Division: ${student.division || '—'}
+Subject: Academic Standing Review & Mandatory Remedial Sessions
 
-      body = `Dear ${toTitleCase(student.name)},
-
-
+Dear ${toTitleCase(student.name)},
 
 This is an official communication regarding your semester examination results and academic standing.
 
-
-
 Academic Summary:
+• Student Name: ${toTitleCase(student.name)}
+• Seat Number: ${student.seat_no || 'N/A'}
+• Roll Number: ${student.roll_no || 'N/A'}
+• Division: ${student.division || '—'}
+• Overall Result: ${student.overall_result || 'FAILED'}
 
-- Student Name: ${toTitleCase(student.name)}
+Backlog Subjects:
+${backlogList}
 
-- Seat Number: ${student.seat_no || 'N/A'}
-
-- Roll Number: ${student.roll_no || 'N/A'}
-
-- Division: ${student.division || 'N/A'}
-
-- Overall Result: ${student.overall_result || 'FAILED'}
-
-- Backlog Subjects:
-
-  ${failedSubjects.length > 0 ? failedSubjects.map((s: string) => `• ${s}`).join('\n  ') : '• Pending evaluation'}
-
-
-
-Please contact your academic advisor or examination cell coordinator to discuss remedial sessions and schedule your re-examination applications.
-
-
+Please contact your academic advisor or examination cell coordinator to discuss remedial clinic sessions and schedule your re-examination applications.
 
 Sincerely,
-
 Examination Cell & Academic Review Committee`
-
     }
 
-
-
     const mailtoUrl = `mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-
     window.location.href = mailtoUrl
-
   }
-
-
 
   const [exportingPdf, setExportingPdf] = useState<boolean>(false)
 

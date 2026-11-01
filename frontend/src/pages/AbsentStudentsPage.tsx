@@ -490,26 +490,39 @@ export const AbsentStudentsPage: React.FC = () => {
               e.preventDefault()
               const email = row.email || `${row.roll_no || row.student_id}@student.univ.edu`
               const subject = `Academic Notice: Missed Examination Documentation - ${toTitleCase(row.name)} (${row.seat_no || row.roll_no || row.student_id})`
+              const formattedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
               const missedBreakdown = row.courses
-                .map((c) => `• ${c.course_name} (${c.course_code}) - Component(s): ${c.components.join(', ')}`)
+                .map((c) => `• ${c.course_name} (${c.course_code}) — Component(s): ${c.components.join(', ')}`)
                 .join('\n')
-              const body = `Dear ${toTitleCase(row.name)},
+              const body = `ABSENTEE MAKE-UP EXAMINATION NOTIFICATION
+Date: ${formattedDate}
+To: ${toTitleCase(row.name)} (${row.seat_no || row.roll_no || row.student_id})
+Division: ${row.division || '—'}
+Email: ${email}
+Subject: Official Documentation Submission for Missed Examination Components
+
+Dear ${toTitleCase(row.name)},
 
 University examination records indicate your absence across ${row.total_absences} examination evaluation(s):
-
 ${missedBreakdown}
 
-If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the examination cell within 5 business days to confirm your make-up evaluation eligibility.
+Under university academic regulations, unexcused absence results in an unresolved grade penalty. If your absence was occasioned by verified medical emergencies, institutional duty, or unforeseen bereavement, you may petition for make-up re-evaluation eligibility.
+
+Action Required:
+• Submit your formal petition along with verified supporting medical or institutional certificates to the Examination Cell within five (5) business days.
+• Completed documentation must be countersigned by your Department Head before make-up scheduling can proceed.
+• Late or unsubstantiated submissions will not be entertained.
 
 Student Details:
-- Student Name: ${toTitleCase(row.name)}
-- Seat Number: ${row.seat_no || 'N/A'}
-- Roll Number: ${row.roll_no || 'N/A'}
-- Division: ${row.division || '—'}
-- Total Missed Evaluations: ${row.total_absences}
+• Student Name: ${toTitleCase(row.name)}
+• Seat Number: ${row.seat_no || 'N/A'}
+• Roll Number: ${row.roll_no || 'N/A'}
+• Division: ${row.division || '—'}
+• Total Missed Evaluations: ${row.total_absences}
 
 Sincerely,
-Examination Cell & Department Faculty`
+Office of the Controller of Examinations
+Academic Affairs Committee`
               window.location.href = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
             }}
             style={{
@@ -762,16 +775,27 @@ Examination Cell & Department Faculty`
               e.preventDefault()
               const email = (row as any).email || `${row.roll_no || row.student_id}@student.univ.edu`
               const subject = `Examination Absence Notice: ${row.course_code} (${row.component}) - ${toTitleCase(row.name)}`
-              const body = `Dear ${toTitleCase(row.name)},
+              const formattedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+              const body = `ABSENTEE MAKE-UP EXAMINATION NOTIFICATION
+Date: ${formattedDate}
+To: ${toTitleCase(row.name)} (${row.seat_no || row.roll_no || row.student_id})
+Division: ${row.division || '—'}
+Subject: Official Documentation Submission for Missed Examination
 
-University examination records indicate your absence during recent examinations:
-- Course: ${row.course_name} (${row.course_code})
-- Component: ${row.component}
-- Seat Number: ${row.seat_no || 'N/A'}
-- Roll Number: ${row.roll_no || 'N/A'}
-- Division: ${row.division || 'N/A'}
+Dear ${toTitleCase(row.name)},
 
-If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the examination cell within 5 business days to confirm your make-up evaluation eligibility.
+University examination records indicate your absence during the following examination component:
+• Course: ${row.course_name} (${row.course_code})
+• Component: ${row.component}
+• Absent Marker: ${row.raw_text || 'AB'}
+
+If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the Examination Cell within five (5) business days to confirm your make-up evaluation eligibility.
+
+Student Details:
+• Student Name: ${toTitleCase(row.name)}
+• Seat Number: ${row.seat_no || 'N/A'}
+• Roll Number: ${row.roll_no || 'N/A'}
+• Division: ${row.division || '—'}
 
 Sincerely,
 Examination Cell & Department Faculty`

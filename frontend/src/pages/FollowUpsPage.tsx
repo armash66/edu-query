@@ -922,286 +922,125 @@ export const FollowUpsPage: React.FC = () => {
   // Helper function to build notice text for any recipient
   const buildNoticeText = useCallback((template: 'failed' | 'absent' | 'toppers' | 'subject_toppers', r: (typeof noticeRecipients)[0]) => {
     if (!r) return ''
+    const formattedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    const divStr = r.division && r.division !== '—' ? r.division : '—'
+
     if (template === 'failed') {
-
-
-
       return `ACADEMIC REMEDIAL INTERVENTION NOTICE
-
-
-
-Date: ${new Date().toLocaleDateString()}
-
-
-
+Date: ${formattedDate}
 To: ${r.name} (${r.seatNo})
-
-
-
+Division: ${divStr}
 Email: ${r.email}
+Subject: Mandatory Academic Remedial Mentoring Schedule
 
+Dear ${r.name},
 
+Official review of your recent semester examination results indicates that you have pending backlog evaluations in the following course(s):
+• ${r.detail}
 
-Subject: Mandatory Remedial Mentoring Sessions for Semester Backlog
+To support your academic recovery, you have been assigned to mandatory peer mentoring clinics and faculty remedial sessions for the upcoming semester.
 
-
-
-Dear Student,
-
-
-
-Official review of your recent semester results indicates that you have pending backlog evaluations in:
-
-
-
-${r.detail}
-
-
-
-You have been paired with an academic peer mentor for weekly problem-solving clinics.
-
-
-
-Please report to your department coordinator by Monday at 10:00 AM to finalize your remedial timetable.
-
-
+Action Required:
+• Report to your Department Academic Coordinator by Monday at 10:00 AM.
+• Collect your customized remedial timetable and clinic attendance logbook.
+• Maintain mandatory minimum 75% attendance in all remedial sessions to qualify for the re-examination cycle.
 
 Student Information:
-
-
-
-- Student Name: ${r.name}
-
-
-
-- Seat / Roll No: ${r.seatNo}
-
-
-
-- Division: ${r.division || '—'}
-
-
-
-- Backlog Courses: ${r.detail}
-
-
+• Student Name: ${r.name}
+• Seat / Roll No: ${r.seatNo}
+• Division: ${divStr}
+• Backlog Courses: ${r.detail}
 
 Sincerely,
-
-
-
 Examination Cell & Academic Review Committee`
-
-
-
     }
-
-
 
     if (template === 'absent') {
-
-
-
       return `ABSENTEE MAKE-UP EXAMINATION NOTIFICATION
-
-
-
-Date: ${new Date().toLocaleDateString()}
-
-
-
+Date: ${formattedDate}
 To: ${r.name} (${r.seatNo})
-
-
-
+Division: ${divStr}
 Email: ${r.email}
+Subject: Official Documentation Submission for Missed Examination Components
 
-
-
-Subject: Documentation Submission for Missed Evaluation Component
-
-
-
-Dear Student,
-
-
+Dear ${r.name},
 
 University examination records indicate your absence during recent examinations:
+• ${r.detail}
 
+Under university academic regulations, unexcused absence results in an unresolved grade penalty. If your absence was occasioned by verified medical emergencies, institutional duty, or unforeseen bereavement, you may petition for make-up re-evaluation eligibility.
 
-
-${r.detail}
-
-
-
-If your absence was due to verified medical or institutional emergencies, submit your supporting documentation to the exam cell within 5 business days to confirm your make-up evaluation eligibility.
-
-
+Action Required:
+• Submit your formal petition along with verified supporting medical or institutional certificates to the Examination Cell within five (5) business days.
+• Completed documentation must be countersigned by your Department Head before make-up scheduling can proceed.
+• Late or unsubstantiated submissions will not be entertained.
 
 Student Information:
-
-
-
-- Student Name: ${r.name}
-
-
-
-- Seat / Roll No: ${r.seatNo}
-
-
-
-- Division: ${r.division || '—'}
-
-
-
-- Missed Evaluations: ${r.detail}
-
-
+• Student Name: ${r.name}
+• Seat / Roll No: ${r.seatNo}
+• Division: ${divStr}
+• Missed Evaluations: ${r.detail}
 
 Sincerely,
-
-
-
-Office of the Principal (Academic Affairs)`
-
-
-
+Office of the Controller of Examinations
+Academic Affairs Committee`
     }
-
-
 
     if (template === 'toppers') {
-
-
-
       return `CONGRATULATORY LETTER — COLLEGE MERIT LIST
-
-
-
-Date: ${new Date().toLocaleDateString()}
-
-
-
+Date: ${formattedDate}
 To: ${r.name} (${r.seatNo})
-
-
-
+Division: ${divStr}
 Email: ${r.email}
+Subject: Recognition of Academic Distinction — Top 5 Division Merit Honoree
 
+Dear ${r.name},
 
+On behalf of the Academic Council and Department Faculty, we warmly commend your exemplary academic performance during the recent semester examinations.
 
-Subject: Recognition of Academic Excellence — Division Top 5 Honoree
+In recognition of your academic discipline and scholastic standing (${r.detail}), you have been officially named to the College Merit List as one of the Top 5 Students in Division ${divStr}.
 
-
-
-Dear Student,
-
-
-
-It is with great pleasure that the Academic Council and Department Faculty commend your outstanding academic achievement:
-
-
-
-${r.detail}
-
-
-
-In recognition of your exceptional mastery and academic discipline, you have been named to the College Merit List as one of the Top 5 Students in your division. You are formally invited to represent the department as a Senior Peer Mentor for the upcoming academic semester.
-
-
+In honor of your achievement:
+• You are invited to serve as an Academic Peer Mentor to guide junior scholars in foundational coursework.
+• You will receive formal commendation at the upcoming Annual Department Honors Assembly.
+• A Certificate of Academic Distinction will be placed into your permanent institutional transcript.
 
 Student Information:
-
-
-
-- Student Name: ${r.name}
-
-
-
-- Seat / Roll No: ${r.seatNo}
-
-
-
-- Division: ${r.division || '—'}
-
-
-
-- Merit Standing: ${r.detail}
-
-
+• Student Name: ${r.name}
+• Seat / Roll No: ${r.seatNo}
+• Division: ${divStr}
+• Merit Standing: ${r.detail}
 
 With warm congratulations,
-
-
-
-Head of Department & Office of the Principal`
-
-
-
+Head of Department & Examination Cell`
     }
 
-
-
     return `AWARD OF ACADEMIC EXCELLENCE — SUBJECT TOPPER COMMENDATION
-
-
-
-Date: ${new Date().toLocaleDateString()}
-
-
-
+Date: ${formattedDate}
 To: ${r.name} (${r.seatNo})
-
-
-
+Division: ${divStr}
 Email: ${r.email}
-
-
-
 Subject: Subject Topper Commendation & Felicitation Award
 
+Dear ${r.name},
 
+The Academic Council and Department Faculty warmly congratulate you on achieving the HIGHEST MARKS in Division ${divStr} for:
+• ${r.detail}
 
-Dear Student,
+Your distinguished subject mastery demonstrates extraordinary intellectual rigor and analytical commitment.
 
-
-
-The Academic Council and Department Faculty warmly congratulate you on achieving the HIGHEST MARKS in your division:
-
-
-
-${r.detail}
-
-
-
-In recognition of your academic excellence and subject mastery, you have been awarded the Department Subject Excellence Certificate and Academic Gift, to be conferred at the upcoming College Annual Awards Ceremony.
-
-
+In recognition of this outstanding accomplishment:
+• You have been awarded the Department Subject Excellence Commendation.
+• Your achievement will be formally recognized at the upcoming College Annual Awards Ceremony.
+• A Certificate of Subject Mastery and an academic honorarium will be conferred during the assembly.
 
 Student Information:
-
-
-
-- Student Name: ${r.name}
-
-
-
-- Seat / Roll No: ${r.seatNo}
-
-
-
-- Division: ${r.division || '—'}
-
-
-
-- Subject Achievement: ${r.detail}
-
-
+• Student Name: ${r.name}
+• Seat / Roll No: ${r.seatNo}
+• Division: ${divStr}
+• Subject Achievement: ${r.detail}
 
 With warmest congratulations,
-
-
-
 Head of Department & Academic Awards Committee`
   }, [])
 
@@ -1211,259 +1050,26 @@ Head of Department & Academic Awards Committee`
     return buildNoticeText(selectedTemplate, activeRecipient)
   }, [selectedTemplate, activeRecipient, buildNoticeText])
 
-
-
   const handleOpenInOutlook = (targetRecipient?: typeof activeRecipient) => {
-
-
-
     const target = targetRecipient || activeRecipient
-
-
-
     if (!target) return
 
-
-
     let subject = ''
-
-
-
-    let body = ''
-
-
-
     if (selectedTemplate === 'failed') {
-
-
-
       subject = `Academic Notice: Mandatory Remedial Mentoring - ${target.name} (${target.seatNo})`
-
-
-
-      body = `Dear ${target.name},
-
-
-
-Official review of your recent semester results indicates that you have pending backlog evaluations in:
-
-
-
-${target.detail}
-
-
-
-You have been paired with an academic peer mentor for weekly problem-solving clinics.
-
-
-
-Please report to your department coordinator by Monday at 10:00 AM to finalize your remedial timetable.
-
-
-
-Student Information:
-
-
-
-- Student Name: ${target.name}
-
-
-
-- Seat / Roll No: ${target.seatNo}
-
-
-
-- Division: ${target.division || '—'}
-
-
-
-- Backlog Courses: ${target.detail}
-
-
-
-Sincerely,
-
-
-
-Examination Cell & Academic Review Committee`
-
-
-
     } else if (selectedTemplate === 'absent') {
-
-
-
       subject = `Academic Notice: Missed Examination Documentation - ${target.name} (${target.seatNo})`
-
-
-
-      body = `Dear ${target.name},
-
-
-
-University examination records indicate your absence during recent examinations:
-
-
-
-${target.detail}
-
-
-
-If your absence was due to verified medical or institutional emergencies, please submit your supporting documentation to the exam cell within 5 business days to confirm your make-up evaluation eligibility.
-
-
-
-Student Information:
-
-
-
-- Student Name: ${target.name}
-
-
-
-- Seat / Roll No: ${target.seatNo}
-
-
-
-- Division: ${target.division || '—'}
-
-
-
-- Missed Evaluations: ${target.detail}
-
-
-
-Sincerely,
-
-
-
-Office of the Principal (Academic Affairs)`
-
-
-
     } else if (selectedTemplate === 'toppers') {
-
-
-
       subject = `Congratulatory Letter: College Merit List (Top 5) - ${target.name} (${target.seatNo})`
-
-
-
-      body = `Dear ${target.name},
-
-
-
-It is with great pleasure that we commend your outstanding academic performance:
-
-
-
-${target.detail}
-
-
-
-In recognition of your exceptional mastery and leadership, the department formally invites you to serve as a Senior Peer Mentor for the upcoming academic semester.
-
-
-
-Student Information:
-
-
-
-- Student Name: ${target.name}
-
-
-
-- Seat / Roll No: ${target.seatNo}
-
-
-
-- Division: ${target.division || '—'}
-
-
-
-- Merit Standing: ${target.detail}
-
-
-
-With warm congratulations,
-
-
-
-Head of Department & Office of the Principal`
-
-
-
     } else {
-
-
-
       subject = `Award of Academic Excellence: Subject Topper Award - ${target.name} (${target.seatNo})`
-
-
-
-      body = `Dear ${target.name},
-
-
-
-The Academic Council and Department Faculty warmly congratulate you on achieving the HIGHEST MARKS in your division:
-
-
-
-${target.detail}
-
-
-
-In recognition of your academic excellence and subject mastery, you have been selected to receive the College Subject Excellence Certificate and Academic Gift at the upcoming College Annual Awards Ceremony.
-
-
-
-Student Information:
-
-
-
-- Student Name: ${target.name}
-
-
-
-- Seat / Roll No: ${target.seatNo}
-
-
-
-- Division: ${target.division || '—'}
-
-
-
-- Subject Achievement: ${target.detail}
-
-
-
-With warmest congratulations,
-
-
-
-Head of Department & Academic Awards Committee`
-
-
-
     }
 
-
-
+    const body = buildNoticeText(selectedTemplate, target)
     const email = target.email || `${target.seatNo}@student.univ.edu`
-
-
-
     const mailtoUrl = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-
-
-
     window.location.href = mailtoUrl
-
-
-
   }
-
-
 
   const handleCopyNotice = () => {
 
