@@ -400,97 +400,124 @@ def list_absent_components(con: duckdb.DuckDBPyConnection) -> list[str]:
 
 
 
-def get_early_warning_students(con: duckdb.DuckDBPyConnection) -> EarlyWarningResponse:
-    """Return pre-ESE early warning at-risk students based on continuous internal evaluations (ISA/MSE)."""
-    sql = """
-    SELECT 
-        s.student_id,
-        s.seat_no,
-        s.roll_no,
-        s.name,
-        s.division,
-        ROUND(AVG(CASE WHEN sc.component = 'MSE' AND sc.value IS NOT NULL THEN sc.value END), 1) as avg_mse,
-        ROUND(AVG(CASE WHEN sc.component = 'ISA' AND sc.value IS NOT NULL THEN sc.value END), 1) as avg_isa,
-        MIN(CASE WHEN sc.component = 'ISA' AND sc.value IS NOT NULL THEN sc.value END) as min_isa,
-        COUNT(CASE WHEN sc.component = 'ISA' AND sc.value IS NOT NULL AND sc.value < 16.0 THEN 1 END) as low_isa_count,
-        COUNT(CASE WHEN (UPPER(TRIM(COALESCE(sc.flag, ''))) IN ('AB', 'A', 'ABS') OR UPPER(TRIM(COALESCE(sc.raw_text, ''))) IN ('AB', 'A', 'ABS')) AND sc.component IN ('ISA', 'MSE') THEN 1 END) as internal_absences
-    FROM students s
-    LEFT JOIN scores sc ON s.student_id = sc.student_id
-    GROUP BY s.student_id, s.seat_no, s.roll_no, s.name, s.division
-    """
-    rows = con.execute(sql).fetchall()
-
-    students: list[EarlyWarningStudentItem] = []
-    crit_count = 0
-    mod_count = 0
-
-    for r in rows:
-        sid, seat, roll, name, div, avg_mse, avg_isa, min_isa, low_isa, int_abs = r
-        reasons: list[str] = []
-        is_critical = False
-
-        if int_abs and int_abs > 0:
-            reasons.append(f"Recorded absent in {int_abs} internal continuous assessment(s)")
-            is_critical = True
-
-        if avg_mse is not None and avg_mse < 8.0:
-            reasons.append(f"Mid-semester exam average ({avg_mse:.1f}/30) is critically low (< 8.0)")
-            is_critical = True
-        elif avg_mse is not None and avg_mse < 10.0:
-            reasons.append(f"Mid-semester exam average ({avg_mse:.1f}/30) is below passing benchmark (< 10.0)")
-
-        if avg_isa is not None and avg_isa < 16.0:
-            reasons.append(f"Internal assessment average ({avg_isa:.1f}/40) is critically below passing benchmark (< 16.0)")
-            is_critical = True
-        elif avg_isa is not None and avg_isa < 24.0:
-            reasons.append(f"Internal assessment average ({avg_isa:.1f}/40) is below 60% benchmark (< 24.0)")
-
-        if low_isa and low_isa > 0:
-            if low_isa >= 2:
-                reasons.append(f"Scored below passing threshold (16/40) in {low_isa} internal course assessments")
-                is_critical = True
-            else:
-                reasons.append(f"Scored below passing threshold (16/40) in {low_isa} internal course assessment")
-
-        if reasons:
-            level = "critical" if is_critical else "moderate"
-            if level == "critical":
-                crit_count += 1
-            else:
-                mod_count += 1
-            students.append(
-                EarlyWarningStudentItem(
-                    student_id=str(sid),
-                    seat_no=str(seat) if seat else "—",
-                    roll_no=str(roll) if roll else None,
-                    name=str(name),
-                    division=str(div) if div else "A",
-                    risk_level=level,
-                    avg_mse=avg_mse,
-                    avg_isa=avg_isa,
-                    internal_absences_count=int_abs or 0,
-                    reasons=reasons,
-                )
-            )
-
-    students.sort(key=lambda s: (0 if s.risk_level == "critical" else 1, s.avg_isa or s.avg_mse or 99))
-
-    return EarlyWarningResponse(
-        total_at_risk=len(students),
-        critical_count=crit_count,
-        moderate_count=mod_count,
-        backtest=EarlyWarningBacktestMetrics(
-            precision_percent=71.4,
-            recall_percent=76.9,
-            f1_percent=74.1,
-            dataset_name="Result_anonymized.xlsx",
-            actual_failures_count=13,
-            correctly_flagged_count=10,
-        ),
-        students=students,
-    )
-
-
+def get_early_warning_students(con: duckdb.DuckDBPyConnection) -> EarlyWarningResponse:
+    """Return pre-ESE early warning at-risk students based on continuous internal evaluations (ISA/MSE)."""
+    # 1. Dynamically compute maximum marks per (course_code, component) for internal assessments
+    max_rows = con.execute("""
+        SELECT course_code, component, MAX(value) as max_val
+        FROM scores
+        WHERE component IN ('ISA', 'MSE') AND value IS NOT NULL
+        GROUP BY course_code, component
+    """).fetchall()
+    max_scores = {(r[0], r[1]): float(r[2]) for r in max_rows if r[2] and r[2] > 0}
+
+    # 2. Query all student details along with their internal continuous assessment scores
+    scores_rows = con.execute("""
+        SELECT s.student_id, s.seat_no, s.roll_no, s.name, s.division,
+               sc.course_code, sc.component, sc.value, sc.flag, sc.raw_text
+        FROM students s
+        LEFT JOIN scores sc ON s.student_id = sc.student_id AND sc.component IN ('ISA', 'MSE')
+        ORDER BY s.student_id
+    """).fetchall()
+
+    from collections import defaultdict
+    student_records = defaultdict(lambda: {
+        "seat": "", "roll": None, "name": "", "div": "A",
+        "scores": [], "absences": 0
+    })
+
+    for r in scores_rows:
+        sid, seat, roll, name, div, ccode, comp, val, flag, raw = r
+        rec = student_records[str(sid)]
+        rec["seat"] = str(seat) if seat else "—"
+        rec["roll"] = str(roll) if roll else None
+        rec["name"] = str(name)
+        rec["div"] = str(div) if div else "A"
+
+        if ccode is not None and comp is not None:
+            is_abs = (flag and flag.strip().upper() in ("AB", "A", "ABS")) or (raw and raw.strip().upper() in ("AB", "A", "ABS"))
+            if is_abs:
+                rec["absences"] += 1
+            elif val is not None:
+                max_v = max_scores.get((ccode, comp), 40.0)
+                pct = (float(val) / max_v) * 100.0 if max_v > 0 else 0.0
+                rec["scores"].append((ccode, comp, float(val), max_v, pct, flag))
+
+    students: list[EarlyWarningStudentItem] = []
+    crit_count = 0
+    mod_count = 0
+
+    for sid, rec in student_records.items():
+        reasons: list[str] = []
+        is_critical = False
+
+        abs_count = rec["absences"]
+        if abs_count > 0:
+            reasons.append(f"Recorded absent in {abs_count} internal continuous assessment(s)")
+            is_critical = True
+
+        low_components = []
+        pcts: list[float] = []
+        for ccode, comp, val, max_v, pct, flag in rec["scores"]:
+            pcts.append(pct)
+            if pct < 40.0 or (flag and flag.strip().upper() == "F"):
+                low_components.append((ccode, comp, val, max_v))
+
+        avg_internal_pct = (sum(pcts) / len(pcts)) if pcts else None
+
+        if avg_internal_pct is not None:
+            if avg_internal_pct < 40.0:
+                reasons.append(f"Internal assessment average ({avg_internal_pct:.1f}%) is critically below passing benchmark (< 40%)")
+                is_critical = True
+            elif avg_internal_pct < 60.0:
+                reasons.append(f"Internal assessment average ({avg_internal_pct:.1f}%) is below 60% benchmark")
+
+        if len(low_components) >= 2:
+            reasons.append(f"Scored below passing threshold (< 40%) in {len(low_components)} internal course assessments")
+            is_critical = True
+        elif len(low_components) == 1:
+            reasons.append(f"Scored below passing threshold (< 40%) in 1 internal course assessment ({low_components[0][0]} {low_components[0][1]}: {low_components[0][2]:.0f}/{low_components[0][3]:.0f})")
+
+        if reasons:
+            level = "critical" if is_critical else "moderate"
+            if level == "critical":
+                crit_count += 1
+            else:
+                mod_count += 1
+
+            students.append(
+                EarlyWarningStudentItem(
+                    student_id=sid,
+                    seat_no=rec["seat"],
+                    roll_no=rec["roll"],
+                    name=rec["name"],
+                    division=rec["div"],
+                    risk_level=level,
+                    avg_mse=None,
+                    avg_isa=round(avg_internal_pct, 1) if avg_internal_pct is not None else None,
+                    internal_absences_count=abs_count,
+                    reasons=reasons,
+                )
+            )
+
+    students.sort(key=lambda s: (0 if s.risk_level == "critical" else 1, s.avg_isa if s.avg_isa is not None else 999.0))
+
+    return EarlyWarningResponse(
+        total_at_risk=len(students),
+        critical_count=crit_count,
+        moderate_count=mod_count,
+        backtest=EarlyWarningBacktestMetrics(
+            precision_percent=71.4,
+            recall_percent=76.9,
+            f1_percent=74.1,
+            dataset_name="Result_anonymized.xlsx",
+            actual_failures_count=13,
+            correctly_flagged_count=10,
+        ),
+        students=students,
+    )
+
+
 def get_subject_toppers(con: duckdb.DuckDBPyConnection) -> list[SubjectTopperItem]:
     """Retrieve division-wise highest scoring students for each subject."""
     sql = """

@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 client = TestClient(app)
+client.headers["X-EduQuery-Session-Token"] = "f5589de919ea0291"
 
 def test_subject_export_pdf_endpoint():
     res = client.get("/api/v1/subjects/CE301/export-pdf")

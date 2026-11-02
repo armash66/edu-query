@@ -3434,7 +3434,7 @@ Head of Department & Academic Awards Committee`
 
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-secondary)' }}>
 
-                Failing internal benchmarks in 2+ subjects or avg &lt; 16
+                Failing internal benchmarks in 2+ subjects or avg &lt; 40%
 
               </div>
 
@@ -3592,7 +3592,7 @@ Head of Department & Academic Awards Committee`
 
                       <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 600 }}>
 
-                        {s.avg_isa !== null && s.avg_isa !== undefined ? `${s.avg_isa.toFixed(1)}/40` : (s.avg_mse ? `${s.avg_mse.toFixed(1)}/30` : '—')}
+                        {s.avg_isa !== null && s.avg_isa !== undefined ? `${s.avg_isa.toFixed(1)}%` : (s.avg_mse ? `${s.avg_mse.toFixed(1)}%` : '—')}
 
                       </td>
 

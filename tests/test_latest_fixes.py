@@ -12,6 +12,7 @@ from app.services.student_service import get_subject_toppers, get_early_warning_
 from app.services.overview_service import get_overview_summary
 
 client = TestClient(app)
+client.headers["X-EduQuery-Session-Token"] = "f5589de919ea0291"
 
 
 def test_export_hod_brief_pdf():

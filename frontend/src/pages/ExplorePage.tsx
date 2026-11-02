@@ -989,18 +989,19 @@ export const ExplorePage: React.FC = () => {
                     </span>
 
                     {/* Field Select */}
-                    <div style={{ flex: '1.2 1 150px' }}>
+                    <div style={{ flex: '1.5 1 200px', minWidth: '180px' }}>
                       <Listbox
                         options={availableFields.map((f) => ({ value: f.field, label: f.label }))}
                         value={cond.field}
                         onChange={(val) => handleUpdateCondition(idx, { field: val as InvestigationField })}
                         size="sm"
+                        menuMinWidth="280px"
                         ariaLabel="Condition field selector"
                       />
                     </div>
 
                     {/* Operator Select */}
-                    <div style={{ flex: '1 1 120px' }}>
+                    <div style={{ flex: '1 1 140px', minWidth: '130px' }}>
                       <Listbox
                         options={(fieldCap?.supported_operators ?? ['eq', 'neq']).map((op) => ({
                           value: op,
@@ -1009,6 +1010,7 @@ export const ExplorePage: React.FC = () => {
                         value={cond.operator}
                         onChange={(val) => handleUpdateCondition(idx, { operator: val as InvestigationOperator })}
                         size="sm"
+                        menuMinWidth="180px"
                         ariaLabel="Condition operator selector"
                       />
                     </div>

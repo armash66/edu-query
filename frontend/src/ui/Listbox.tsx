@@ -21,6 +21,8 @@ export interface ListboxProps<T extends string = string> {
   className?: string
   style?: React.CSSProperties
   ariaLabel?: string
+  menuMinWidth?: string
+  menuStyle?: React.CSSProperties
 }
 
 export const Listbox = <T extends string = string>({
@@ -36,6 +38,8 @@ export const Listbox = <T extends string = string>({
   className = '',
   style,
   ariaLabel,
+  menuMinWidth,
+  menuStyle,
 }: ListboxProps<T>): React.ReactElement => {
   const [isOpen, setIsOpen] = useState(false)
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1)
@@ -270,15 +274,19 @@ export const Listbox = <T extends string = string>({
             position: 'absolute',
             top: 'calc(100% + var(--space-1))',
             left: 0,
-            right: 0,
+            minWidth: menuMinWidth || 'max(100%, max-content)',
+            width: 'max-content',
+            maxWidth: 'min(420px, calc(100vw - 32px))',
             zIndex: 1000,
-            maxHeight: '260px',
+            maxHeight: '280px',
             overflowY: 'auto',
+            overflowX: 'hidden',
             padding: 'var(--space-1)',
             borderRadius: 'var(--radius-input)',
             listStyle: 'none',
             margin: 0,
             boxShadow: 'var(--shadow-lg)',
+            ...menuStyle,
           }}
         >
           {options.map((option, idx) => {

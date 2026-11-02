@@ -285,6 +285,8 @@ def get_course_students_service(
             filtered = [s for s in all_students if s.is_absent or (s.status or "").lower() == "absent"]
         elif rf in ("unresolved", "excluded"):
             filtered = [s for s in all_students if (s.status or "").lower() in ("unresolved", "absent")]
+        elif rf == "toppers":
+            filtered = sorted(all_students, key=lambda s: (s.total_marks or 0.0), reverse=True)[:5]
         else:
             filtered = all_students
     else:

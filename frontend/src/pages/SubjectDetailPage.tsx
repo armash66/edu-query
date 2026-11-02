@@ -58,7 +58,7 @@ export const SubjectDetailPage: React.FC = () => {
   const [exportingCsv, setExportingCsv] = useState<boolean>(false)
   const [printAllStudents, setPrintAllStudents] = useState<SubjectStudentItem[] | null>(null)
 
-  const pageSize = 25
+  const [pageSize, setPageSize] = useState<number>(25)
   const abortControllerRef = useRef<AbortController | null>(null)
 
   const fetchCourseStudents = useCallback(async () => {
@@ -92,7 +92,7 @@ export const SubjectDetailPage: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }, [courseCode, divisionParam, statusParam, searchParam, pageParam])
+  }, [courseCode, divisionParam, statusParam, searchParam, pageParam, pageSize])
 
   useEffect(() => {
     fetchCourseStudents()
@@ -126,20 +126,8 @@ export const SubjectDetailPage: React.FC = () => {
 
   const visibleStudents = useMemo(() => {
     if (!data?.students) return []
-    if (statusParam === 'all') return data.students
-    if (statusParam === 'toppers') {
-      return [...data.students]
-        .sort((a, b) => (b.total_marks ?? 0) - (a.total_marks ?? 0))
-        .slice(0, 5)
-    }
-    return data.students.filter((s) => {
-      const st = (s.status || '').toLowerCase()
-      if (statusParam === 'passed') return st === 'passed'
-      if (statusParam === 'failed') return st === 'failed'
-      if (statusParam === 'absent') return s.is_absent || st === 'absent'
-      return true
-    })
-  }, [data?.students, statusParam])
+    return data.students
+  }, [data?.students])
 
   const handlePrintRoster = async () => {
     if (!courseCode) return
@@ -792,7 +780,20 @@ export const SubjectDetailPage: React.FC = () => {
           keyExtractor={(row) => row.student_id}
           pageSize={printAllStudents ? 500 : pageSize}
           showDensityToggle
-          showPagination={!printAllStudents}
+          showPagination={!printAllStudents && statusParam !== 'toppers'}
+          serverTotal={printAllStudents ? printAllStudents.length : (statusParam === 'toppers' ? visibleStudents.length : (data?.total ?? visibleStudents.length))}
+          currentPage={pageParam}
+          onPageChange={(p) => {
+            const nextParams = new URLSearchParams(searchParams)
+            nextParams.set('page', String(p))
+            setSearchParams(nextParams)
+          }}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize)
+            const nextParams = new URLSearchParams(searchParams)
+            nextParams.set('page', '1')
+            setSearchParams(nextParams)
+          }}
           defaultDensity="comfortable"
         />
       )}
