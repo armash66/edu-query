@@ -161,6 +161,7 @@ async def create_temporary_session(
     max_bytes = settings.max_upload_size_bytes
 
     # 3. Bounded streaming read
+    t_start = time.perf_counter()
     try:
         with open(quarantine_path, "wb") as out_f:
             first_chunk = True
@@ -301,6 +302,16 @@ async def create_temporary_session(
     finally:
         # Delete original uploaded xlsx file immediately after ingestion into DuckDB
         quarantine_path.unlink(missing_ok=True)
+
+    t_elapsed_ms = (time.perf_counter() - t_start) * 1000.0
+    logger.info(
+        "Temporary session %s ingested successfully: total=%.1fms, students=%d, courses=%d, divisions=%d",
+        session_id,
+        t_elapsed_ms,
+        report.students_count,
+        report.courses_count,
+        len(divisions),
+    )
 
     # 6. Build preview summary
     now = datetime.now(timezone.utc)

@@ -22,10 +22,7 @@ const UploadPage = lazy(() => import('./pages/UploadPage').then((m) => ({ defaul
 const StyleguidePage = lazy(() => import('./pages/StyleguidePage').then((m) => ({ default: m.StyleguidePage })))
 
 function HomeRoute() {
-  const { hasActiveSession, loading } = useSession()
-  if (loading) {
-    return <LoadingState message="Checking session status..." />
-  }
+  const { hasActiveSession } = useSession()
   if (!hasActiveSession) {
     return <UploadPage />
   }

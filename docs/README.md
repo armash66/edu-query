@@ -16,6 +16,7 @@ This directory contains technical specifications, architecture guides, deploymen
 | [`testing.md`](./testing.md) | Test suite organization, execution commands, 279 Pytest backend tests, 61 Vitest frontend tests, TypeScript validation, and acceptance workbooks. |
 | [`api-contract.md`](./api-contract.md) | Complete REST API endpoint contracts, request/response schemas, status codes, and error envelopes. |
 | [`investigation-engine.md`](./investigation-engine.md) | Interactive multi-condition query engine, filtering grammar, presets, and SQL translation. |
+| [`production-performance-and-reliability.md`](./production-performance-and-reliability.md) | Production performance engineering, session restoration, ingestion profiling, Excel provenance, and SQL correctness. |
 | [`anomaly-detection-methodology.md`](./anomaly-detection-methodology.md) | Three-tier noise-reduced anomaly detection methodology, evaluation benchmarks, and faculty review loops. |
 
 ---

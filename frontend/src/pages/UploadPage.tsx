@@ -39,23 +39,17 @@ export const UploadPage: React.FC = () => {
   const navigate = useNavigate()
 
   const {
-
     session,
-
     preview,
-
     isPreviewReady,
-
+    isRestoring,
+    restorationError,
+    retryRestoration,
     uploadMarksheet,
-
     confirmSession,
-
     deleteSession,
-
     saveSession,
-
     clearPreview,
-
   } = useSession()
 
   const { refreshHealth } = useHealth()
@@ -81,6 +75,16 @@ export const UploadPage: React.FC = () => {
 
 
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  React.useEffect(() => {
+    const startMs = performance.now()
+    return () => {
+      const durationMs = performance.now() - startMs
+      if (typeof window !== 'undefined' && (window as any).__EDUQUERY_DEBUG) {
+        console.debug(`[EduQuery] UploadPage lifecycle: ${durationMs.toFixed(1)}ms`)
+      }
+    }
+  }, [])
+
 
 
 
@@ -422,10 +426,14 @@ export const UploadPage: React.FC = () => {
 
 
 
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {isRestoring && (
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: 'var(--status-info-text, #3b82f6)', display: 'inline-block' }} />
+              Restoring session...
+            </span>
+          )}
           <ThemeMenu align="right" direction="down" />
-
         </div>
 
       </header>
@@ -462,7 +470,45 @@ export const UploadPage: React.FC = () => {
 
       >
 
-        {/* Error Notice */}
+                {restorationError && !uploading && (
+          <div
+            style={{
+              width: '100%',
+              marginBottom: 'var(--space-4)',
+              padding: '8px 14px',
+              borderRadius: 'var(--radius-md, 8px)',
+              backgroundColor: 'var(--bg-glass-subtle, rgba(255,255,255,0.03))',
+              border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '13px',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Info size={14} style={{ color: 'var(--text-muted)' }} />
+              Previous session check timed out (server warming up).
+            </span>
+            <button
+              onClick={() => retryRestoration()}
+              type="button"
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border, rgba(255,255,255,0.15))',
+                borderRadius: '4px',
+                padding: '2px 8px',
+                color: 'var(--text)',
+                cursor: 'pointer',
+                fontSize: '12px',
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+{/* Error Notice */}
 
         {errorMsg && (
 
