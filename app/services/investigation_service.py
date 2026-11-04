@@ -203,12 +203,22 @@ def _build_condition_sql(
     op = cond.operator
     val = cond.value
 
-    # Subquery for multi-fails
+    # Correlated scalar subquery computing exact distinct failed subject count with COALESCE(..., 0)
+    # Uses exact token boundary matching on delimiter-separated flags to prevent false substring matches (e.g. OFFLINE, FIRST_CLASS)
+    correlated_fails_sql = """(
+        SELECT COALESCE(COUNT(DISTINCT r.course_code), 0)
+        FROM reconciliation r
+        WHERE r.student_id = students.student_id
+          AND (UPPER(TRIM(COALESCE(r.grade, ''))) IN ('F', 'FAIL') OR (',' || REPLACE(UPPER(COALESCE(r.flags, '')), ' ', '') || ',') LIKE '%,F,%')
+          AND NOT (UPPER(TRIM(COALESCE(r.grade, ''))) IN ('O', 'A+', 'A', 'B+', 'B', 'C', 'D', 'P', 'PASS') AND (',' || REPLACE(UPPER(COALESCE(r.flags, '')), ' ', '') || ',') LIKE '%,F,%')
+    )"""
+
+    # Subquery for student_id matching (legacy fallback)
     fails_subquery = """
         SELECT student_id
         FROM reconciliation
-        WHERE (UPPER(TRIM(grade)) IN ('F', 'FAIL') OR UPPER(flags) LIKE '%F%')
-          AND NOT (UPPER(TRIM(grade)) IN ('O', 'A+', 'A', 'B+', 'B', 'C', 'D', 'P', 'PASS') AND UPPER(flags) LIKE '%F%')
+        WHERE (UPPER(TRIM(COALESCE(grade, ''))) IN ('F', 'FAIL') OR (',' || REPLACE(UPPER(COALESCE(flags, '')), ' ', '') || ',') LIKE '%,F,%')
+          AND NOT (UPPER(TRIM(COALESCE(grade, ''))) IN ('O', 'A+', 'A', 'B+', 'B', 'C', 'D', 'P', 'PASS') AND (',' || REPLACE(UPPER(COALESCE(flags, '')), ' ', '') || ',') LIKE '%,F,%')
         GROUP BY student_id
         HAVING COUNT(DISTINCT course_code)
     """
@@ -270,13 +280,13 @@ def _build_condition_sql(
         bool_val = bool(val) if not isinstance(val, str) else val.lower() in ("true", "1", "yes")
         if bool_val:
             return (
-                f"student_id IN ({fails_subquery} >= 2)",
+                f"{correlated_fails_sql} >= 2",
                 [],
                 "Failing 2 or more subjects",
             )
         else:
             return (
-                f"student_id NOT IN ({fails_subquery} >= 2)",
+                f"{correlated_fails_sql} < 2",
                 [],
                 "Failing fewer than 2 subjects",
             )
@@ -287,11 +297,17 @@ def _build_condition_sql(
         except (ValueError, TypeError):
             num = 0
         if op == "gte":
-            return f"student_id IN ({fails_subquery} >= ?)", [num], f"Failed subjects >= {num}"
+            return f"{correlated_fails_sql} >= ?", [num], f"Failed subjects >= {num}"
         elif op == "lte":
-            return f"student_id IN ({fails_subquery} <= ?)", [num], f"Failed subjects <= {num}"
+            return f"{correlated_fails_sql} <= ?", [num], f"Failed subjects <= {num}"
         elif op == "eq":
-            return f"student_id IN ({fails_subquery} = ?)", [num], f"Failed subjects = {num}"
+            return f"{correlated_fails_sql} = ?", [num], f"Failed subjects = {num}"
+        elif op == "gt":
+            return f"{correlated_fails_sql} > ?", [num], f"Failed subjects > {num}"
+        elif op == "lt":
+            return f"{correlated_fails_sql} < ?", [num], f"Failed subjects < {num}"
+        elif op == "neq":
+            return f"{correlated_fails_sql} != ?", [num], f"Failed subjects != {num}"
 
     elif field == "has_absent":
         absent_students_subquery = """

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import {
   getSessionStatus,
   uploadSession,
@@ -8,6 +8,7 @@ import {
   saveSession as apiSaveSession,
   setSessionToken,
   clearSessionToken,
+  ApiError,
 } from '../api/client'
 import type {
   SessionStatusResponse,
@@ -21,6 +22,8 @@ export interface SessionContextType {
   session: SessionStatusResponse | null
   preview: SessionPreviewData | null
   loading: boolean
+  isRestoring: boolean
+  restorationError: string | null
   hasActiveSession: boolean
   isPreviewReady: boolean
   uploadMarksheet: (file: File) => Promise<SessionUploadResponse>
@@ -28,7 +31,8 @@ export interface SessionContextType {
   confirmSession: () => Promise<SessionConfirmResponse>
   deleteSession: () => Promise<void>
   saveSession: (datasetName?: string) => Promise<SessionSaveResponse>
-  refreshStatus: () => Promise<void>
+  refreshStatus: (forceToken?: string) => Promise<void>
+  retryRestoration: () => Promise<void>
   clearPreview: () => void
 }
 
@@ -38,10 +42,24 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [session, setSession] = useState<SessionStatusResponse | null>(null)
   const [preview, setPreview] = useState<SessionPreviewData | null>(null)
   const [loading, setLoading] = useState<boolean>(true)
+  const [isRestoring, setIsRestoring] = useState<boolean>(false)
+  const [restorationError, setRestorationError] = useState<string | null>(null)
 
-  const refreshStatus = useCallback(async () => {
+  // Request generation sequence to prevent late background restoration from overwriting newer uploads
+  const mutationSeqRef = useRef<number>(0)
+
+  const refreshStatus = useCallback(async (forceToken?: string) => {
+    const seq = ++mutationSeqRef.current
+    setIsRestoring(true)
+    setRestorationError(null)
+
     try {
-      const status = await getSessionStatus()
+      const options = forceToken ? { sessionToken: forceToken } : undefined
+      const status = await getSessionStatus(options)
+
+      // If user uploaded a new marksheet or initiated another mutation while this request was in flight, discard
+      if (mutationSeqRef.current !== seq) return
+
       setSession(status)
       if (status.session_id && (status.active || status.state === 'preview_ready')) {
         setSessionToken(status.session_id)
@@ -49,15 +67,34 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (status.preview) {
         setPreview(status.preview)
       }
+      // If the backend explicitly returned 200 indicating session is inactive and not preview_ready, clear token
       if (!status.active && status.state !== 'preview_ready') {
         clearSessionToken()
       }
-    } catch {
-      setSession(null)
-      setPreview(null)
-      clearSessionToken()
+      setRestorationError(null)
+    } catch (err: unknown) {
+      if (mutationSeqRef.current !== seq) return
+
+      // Do NOT clear session token on network errors or timeouts!
+      // Only clear if server explicitly responded with 401 Unauthorized or 404 Not Found
+      if (err instanceof ApiError && (err.status === 401 || err.status === 404)) {
+        setSession(null)
+        setPreview(null)
+        clearSessionToken()
+        setRestorationError(null)
+      } else if (err instanceof DOMException && err.name === 'AbortError') {
+        // Aborted - do nothing
+      } else {
+        // Temporary network or timeout error (e.g. Render spin-up)
+        const msg = err instanceof ApiError ? err.message : 'Server unavailable or waking up.'
+        setRestorationError(msg)
+        // Keep existing token so user or background can retry
+      }
     } finally {
-      setLoading(false)
+      if (mutationSeqRef.current === seq) {
+        setIsRestoring(false)
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -65,7 +102,16 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     refreshStatus()
   }, [refreshStatus])
 
+  const retryRestoration = useCallback(async () => {
+    await refreshStatus()
+  }, [refreshStatus])
+
   const uploadMarksheet = async (file: File): Promise<SessionUploadResponse> => {
+    // Invalidate any in-flight session restoration requests immediately
+    mutationSeqRef.current++
+    setIsRestoring(false)
+    setRestorationError(null)
+
     const res = await uploadSession(file)
     if (res.session_id) {
       setSessionToken(res.session_id)
@@ -87,6 +133,10 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }
 
   const loadSampleSession = async (): Promise<SessionUploadResponse> => {
+    mutationSeqRef.current++
+    setIsRestoring(false)
+    setRestorationError(null)
+
     const res = await createSampleSession()
     if (res.session_id) {
       setSessionToken(res.session_id)
@@ -126,6 +176,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }
 
   const deleteSession = async (): Promise<void> => {
+    mutationSeqRef.current++
+    setIsRestoring(false)
+    setRestorationError(null)
     try {
       await apiDeleteSession(session?.session_id)
     } catch {
@@ -175,6 +228,8 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         session,
         preview,
         loading,
+        isRestoring,
+        restorationError,
         hasActiveSession,
         isPreviewReady,
         uploadMarksheet,
@@ -183,6 +238,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         deleteSession,
         saveSession,
         refreshStatus,
+        retryRestoration,
         clearPreview,
       }}
     >
@@ -198,6 +254,8 @@ export function useSession(): SessionContextType {
       session: null,
       preview: null,
       loading: false,
+      isRestoring: false,
+      restorationError: null,
       hasActiveSession: false,
       isPreviewReady: false,
       uploadMarksheet: async () => ({} as any),
@@ -206,6 +264,7 @@ export function useSession(): SessionContextType {
       deleteSession: async () => {},
       saveSession: async () => ({} as any),
       refreshStatus: async () => {},
+      retryRestoration: async () => {},
       clearPreview: () => {},
     }
   }

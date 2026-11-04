@@ -159,7 +159,13 @@ def translate_natural_query(
 
     # Fail / Pass status parsing
     if re.search(r"\b(?:failed|failing|fail|backlogs?|arrears?|atkt)\b", query_lower):
-        if re.search(r"(?:\b4\+|\b4 or more\b|\bcritical\b|\bsevere\b)", query_lower):
+        if re.search(r"(?:\b0\b|\bzero\b|\bno\b|\bwithout\b)\s+(?:failed|failing|fails|backlogs?|arrears?|atkt)", query_lower):
+            conditions.append(InvestigationCondition(field="failed_subject_count", operator="eq", value=0))
+            explanations.append("Failed subjects = 0")
+        elif re.search(r"(?:\bat least (?:1|one)\b|\b1\+|\b>= 1\b|\b1 or more\b)", query_lower):
+            conditions.append(InvestigationCondition(field="failed_subject_count", operator="gte", value=1))
+            explanations.append("Failed in >= 1 subjects")
+        elif re.search(r"(?:\b4\+|\b4 or more\b|\bcritical\b|\bsevere\b)", query_lower):
             conditions.append(InvestigationCondition(field="failed_subject_count", operator="gte", value=4))
             explanations.append("Failed in >= 4 subjects (Critical)")
         elif re.search(r"(?:\b1-3\b|\b1 to 3\b|\bsingle\b)", query_lower):
