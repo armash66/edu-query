@@ -1,161 +1,153 @@
-# EduQuery: Academic Marksheet Analysis Engine
+<div align="center">
 
-EduQuery is a deterministic academic marksheet analysis platform designed for university faculty, departmental heads, and academic administrators. It automates the parsing, validation, reconciliation, and audit of unstandardized college semester marksheets (such as Mumbai University Excel spreadsheets with multi-tier merged headers and multi-division structures).
+# 🎓 EduQuery
 
-The platform replaces manual spreadsheet calculations with an in-process vectorized analytical engine, providing verifiable student performance breakdowns, curriculum-wide failure rates, multi-condition cohort investigations, and noise-reduced anomaly detection.
+**Deterministic Academic Marksheet Intelligence & Verification Engine**
+
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-3776AB.svg?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![DuckDB](https://img.shields.io/badge/DuckDB-1.5.6-FFF000.svg?style=flat-square&logo=duckdb&logoColor=black)](https://duckdb.org/)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB.svg?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6.svg?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
+[![Tests Passing](https://img.shields.io/badge/tests-435%20passed-brightgreen.svg?style=flat-square)](#testing--verification)
+
+<p align="center">
+  <a href="#overview">Overview</a> •
+  <a href="#key-capabilities">Key Capabilities</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#benchmarks">Benchmarks</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#documentation">Documentation</a> •
+  <a href="#citation">Citation</a>
+</p>
 
 ---
 
-## Project Status
-
-- Version: EduQuery (Production Ready)
-- Verification Status: Locally verified with 100% test pass rate across 279 backend Pytest tests, 61 frontend Vitest tests, strict TypeScript checks, and production bundle builds.
-- Deployment Status: Containerized and configuration-ready. Production blueprints are prepared for Render (`render.yaml`) and Vercel (`vercel.json`).
-- Remote Verification Note: Local automated test suites establish that all application components, security gates, JWT validators, and static builds function as specified. They do not establish that remote Render, Vercel, and an external institutional identity provider have been tested together until live cloud infrastructure is provisioned and bound.
-- Core Shift: Replaces experimental natural-language query and LoRA fine-tuning pipelines from V1/V2 with a deterministic, dashboard-first architecture.
-
----
+</div>
 
 ## Overview
 
-Academic institutions generate marksheet spreadsheets that feature complex merged headers, varied grading rules, and non-uniform layouts across divisions. Manually extracting departmental pass rates, tracking student backlogs, and preparing accreditation statistics (such as NBA or NAAC documentation) is slow and prone to calculation errors.
+Academic institutions routinely handle high-stakes semester marksheets formatted as unstandardized, multi-tier merged Excel spreadsheets. Manual validation of student results, subject backlogs, Multidisciplinary Minor (MDM) electives, and accreditation statistics (NBA/NAAC) is notoriously slow, fragile, and prone to calculation error.
 
-EduQuery provides a workflow tailored to faculty needs:
-1. Upload & Ingest: Drag-and-drop raw semester marksheets (.xlsx).
-2. Layout Induction: The engine automatically determines table boundaries, student identity anchors, component structures, and elective courses.
-3. Pre-Activation Validation: Academic integrity checks identify duplicate student IDs, out-of-range marks, absence anomalies, and elective conflicts before cohort activation.
-4. Privacy-First Session: Analysis runs in an ephemeral, isolated in-memory DuckDB session by default (zero permanent storage). Institutional dataset persistence is opt-in.
-5. Cohort Intelligence: Faculty explore division performance, identify high-failure courses, query specific student cohorts using multi-condition filters, and review data-quality findings.
-6. Sanitized Exports: Roster and failure reports are exported to CSV with formula-injection neutralization and single-use download ticket authentication.
+**EduQuery** replaces error-prone spreadsheet macros with an **in-process, vectorized analytical engine** powered by **FastAPI** and **DuckDB**. It processes semester marksheets with **sub-second speed**, provides verifiable cohort-wide analytics, and guarantees strict **source-cell provenance** without modifying original academic records.
 
 ---
 
-## Features
+## Why EduQuery?
 
-### 1. Adaptive Workbook Ingestion & Layout Induction
-- Automatically classifies multi-tier merged headers, single-row vs. paired-row formats, and multi-sheet workbooks (`Div A`, `Div B`).
-- Normalizes floating-point assessment marks while preserving original cell provenance (`source_sheet`, `source_row`).
-- Correctly distinguishes valid numeric zeros (`0.0`) from absence markers (`AB`, `ABS`).
-
-### 2. MDM Elective Semantics & Enrolled Denominators
-- Enforces mutually exclusive single-choice elective selection (1 of N) across Multidisciplinary Minor groups.
-- Unselected elective alternatives generate zero phantom records, grades, or misleading mismatch warnings.
-- Course failure rates calculate strictly against the enrolled denominator rather than the full class cohort.
-
-### 3. Academic Integrity Validator (Checks 1 to 10)
-- Detects duplicate student identities, missing roll numbers, and unparseable score cells (blocking errors).
-- Surfaces out-of-range marks (e.g. elective composite totals exceeding 100) as non-blocking data quality warnings without silent clamping or truncation.
-- Reconciles printed totals against computed component sums.
-
-### 4. Interactive Cohort Investigation Engine
-- Flexible multi-condition filter builder supporting AND/OR combination logic.
-- Filter criteria by division, overall result, total score, SGPI, course enrollment, and component score thresholds.
-- Pre-configured academic presets: Multi-Course Failures, High Scorers with At-Risk Components, Borderline Students, and Course Failure Cohorts.
-
-### 5. Curriculum-Wide Subject Failure Analysis
-- Roster of confirmed failures per subject with component score breakdowns (Internal, Mid-Sem, End-Sem, Practical).
-- Sortable failure summaries with division-level partition reconciliation.
-
-### 6. Noise-Reduced Anomaly Detection
-- Multi-tiered anomaly detection: deterministic calculation discrepancies (Tier A) and multivariate Isolation Forest outliers (Tier C).
-- Decouples statistical tail noise from default faculty screens while providing persistent review feedback loops per dataset.
-
-### 7. Dual Storage Topology & Privacy Controls
-- Ephemeral Analysis (Default): Isolated DuckDB sessions in temporary memory, cleared on session deletion or idle TTL expiration.
-- Institutional Storage (Opt-In): Persistent versioned dataset storage with atomic active pointer swaps.
+| Capability | Traditional Spreadsheet / Manual Workflow | EduQuery Vectorized Engine |
+| :--- | :--- | :--- |
+| **Ingestion Speed** | 10–30 minutes of manual alignment & formulas | **~740 ms** via parallel Rust `calamine` extraction |
+| **Data Integrity** | Silent formula errors, truncated decimals, zero vs. absent confusion | **Strict Five-State Semantics** (`marked`, `flagged`, `uncalculated`, etc.) |
+| **Electives (MDM)** | Phantom warnings; wrong cohort denominators | **Elective-Aware Resolution**; failure rates calculated per enrolled student |
+| **Audit Provenance** | Lost origin context across aggregated tabs | **Cell-Level Provenance**; exact `Source Sheet` & `Source Row` in every export |
+| **Privacy / Security** | Student data permanently left on desktop machines | **Zero-Retention Default**; ephemeral in-memory DuckDB sessions (2-hr TTL) |
+| **Export Safety** | CSV formula injection vulnerable (`=cmd`, `@SUM`) | **Hardened Sanitization**; single quotes prepended to trigger tokens |
 
 ---
 
-## Screenshots
+## Key Capabilities
 
-Representative screenshots and visual walkthroughs of the user interface are documented in the design specification [`docs/phase9-minimalist-design-report.md`](./docs/phase9-minimalist-design-report.md). To comply with student data privacy standards, all published visual assets use anonymized synthetic datasets.
+### ⚡ Sub-Second Rust & DuckDB Ingestion
+- Ingests raw semester spreadsheets in parallel using the `python-calamine` Rust extension.
+- Employs DuckDB's vectorized Appender API to load thousands of student assessment components into memory in under 800 ms.
+
+### 🛡️ Five-State Assessment Semantics
+Every cell is deterministically classified into one of five mutually exclusive states:
+1. `marked`: Valid numeric score, with optional suffix flag (e.g., `'45'`, `'32F'`).
+2. `flagged`: Explicit non-numeric status marker (e.g., `'AB'`, `'ABS'`).
+3. `uncalculated`: Explicit absent or placeholder indicator (`'-'`, `'NA'`).
+4. `not_enrolled`: Clean empty cell representing an elective un-offered to that student.
+5. `unparsed`: Malformed text surfaced immediately for faculty review.
+
+### 🔍 Interactive Cohort Investigation Engine
+- Multi-condition boolean query builder (`AND` / `OR`) supporting complex academic filters:
+  - Confirmed failed courses, zero backlogs, division splits, SGPI ranges, and absence thresholds.
+- **Correlated SQL with `COALESCE`:** Mathematically guarantees accurate calculations for students with zero backlogs (`failed_subject_count = 0`).
+- **Exact Token Flag Matching:** Evaluates comma-delimited component flags (`(',' || flags || ',') LIKE '%,F,%'`), rejecting false positives from strings like `OFFLINE` or `FIRST_CLASS`.
+
+### 📊 Comprehensive Multi-Format Exports
+- Generates official, publication-ready Excel (`.xlsx`), CSV, and PDF reports.
+- Includes exact source provenance columns (**`Source Sheet` at N5** and **`Source Row` at O5**).
+- Full-range table auto-filters (`A5:O{last_row}`) and frozen header panes (`A6`).
+- Automatic spreadsheet formula injection protection.
 
 ---
 
 ## Architecture
 
-EduQuery is built as a layered system separating network ingress, REST controllers, application services, domain classification, and vectorized analytical storage.
+EduQuery follows a modern, decoupled layered architecture separating ingress security, service coordination, domain invariants, and vectorized analytical storage.
 
 ```mermaid
-graph TD
-    Client[Browser / Faculty Client] -->|HTTPS Requests| Gateway[Faculty Identity Gateway / Proxy]
-    Gateway -->|Cf-Access-Jwt-Assertion| App[FastAPI Application: app/main.py]
-
-    subgraph "Ingress and Security Layer"
-        CORS[CORS Middleware: Origin Allowlist]
-        AuthGate[Gateway Auth Middleware: RS256 JWT Verify]
-        CORS --> AuthGate
+flowchart TD
+    subgraph Frontend ["Frontend Tier (Vercel / React 19 + TypeScript)"]
+        UI["Monochrome Glass UI<br>(UploadPage / OverviewPage / ExplorePage)"]
+        SC["SessionContext<br>(Mutation Sequence Counter & Token Preservation)"]
+        API["API Client<br>(AbortController Timeouts & Error Discrimination)"]
+        UI --> SC --> API
     end
 
-    App --> CORS
-    AuthGate -->|Validated Request| Routers[APIRouter: app/api/]
-
-    subgraph "Application Services Layer"
-        Routers --> AnalyticsServ[Analytics Service]
-        Routers --> InvestigateServ[Investigation Engine]
-        Routers --> StudentServ[Student Service]
-        Routers --> SubjectServ[Subject Service]
-        Routers --> QualityServ[Data Quality Service]
-        Routers --> ExportServ[Export Service]
+    subgraph Backend ["Backend Tier (Render / FastAPI + Python 3.11+)"]
+        MW["Timing & Ingress Middleware<br>(X-Process-Time-Ms, CORS, Gateway Auth)"]
+        ROUTERS["REST API Endpoints<br>(/session, /students, /subjects, /analytics, /exports)"]
+        SERVICES["Application Services<br>(SessionManager, InvestigationService, ExportService)"]
+        MW --> ROUTERS --> SERVICES
     end
 
-    subgraph "Session Management & Storage"
-        Routers --> SessionMgr[Session Manager]
-        SessionMgr -->|Default: Ephemeral| TempStorage[(Session DuckDB: /tmp/eduquery-sessions/)]
-        SessionMgr -->|Opt-In: Institutional| PermStorage[(Institutional DuckDB: /app/data/datasets/)]
+    subgraph Storage ["Vectorized Storage Tier (DuckDB Embedded Engine)"]
+        CALAMINE["python-calamine Rust Reader"]
+        SESSIONS["Ephemeral Session Scratchpad<br>(/tmp/eduquery-sessions/ · 2-Hour TTL)"]
+        DATASETS["Institutional Versioned Datasets<br>(/app/data/datasets/ · Atomic Pointer)"]
+        SERVICES --> CALAMINE
+        SERVICES --> SESSIONS
+        SERVICES --> DATASETS
     end
 
-    AnalyticsServ --> TempStorage
-    InvestigateServ --> TempStorage
-    StudentServ --> TempStorage
-    SubjectServ --> TempStorage
+    API -->|HTTPS / JSON / Binary Streams| MW
 ```
 
-For full details on concurrency, database lifecycles, and layer boundaries, see [`docs/architecture.md`](./docs/architecture.md).
+For complete architectural specifications, layer boundaries, and schema definitions, see [`docs/architecture.md`](./docs/architecture.md).
 
 ---
 
-## Technology Stack
+## Benchmarks
 
-### Backend Core
-- Python 3.11+ (Verified on Python 3.14.2)
-- FastAPI: High-performance ASGI framework with Pydantic v2 validation
-- DuckDB: Vectorized in-process analytical SQL database engine
-- Openpyxl: Low-level spreadsheet inspection and layout parsing
-- Scikit-Learn, NumPy, Pandas: Machine learning and statistical anomaly detection
-- PyJWT & Cryptography: RS256 JWT identity token assertion verification
-- Uvicorn: ASGI production web server
+Measurements recorded across representative university marksheet workbooks (Windows 11, Python 3.14.2, DuckDB 1.5.6):
 
-### Frontend Core
-- Node.js >= 18 (Verified on Node.js v24.14.0)
-- React 19 + TypeScript (Strict typing enabled)
-- Vite: Frontend build tool with Hot Module Replacement
-- React Router 7: Client-side single-page routing
-- Lucide React: Standard accessible interface icons
-- Native CSS Tokens: Academic administration design system
+| Workbook | Cohort Profile | File Size | Core Ingestion (`calamine` + DuckDB) | Full Pipeline (`create_temporary_session`) |
+| :--- | :--- | :---: | :---: | :---: |
+| **`Result_anonymized.xlsx`** | **145 Students, 27 Courses** | **154.9 KiB** | **740.30 ms** | **868.24 ms** |
+| `test1_commerce.xlsx` | 20 Students, 10 Courses | 20.4 KiB | 103.98 ms | 167.71 ms |
+| `test1_engineering.xlsx`| 20 Students, 10 Courses (3 Divs) | 20.3 KiB | 101.97 ms | 217.63 ms |
+| `test2_lifesciences.xlsx`| 15 Students, 8 Courses | 12.9 KiB | 81.30 ms | 175.44 ms |
+| `test3_arts.xlsx` | 18 Students, 9 Courses | 15.6 KiB | 89.94 ms | 186.11 ms |
 
-### Testing & Infrastructure
-- Pytest, AnyIO: Backend testing and concurrency verification
-- Vitest, React Testing Library: Frontend unit and component testing
-- Docker: Multi-stage container packaging
-- Render: Backend Docker hosting blueprint (`render.yaml`)
-- Vercel: Frontend static deployment configuration (`vercel.json`)
+- **Frontend Initial Mount:** `< 100 ms` (Immediate non-blocking upload workspace).
+- **Warm Session Verification:** `15–25 ms`.
+- **Total Local HTTP Round-Trip:** `~837 ms` on the 145-student cohort.
+
+For full benchmark methodology and latency decomposition, see [`docs/production-performance-and-reliability.md`](./docs/production-performance-and-reliability.md).
 
 ---
 
 ## Quick Start
 
-### 1. Prerequisites
-- Python 3.11, 3.12, 3.13, or 3.14
-- Node.js >= 18 and npm
-- Git
+### Prerequisites
+- **Python:** 3.11, 3.12, 3.13, or 3.14
+- **Node.js:** $\ge$ 18.x and `npm`
+- **Git**
 
-### 2. Backend Setup
+---
+
+### Local Development Setup
+
+#### 1. Backend
 
 ```bash
-# Clone repository
-git clone https://github.com/armash66/eduquery.git
-cd eduquery
+# Clone the repository
+git clone https://github.com/armash66/edu-query.git
+cd edu-query
 
 # Create and activate virtual environment
 # Windows (PowerShell):
@@ -166,190 +158,96 @@ python -m venv .venv
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install backend dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Copy environment configuration
-cp .env.example .env
-```
-
-### 3. Frontend Setup
-
-```bash
-cd frontend
-npm install
-cd ..
-```
-
-### 4. Running Locally
-
-Start the backend API server in terminal 1:
-```bash
+# Run backend development server
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Start the frontend development server in terminal 2:
+#### 2. Frontend
+
+In a separate terminal:
+
 ```bash
 cd frontend
+
+# Install frontend dependencies
+npm install
+
+# Start Vite development server
 npm run dev
 ```
 
-Open your browser at:
-`http://localhost:5173`
-
-The interactive API documentation is available at `http://127.0.0.1:8000/docs`.
+Visit [`http://localhost:5173`](http://localhost:5173) in your browser. Interactive API documentation is available at [`http://127.0.0.1:8000/docs`](http://127.0.0.1:8000/docs).
 
 ---
 
-## Configuration
+### Docker Deployment
 
-Configuration is managed through environment variables (defined in `.env` or container settings).
-
-| Variable | Default | Description |
-| :--- | :--- | :--- |
-| `EDUQUERY_ENV` | `production` | Runtime mode: `development`, `testing`, `production`. |
-| `HOST` | `0.0.0.0` | Bind host address. |
-| `PORT` | `8000` | Bind port for ASGI server. |
-| `EDUQUERY_DATA_DIR` | `data` | Base directory for persistent datasets, pointer files, and reviews. |
-| `EDUQUERY_TEMPORARY_SESSIONS_DIR` | `/tmp/eduquery-sessions` | Isolated directory for ephemeral analysis sessions. |
-| `EDUQUERY_DATABASE_PATH` | `data/eduquery.duckdb` | Fallback persistent database file path. |
-| `EDUQUERY_ACTIVE_POINTER_PATH` | `data/active_dataset.json` | Path to atomic active dataset pointer file. |
-| `EDUQUERY_CORS_ORIGINS` | `""` | Comma-separated list of allowed browser origins. |
-| `EDUQUERY_MAX_UPLOAD_SIZE_BYTES` | `26214400` (25 MiB) | Maximum upload file stream size in bytes. |
-| `EDUQUERY_IMPORT_SESSION_TTL_SECONDS` | `3600` (1 hour) | Inactivity expiration time for ephemeral sessions. |
-| `EDUQUERY_LOG_LEVEL` | `INFO` | Server logging verbosity (PII is never logged). |
-| `EDUQUERY_GATEWAY_AUTH_REQUIRED` | `false` | When `true`, enforces Cloudflare Access JWT validation. |
-| `CF_ACCESS_TEAM_DOMAIN` | `""` | Cloudflare Access team domain. |
-| `CF_ACCESS_AUD` | `""` | Cloudflare Access application Audience tag (AUD). |
-| `EDUQUERY_GATEWAY_SHARED_SECRET` | `""` | Optional shared secret header for reverse proxies. |
-
----
-
-## Deployment
-
-### Container Packaging
-The multi-stage `Dockerfile` compiles the React frontend to static assets and bundles them into a Python 3.11 slim runtime running as non-root user `eduquery:10001`.
+To build and run the production-grade multi-stage container:
 
 ```bash
-docker build -t EduQuery:latest .
+# Build production Docker image
+docker build -t eduquery:latest .
+
+# Run containerized application
+docker run -p 8000:8000 --rm eduquery:latest
 ```
 
-### Production Hosting with Render
-The repository includes a declarative `render.yaml` blueprint:
-- Service Type: Docker Web Service.
-- Persistent Storage: 10 GB disk mounted at `/app/data` for persistent institutional datasets.
-- Ephemeral Storage: Mounted at `/tmp/eduquery-sessions` for privacy-first sessions.
-- Health Check: `/livez` orchestration probe.
-
-### Frontend Hosting with Vercel
-The frontend can also be deployed to Vercel independently:
-- Root directory: `frontend`
-- Build command: `npm run build`
-- Output directory: `dist`
-- Environment Variable: `VITE_API_BASE_URL=https://eduquery-api.onrender.com`
-
-For complete deployment and infrastructure verification instructions, see [`docs/deployment.md`](./docs/deployment.md).
+The container automatically serves the compiled React single-page application and the FastAPI backend unified on port `8000`.
 
 ---
 
-## Security and Privacy
+## Testing & Verification
 
-- Zero Student PII Logging: Names, seat numbers, roll numbers, and raw marks are excluded from server logs.
-- Ephemeral Sessions: Uploaded marksheets are parsed into temporary memory sessions. All session artifacts are removed on session deletion or idle TTL expiry.
-- Faculty Identity Gateway: Supports Cloudflare Access RS256 JWT validation, audience verification, issuer checks, fail-closed handling, and Render origin bypass prevention.
-- Strict CORS Matching: Evaluates origins against explicit allowlists, rejecting lookalike domains (`attacker.com`) and wildcard credential sharing.
-- CSV Protections: Session tokens are removed from GET query strings. Native downloads utilize single-use 60-second atomic download tickets, and formula injection trigger characters are automatically escaped.
-
-For detailed security boundaries and threat models, see [`docs/security.md`](./docs/security.md).
-
----
-
-## Testing
-
-EduQuery enforces rigorous automated test coverage across backend and frontend layers:
+EduQuery is maintained under comprehensive automated regression testing:
 
 ```bash
-# Run backend tests (279 passed in ~58s)
-pytest
+# Run backend test suite (328 passed)
+python -m pytest -q
 
-# Run frontend tests (61 passed in ~15s)
+# Run frontend test suite (107 passed)
 cd frontend
-npm run test
+npm run test:run
 
-# Run strict TypeScript type check (0 errors)
-node ./node_modules/typescript/bin/tsc -b
-
-# Verify production build
+# Verify TypeScript compilation and production build
 npm run build
-cd ..
-```
-
-### Verified Acceptance Baseline
-The ingestion engine is verified against 7 real and synthetic curriculum workbooks:
-- `Result_anonymized.xlsx`: 145 students, 27 courses, 13,775 scores, 132 passed, 13 failed, 4 MDM electives (100% reconciled).
-- 6 Domain Generalization Workbooks: Commerce 3-division, Life Sciences single-row batches, Engineering multi-sheet per-division (455 students, 23,765 scores total with zero silent data loss).
-
-For testing guides and acceptance matrices, see [`docs/testing.md`](./docs/testing.md).
-
----
-
-## Project Structure
-
-```text
-EduQuery/
-├── app/
-│   ├── config.py              # Environment configuration and validation
-│   ├── main.py                # FastAPI application entrypoint and factory
-│   ├── core/                  # Ingestion, cataloging, models, database, and gateway auth
-│   ├── reports/               # Student breakdown and subject failure services
-│   ├── services/              # Application services (analytics, investigation, session manager)
-│   └── api/                   # REST routing, schemas, and request-scoped dependencies
-├── frontend/
-│   ├── src/
-│   │   ├── api/               # Typed API client and blob download handlers
-│   │   ├── components/        # UI components (tables, badges, modals, charts, filters)
-│   │   ├── context/           # Session and health contexts
-│   │   └── pages/             # Overview, Upload, Explore, Students, Failures, Subjects, Quality
-│   └── dist/                  # Compiled production static bundle
-├── docs/                      # Technical documentation and historical phase reports
-├── scripts/                   # Reproducible anomaly detection benchmark evaluation
-├── tests/                     # Automated test suites (279 backend tests)
-├── Dockerfile                 # Multi-stage production container build
-├── render.yaml                # Render production hosting specification
-├── vercel.json                # Vercel SPA routing configuration
-└── requirements.txt           # Minimal Python dependencies
 ```
 
 ---
 
-## Limitations and Roadmap
+## Documentation
 
-### Current Limitations
-- Marksheet Formats: Optimized for Microsoft Excel `.xlsx` OpenXML workbooks. Legacy `.xls` binary formats or legacy scanned PDFs are not supported.
-- Single-Instance Tickets: Download tickets are stored in-memory per container. Multi-instance load-balanced deployments require sticky sessions or an external token cache.
-- Single-Sheet Concurrency: Write operations (dataset promotions) are serialized per instance via cross-process locks.
+The [`docs/`](./docs/) directory contains in-depth architectural and operational specifications:
 
-### Future Roadmap
-- Role-Based Access Control (RBAC): Departmental scopes and course-coordinator access restrictions.
-- Accreditation Report Generators: Automated one-click PDF generation for NBA and NAAC criteria documentation.
-- Longitudinal Trends: Multi-semester cohort tracking to analyze student trajectories across academic years.
-
----
-
-## Contributing and License
-
-- License: Proprietary / Institutional Academic Use. All rights reserved. For institutional licensing, deployment, or academic collaboration inquiries, contact the repository maintainers.
-- Contributions: Pull requests must maintain 100% test pass rates across backend and frontend suites, pass strict TypeScript checks, and include unit tests for any new academic invariants or data quality checks.
+- 📄 [`docs/production-performance-and-reliability.md`](./docs/production-performance-and-reliability.md) — Production performance engineering, session restoration, ingestion profiling, and SQL correctness.
+- 📐 [`docs/architecture.md`](./docs/architecture.md) — System boundaries, database concurrency, and domain layer architecture.
+- 🔒 [`docs/security.md`](./docs/security.md) — Faculty Identity Gateway (RS256 JWT), CORS security, and threat modeling.
+- 📊 [`docs/data-handling.md`](./docs/data-handling.md) — Marksheet parsing rules, five-state induction, and MDM elective invariants.
+- 🔬 [`docs/investigation-engine.md`](./docs/investigation-engine.md) — Multi-condition query grammar, AST translation, and presets.
+- 📑 [`docs/api-contract.md`](./docs/api-contract.md) — Complete REST endpoint schemas and error envelopes.
 
 ---
 
-## Documentation Index
+## Citation
 
-- System Architecture: [`docs/architecture.md`](./docs/architecture.md)
-- Development Setup: [`docs/development.md`](./docs/development.md)
-- Production Deployment: [`docs/deployment.md`](./docs/deployment.md)
-- Security and Privacy: [`docs/security.md`](./docs/security.md)
-- Data Handling & Invariants: [`docs/data-handling.md`](./docs/data-handling.md)
-- Testing & Verification: [`docs/testing.md`](./docs/testing.md)
-- REST API Contracts: [`docs/api-contract.md`](./docs/api-contract.md)
-- Documentation Directory Index: [`docs/README.md`](./docs/README.md)
+If you use EduQuery in your research or academic administration workflows, please cite:
+
+```bibtex
+@software{ansari2026eduquery,
+  author       = {Ansari, Armash},
+  title        = {EduQuery: Deterministic Academic Marksheet Intelligence & Verification Engine},
+  year         = {2026},
+  publisher    = {GitHub},
+  journal      = {GitHub repository},
+  howpublished = {\url{https://github.com/armash66/edu-query}},
+  version      = {3.0.0}
+}
+```
+
+---
+
+## License
+
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
