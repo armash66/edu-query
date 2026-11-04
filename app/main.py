@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator
@@ -122,8 +123,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_credentials=not has_wildcard,
             allow_methods=["*"],
             allow_headers=["*"],
-            expose_headers=["Content-Disposition", "X-EduQuery-Filename"],
+            expose_headers=["Content-Disposition", "X-EduQuery-Filename", "X-Process-Time-Ms"],
         )
+
+    # Latency tracking and request duration logging middleware (monotonic timer)
+    @app.middleware("http")
+    async def request_timing_middleware(request: Request, call_next):
+        start_time = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = (time.perf_counter() - start_time) * 1000.0
+        response.headers["X-Process-Time-Ms"] = f"{duration_ms:.1f}"
+
+        path = request.url.path
+        if not path.startswith("/assets") and path not in ("/livez", "/readyz"):
+            logger.info(
+                "HTTP %s %s completed in %.1fms with status %s",
+                request.method,
+                path,
+                duration_ms,
+                response.status_code,
+            )
+        return response
 
     # Faculty Identity Gateway middleware (enforces zero-trust gateway when configured)
     @app.middleware("http")

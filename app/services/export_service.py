@@ -104,9 +104,10 @@ def _apply_workbook_styles(ws: openpyxl.worksheet.worksheet.Worksheet, header_ro
     # Freeze header row so it stays pinned during scroll
     ws.freeze_panes = ws.cell(row=header_row_idx + 1, column=1)
 
-    # Enable Excel auto-filter across header columns (must have at least one data row to be valid OOXML)
-    if ws.max_column >= 1 and ws.max_row > header_row_idx:
-        ws.auto_filter.ref = f"A{header_row_idx}:{get_column_letter(ws.max_column)}{ws.max_row}"
+    # Enable Excel auto-filter across header columns for complete table range (e.g. A5:O{last_data_row})
+    if ws.max_column >= 1:
+        last_row = max(ws.max_row, header_row_idx)
+        ws.auto_filter.ref = f"A{header_row_idx}:{get_column_letter(ws.max_column)}{last_row}"
 
     for row in ws.iter_rows(min_row=header_row_idx + 1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
         for cell in row:
@@ -1096,7 +1097,19 @@ def export_student_breakdown_excel(
         cur_row = ws.max_row
         ws.cell(row=cur_row, column=1).data_type = "s"
 
+    # Explicitly ensure Source Sheet (Col 14 / N) and Source Row (Col 15 / O) are assigned on row 5
+    ws.cell(row=table_header_row, column=14).value = "Source Sheet"
+    ws.cell(row=table_header_row, column=15).value = "Source Row"
+
     _apply_workbook_styles(ws, header_row_idx=table_header_row)
+
+    # Guarantee minimum widths and styling for provenance columns
+    ws.column_dimensions["N"].width = max(ws.column_dimensions["N"].width or 0, 16.0)
+    ws.column_dimensions["O"].width = max(ws.column_dimensions["O"].width or 0, 14.0)
+
+    # Ensure full data range auto-filter coverage (A5:O{last_data_row})
+    last_data_row = max(ws.max_row, table_header_row)
+    ws.auto_filter.ref = f"A{table_header_row}:O{last_data_row}"
 
     ws.cell(row=1, column=1).font = Font(name="Calibri", size=13, bold=True, color="0F172A")
     meta_font = Font(name="Calibri", size=10, bold=True, color="334155")
@@ -1190,7 +1203,19 @@ def export_investigation_excel(
             cell.data_type = "s"
             cell.number_format = "@"
 
+    # Explicitly ensure Source Sheet (Col 14 / N) and Source Row (Col 15 / O) are assigned on row 5
+    ws.cell(row=table_header_row, column=14).value = "Source Sheet"
+    ws.cell(row=table_header_row, column=15).value = "Source Row"
+
     _apply_workbook_styles(ws, header_row_idx=table_header_row)
+
+    # Guarantee minimum widths and styling for provenance columns
+    ws.column_dimensions["N"].width = max(ws.column_dimensions["N"].width or 0, 16.0)
+    ws.column_dimensions["O"].width = max(ws.column_dimensions["O"].width or 0, 14.0)
+
+    # Ensure full data range auto-filter coverage (A5:O{last_data_row})
+    last_data_row = max(ws.max_row, table_header_row)
+    ws.auto_filter.ref = f"A{table_header_row}:O{last_data_row}"
 
     ws.cell(row=1, column=1).font = Font(name="Calibri", size=13, bold=True, color="0F172A")
     meta_font = Font(name="Calibri", size=10, bold=True, color="334155")

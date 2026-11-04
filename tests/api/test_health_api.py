@@ -101,3 +101,23 @@ def test_application_factory_independent_configuration():
     app1 = create_app()
     app2 = create_app()
     assert app1 is not app2
+
+
+def test_timing_middleware_adds_process_time_header(clean_client):
+    """Verify response includes X-Process-Time-Ms duration header computed via monotonic timer."""
+    resp = clean_client.get("/livez")
+    assert resp.status_code == 200
+    assert "x-process-time-ms" in resp.headers
+    ms_val = float(resp.headers["x-process-time-ms"])
+    assert ms_val >= 0.0
+
+
+def test_livez_and_readyz_probes_lightweight(clean_client):
+    """Verify Kubernetes/Render liveness and readiness probes respond 200 without database access."""
+    live_resp = clean_client.get("/livez")
+    assert live_resp.status_code == 200
+    assert live_resp.json() == {"status": "alive", "version": "3.0.0"}
+
+    ready_resp = clean_client.get("/readyz")
+    assert ready_resp.status_code == 200
+    assert ready_resp.json() == {"status": "ready", "version": "3.0.0"}

@@ -301,18 +301,10 @@ export function clearSessionToken(): void {
 
 
 
-interface FetchOptions extends RequestInit {
-
-
-
+export interface FetchOptions extends RequestInit {
   adminKey?: string | null
-
-
-
   sessionToken?: string | null
-
-
-
+  timeoutMs?: number | null
 }
 
 
@@ -421,77 +413,59 @@ export async function request<T>(path: string, options: FetchOptions = {}): Prom
 
 
 
-  try {
+    const timeoutMs = options.timeoutMs !== undefined ? options.timeoutMs : (
+    path.includes('/upload') ? 180_000 : 30_000
+  )
 
+  let timerId: ReturnType<typeof setTimeout> | null = null
+  let timedOut = false
+  const controller = new AbortController()
 
-
-    response = await fetch(url, {
-
-
-
-      credentials: 'same-origin',
-
-
-
-      ...options,
-
-
-
-      headers,
-
-
-
-    })
-
-
-
-  } catch (err: unknown) {
-
-
-
-    if (err instanceof DOMException && err.name === 'AbortError') {
-
-
-
-      throw err
-
-
-
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort(options.signal.reason)
+    } else {
+      options.signal.addEventListener('abort', () => {
+        controller.abort(options.signal?.reason)
+      })
     }
-
-
-
-    const message = err instanceof Error ? err.message : 'Network request failed'
-
-
-
-    throw new ApiError(
-
-
-
-      0,
-
-
-
-      'NETWORK_ERROR',
-
-
-
-      `Cannot connect to EduQuery backend at ${BASE_URL || 'local server'}. Please ensure the server is running. (${message})`
-
-
-
-    )
-
-
-
   }
 
+  if (timeoutMs && timeoutMs > 0) {
+    timerId = setTimeout(() => {
+      timedOut = true
+      controller.abort(new DOMException(`Request timed out after ${timeoutMs}ms`, 'TimeoutError'))
+    }, timeoutMs)
+  }
 
-
-
-
-
+  try {
+    response = await fetch(url, {
+      credentials: 'same-origin',
+      ...options,
+      headers,
+      signal: controller.signal,
+    })
+  } catch (err: unknown) {
+    if (timerId) clearTimeout(timerId)
+    if (timedOut) {
+      throw new ApiError(
+        0,
+        'REQUEST_TIMEOUT',
+        `Request to ${path} timed out after ${timeoutMs}ms. The server may be warming up or unreachable.`
+      )
+    }
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
+    const message = err instanceof Error ? err.message : 'Network request failed'
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      `Cannot connect to EduQuery backend at ${BASE_URL || 'local server'}. Please ensure the server is running. (${message})`
+    )
+  } finally {
+    if (timerId) clearTimeout(timerId)
+  }
 
   // Parse JSON or handle non-JSON responses
 
@@ -749,75 +723,61 @@ export async function requestBlob(path: string, options: FetchOptions = {}): Pro
 
 
 
+    const timeoutMs = options.timeoutMs !== undefined ? options.timeoutMs : 60_000
+
+  let timerId: ReturnType<typeof setTimeout> | null = null
+  let timedOut = false
+  const controller = new AbortController()
+
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort(options.signal.reason)
+    } else {
+      options.signal.addEventListener('abort', () => {
+        controller.abort(options.signal?.reason)
+      })
+    }
+  }
+
+  if (timeoutMs && timeoutMs > 0) {
+    timerId = setTimeout(() => {
+      timedOut = true
+      controller.abort(new DOMException(`Export timed out after ${timeoutMs}ms`, 'TimeoutError'))
+    }, timeoutMs)
+  }
+
   let response: Response
 
-
-
   try {
-
-
-
     response = await fetch(url, {
-
-
-
       credentials: 'same-origin',
-
-
-
       ...options,
-
-
-
       headers,
-
-
-
+      signal: controller.signal,
     })
-
-
-
   } catch (err: unknown) {
-
-
-
-    if (err instanceof DOMException && err.name === 'AbortError') {
-
-
-
-      throw err
-
-
-
+    if (timerId) clearTimeout(timerId)
+    if (timedOut) {
+      throw new ApiError(
+        0,
+        'REQUEST_TIMEOUT',
+        `Export request to ${path} timed out after ${timeoutMs}ms.`
+      )
     }
-
-
-
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
     const message = err instanceof Error ? err.message : 'Network request failed'
-
-
-
     throw new ApiError(
-
-
-
       0,
-
-
-
       'NETWORK_ERROR',
-
-
-
-      `Cannot connect to EduQuery backend at ${BASE_URL || 'local server'}. (${message})`
-
-
-
+      `Cannot connect to EduQuery backend at ${BASE_URL || 'local server'}. Please ensure the server is running. (${message})`
     )
-
-
-
+  } finally {
+    if (timerId) clearTimeout(timerId)
   }
+
+
 
 
 
@@ -989,75 +949,61 @@ export async function downloadAndSaveFile(
 
 
 
+    const timeoutMs = options.timeoutMs !== undefined ? options.timeoutMs : 60_000
+
+  let timerId: ReturnType<typeof setTimeout> | null = null
+  let timedOut = false
+  const controller = new AbortController()
+
+  if (options.signal) {
+    if (options.signal.aborted) {
+      controller.abort(options.signal.reason)
+    } else {
+      options.signal.addEventListener('abort', () => {
+        controller.abort(options.signal?.reason)
+      })
+    }
+  }
+
+  if (timeoutMs && timeoutMs > 0) {
+    timerId = setTimeout(() => {
+      timedOut = true
+      controller.abort(new DOMException(`Export timed out after ${timeoutMs}ms`, 'TimeoutError'))
+    }, timeoutMs)
+  }
+
   let response: Response
 
-
-
   try {
-
-
-
     response = await fetch(url, {
-
-
-
       credentials: 'same-origin',
-
-
-
       ...options,
-
-
-
       headers,
-
-
-
+      signal: controller.signal,
     })
-
-
-
   } catch (err: unknown) {
-
-
-
-    if (err instanceof DOMException && err.name === 'AbortError') {
-
-
-
-      throw err
-
-
-
+    if (timerId) clearTimeout(timerId)
+    if (timedOut) {
+      throw new ApiError(
+        0,
+        'REQUEST_TIMEOUT',
+        `Export request to ${path} timed out after ${timeoutMs}ms.`
+      )
     }
-
-
-
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw err
+    }
     const message = err instanceof Error ? err.message : 'Network request failed'
-
-
-
     throw new ApiError(
-
-
-
       0,
-
-
-
       'NETWORK_ERROR',
-
-
-
-      `Cannot connect to EduQuery backend at ${BASE_URL || 'local server'}. (${message})`
-
-
-
+      `Cannot connect to EduQuery backend at ${BASE_URL || 'local server'}. Please ensure the server is running. (${message})`
     )
-
-
-
+  } finally {
+    if (timerId) clearTimeout(timerId)
   }
+
+
 
 
 
@@ -3607,62 +3553,19 @@ export async function createSampleSession(): Promise<SessionUploadResponse> {
 
 
 
-export async function uploadSession(file: File): Promise<SessionUploadResponse> {
-
-
-
+export async function uploadSession(file: File, options?: FetchOptions): Promise<SessionUploadResponse> {
   const formData = new FormData()
-
-
-
   formData.append('file', file)
-
-
-
-
-
-
-
   const res = await request<SessionUploadResponse>('/api/v1/session/upload', {
-
-
-
     method: 'POST',
-
-
-
     body: formData,
-
-
-
+    timeoutMs: options?.timeoutMs ?? 180_000,
+    ...options,
   })
-
-
-
-
-
-
-
   if (res?.session_id) {
-
-
-
     setSessionToken(res.session_id)
-
-
-
   }
-
-
-
-
-
-
-
   return res
-
-
-
 }
 
 
@@ -3731,14 +3634,11 @@ export async function confirmSession(sessionId?: string): Promise<SessionConfirm
 
 
 
-export async function getSessionStatus(): Promise<SessionStatusResponse> {
-
-
-
-  return request<SessionStatusResponse>('/api/v1/session/status')
-
-
-
+export async function getSessionStatus(options?: FetchOptions): Promise<SessionStatusResponse> {
+  return request<SessionStatusResponse>('/api/v1/session/status', {
+    timeoutMs: options?.timeoutMs ?? 60_000,
+    ...options,
+  })
 }
 
 
